@@ -8,38 +8,44 @@ using UnityEngine;
 
 namespace WaypointQueue
 {
-    [HarmonyPatch(typeof(AutoEngineerOrdersHelper), nameof(AutoEngineerOrdersHelper.SetWaypoint))]
+    [HarmonyPatch(typeof(AutoEngineerOrdersHelper))]
     internal class PatchAutoEngineerOrdersHelper
     {
-        public class PatchState
+        [HarmonyPrefix]
+        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.SetWaypoint))]
+        static bool SetWaypointPrefix(Location location, string coupleToCarId, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
-            public bool _isAppendingWaypoint;
-            public OrderWaypoint? _oldWaypoint;
+            Loader.LogDebug($"SetWaypoint prefix");
 
-            public PatchState(bool isAppendingWaypoint, OrderWaypoint? oldWaypoint)
-            {
-                _isAppendingWaypoint = isAppendingWaypoint;
-                _oldWaypoint = oldWaypoint;
-            }
-        }
-
-        static bool Prefix(Location location, string coupleToCarId, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
-        {
-            OrderWaypoint? oldWaypoint = ____persistence.Orders.Waypoint;
+            OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
             bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeKey.keyCode);
 
-            if (isAppendingWaypoint && oldWaypoint != null)
+            // Setting a waypoint without the appending modifier will reset the locomotive's waypoint list
+            if (!isAppendingWaypoint)
             {
-                (Location, string)? maybeWaypoint = (location, coupleToCarId);
-                if (maybeWaypoint.HasValue)
-                {
-                    string couplingLogSegment = coupleToCarId != null && coupleToCarId.Length > 0 ? $" and coupling to ${coupleToCarId}" : "";
-                    Loader.Log($"Adding waypoint {location}{couplingLogSegment} for loco {____locomotive.id}, after original waypoint {oldWaypoint.Value.LocationString}");
-                    WaypointQueueController.Shared.AddLocoWaypoint(____locomotive, new MaybeWaypoint(location, coupleToCarId));
-                }
-                return false;
+                WaypointQueueController.Shared.ClearWaypointState(____locomotive);
             }
-            return true;
+            if (existingWaypoint != null)
+            {
+                Loader.LogDebug($"Current waypoint for {____locomotive.Ident} is {existingWaypoint.Value.LocationString}");
+            }
+
+            // Always add the waypoint to the queue
+            if (location != null)
+            {
+                WaypointQueueController.Shared.AddWaypoint(____locomotive, location, coupleToCarId);
+            }
+
+            // Skip original since we need to manage waypoints to keep track of any orders that need to be resolved
+            return false;
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
+        static void ClearWaypointPostfix(ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
+        {
+            Loader.LogDebug($"ClearWaypoint postfix");
+            WaypointQueueController.Shared.RemoveCurrentWaypoint(____locomotive);
         }
     }
 }

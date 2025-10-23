@@ -1,6 +1,9 @@
-﻿using HarmonyLib;
+﻿using GalaSoft.MvvmLight.Messaging;
+using Game.Events;
+using HarmonyLib;
 using System;
 using System.Reflection;
+using UI.Common;
 using UnityEngine;
 using UnityModManagerNet;
 
@@ -14,7 +17,9 @@ namespace WaypointQueue.UUM
         public static UnityModManager.ModEntry ModEntry { get; private set; }
         public static Harmony HarmonyInstance { get; private set; }
         public static WaypointQueueController Instance { get; private set; }
+        public static WaypointWindow WaypointWindow { get; private set; }
         public static WaypointQueueSettings Settings { get; private set; }
+        private static bool MapHasLoaded = false;
 
         private static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -26,10 +31,12 @@ namespace WaypointQueue.UUM
 
             ModEntry = modEntry;
             Settings = UnityModManager.ModSettings.Load<WaypointQueueSettings>(modEntry);
+            Messenger.Default.Register<MapDidLoadEvent>(modEntry, OnMapDidLoad);
             ModEntry.OnUnload = Unload;
             ModEntry.OnToggle = OnToggle;
             ModEntry.OnGUI = OnGUI;
             ModEntry.OnSaveGUI = OnSaveGUI;
+            ModEntry.OnUpdate = OnUpdate;
 
             HarmonyInstance = new Harmony(modEntry.Info.Id);
             Harmony.DEBUG = true;
@@ -43,9 +50,13 @@ namespace WaypointQueue.UUM
                 try
                 {
                     HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
-                    var go = new GameObject("[WaypointQueue]");
-                    Instance = go.AddComponent<WaypointQueueController>();
-                    UnityEngine.Object.DontDestroyOnLoad(go);
+                    var waypointQueueGO = new GameObject("WaypointQueue");
+                    Instance = waypointQueueGO.AddComponent<WaypointQueueController>();
+                    UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
+                    if (MapHasLoaded && WaypointWindow == null)
+                    {
+                        InitWindow();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -53,6 +64,8 @@ namespace WaypointQueue.UUM
                     HarmonyInstance?.UnpatchAll(modEntry.Info.Id);
                     if (Instance != null) UnityEngine.Object.DestroyImmediate(Instance.gameObject);
                     Instance = null;
+                    if (WaypointWindow != null) UnityEngine.Object.DestroyImmediate(WaypointWindow.gameObject);
+                    WaypointWindow = null;
                     return false;
                 }
             }
@@ -62,6 +75,14 @@ namespace WaypointQueue.UUM
             }
 
             return true;
+        }
+
+        private static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)
+        {
+            if (Settings.toggleWaypointPanelKey.Down() && WaypointWindow != null)
+            {
+                WaypointWindow.Toggle();
+            }
         }
 
         private static bool Unload(UnityModManager.ModEntry modEntry)
@@ -82,6 +103,18 @@ namespace WaypointQueue.UUM
             Settings.Save(modEntry);
         }
 
+        private static void OnMapDidLoad(MapDidLoadEvent @event)
+        {
+            MapHasLoaded = true;
+            InitWindow();
+        }
+
+        private static void InitWindow()
+        {
+            WindowHelper.CreateWindow<WaypointWindow>(null);
+            WaypointWindow = WindowManager.Shared.GetWindow<WaypointWindow>();
+        }
+
         public static void Log(string str)
         {
             ModEntry?.Logger.Log(str);
@@ -89,9 +122,9 @@ namespace WaypointQueue.UUM
 
         public static void LogDebug(string str)
         {
-        #if DEBUG
+#if DEBUG
             ModEntry?.Logger.Log(str);
-        #endif
+#endif
         }
     }
 }
