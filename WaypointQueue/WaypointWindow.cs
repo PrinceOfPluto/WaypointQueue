@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using UI;
 using UI.Builder;
 using UI.Common;
 using UnityEngine;
@@ -196,7 +197,7 @@ namespace WaypointQueue
                 builder.HStack(delegate (UIPanelBuilder builder)
                 {
                     string pluralCars = waypoint.NumberOfCarsToUncouple == 1 ? "car" : "cars";
-                    builder.AddField($"Uncouple ", builder.HStack(delegate (UIPanelBuilder field)
+                    builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
                     {
                         field.AddLabel($"{waypoint.NumberOfCarsToUncouple} {pluralCars}")
                             .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
@@ -204,19 +205,30 @@ namespace WaypointQueue
                             .Height(30f);
                         field.AddButton("-", delegate
                         {
-                            waypoint.NumberOfCarsToUncouple -= 1;
+                            int result = Mathf.Max(waypoint.NumberOfCarsToUncouple - GetOffsetAmount(), 0);
+                            waypoint.NumberOfCarsToUncouple = result;
                             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
                         }).Disable(waypoint.NumberOfCarsToUncouple <= 0);
                         field.AddButton("+", delegate
                         {
-                            waypoint.NumberOfCarsToUncouple += 1;
+                            waypoint.NumberOfCarsToUncouple += GetOffsetAmount();
                             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
                         });
+
                     }));
                 });
 
                 if (waypoint.IsUncoupling)
                 {
+                    builder.AddField($"Start cut from", builder.HStack(delegate (UIPanelBuilder field)
+                    {
+                        field.AddLabel(waypoint.UncoupleNearestToWaypoint ? "Closest car to waypoint" : "Furthest car from waypoint");
+                        field.AddButtonCompact("Swap", () =>
+                        {
+                            waypoint.UncoupleNearestToWaypoint = !waypoint.UncoupleNearestToWaypoint;
+                            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                        });
+                    }));
                     builder.AddField("Bleed air", builder.AddToggle(() => waypoint.BleedAirOnUncouple, delegate (bool value)
                     {
                         waypoint.BleedAirOnUncouple = value;
@@ -229,6 +241,14 @@ namespace WaypointQueue
                     }, interactable: waypoint.IsUncoupling));
                 }
             }
+        }
+
+        private int GetOffsetAmount()
+        {
+            int offsetAmount = 1;
+            if (GameInput.IsShiftDown) offsetAmount = 5;
+            if (GameInput.IsControlDown) offsetAmount = 10;
+            return offsetAmount;
         }
 
         private void JumpCameraToWaypoint(ManagedWaypoint waypoint)
