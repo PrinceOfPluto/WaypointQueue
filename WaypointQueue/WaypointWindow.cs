@@ -68,8 +68,7 @@ namespace WaypointQueue
         {
             Loader.LogDebug($"Rebuilding and showing waypoint panel");
             Rebuild();
-            var rect = GetComponent<RectTransform>();
-            rect.position = new Vector2((float)Screen.width, (float)Screen.height - 40);
+            WindowPersistence.SetInitialPositionSize(Shared.Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing);
             Shared.Window.ShowWindow();
 
             if (_coroutine == null)
@@ -81,7 +80,7 @@ namespace WaypointQueue
 
         public void Hide()
         {
-            Shared.Show();
+            Shared.Window.CloseWindow();
 
             if (_coroutine != null)
             {
