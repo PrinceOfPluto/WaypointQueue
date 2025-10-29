@@ -96,8 +96,8 @@ namespace WaypointQueue
                 {
                     ResolveWaypointOrders(entry.UnresolvedWaypoint);
                     entry.UnresolvedWaypoint = null;
-                    PatchAutoEngineerOrdersHelper.ClearWaypointReversePatch(ordersHelper);
-                    RemoveCurrentWaypoint(entry.Locomotive);
+                    // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
+                    ordersHelper.ClearWaypoint();
                     waypointsUpdated = true;
                 }
 
