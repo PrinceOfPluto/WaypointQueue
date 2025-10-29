@@ -1,4 +1,5 @@
-﻿using Game.State;
+﻿using Game.Messages;
+using Game.State;
 using Model;
 using Model.AI;
 using System;
@@ -77,7 +78,8 @@ namespace WaypointQueue
                 AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(entry.Locomotive);
 
                 // Let loco continue if it has active waypoint orders
-                if (HasActiveWaypoint(ordersHelper))
+                // or skip if not in waypoint mode
+                if (HasActiveWaypoint(ordersHelper) || ordersHelper.Orders.Mode != Game.Messages.AutoEngineerMode.Waypoint)
                 {
                     continue;
                 }
@@ -93,8 +95,9 @@ namespace WaypointQueue
                 if (entry.UnresolvedWaypoint != null)
                 {
                     ResolveWaypointOrders(entry.UnresolvedWaypoint);
-                    // RemoveCurrentWaypoint will be called as a side effect of ClearWaypoint postfix
-                    ordersHelper.ClearWaypoint();
+                    entry.UnresolvedWaypoint = null;
+                    PatchAutoEngineerOrdersHelper.ClearWaypointReversePatch(ordersHelper);
+                    RemoveCurrentWaypoint(entry.Locomotive);
                     waypointsUpdated = true;
                 }
 
@@ -130,7 +133,7 @@ namespace WaypointQueue
             }
         }
 
-        public void AddWaypoint(Car loco, Location location, string coupleToCarId)
+        public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing)
         {
             bool isCoupling = coupleToCarId != null && coupleToCarId.Length > 0;
             string couplingLogSegment = isCoupling ? $"coupling to ${coupleToCarId}" : "no coupling";
@@ -150,7 +153,15 @@ namespace WaypointQueue
             }
 
             ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
-            entry.Waypoints.Add(waypoint);
+            if (isReplacing && entry.Waypoints.Count > 0)
+            {
+                entry.Waypoints[0] = waypoint;
+                RefreshCurrentWaypoint(loco, GetOrdersHelper(loco));
+            }
+            else
+            {
+                entry.Waypoints.Add(waypoint);
+            }
             Loader.LogDebug($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
 
             OnWaypointsUpdated?.Invoke();
@@ -209,6 +220,8 @@ namespace WaypointQueue
             {
                 state.Waypoints.RemoveAt(0);
                 state.UnresolvedWaypoint = null;
+                Loader.LogDebug($"Invoking OnWaypointsUpdated in RemoveCurrentWaypoint");
+                OnWaypointsUpdated.Invoke();
             }
         }
 
@@ -221,8 +234,36 @@ namespace WaypointQueue
                 if (index >= 0)
                 {
                     waypointList[index] = updatedWaypoint;
+                    Loader.LogDebug($"Invoking OnWaypointsUpdated in UpdateWaypoint");
                     OnWaypointsUpdated.Invoke();
                 }
+            }
+        }
+
+        public void RerouteCurrentWaypoint(Car locomotive)
+        {
+            AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(locomotive);
+            if (HasActiveWaypoint(ordersHelper))
+            {
+                StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locomotive.id));
+            }
+            else
+            {
+                RefreshCurrentWaypoint(locomotive, ordersHelper);
+            }
+        }
+
+        public void RefreshCurrentWaypoint(Car locomotive, AutoEngineerOrdersHelper ordersHelper)
+        {
+            LocoWaypointState state = WaypointStateList.Find(x => x.Locomotive.id == locomotive.id);
+            if (state != null && state.Waypoints.Count > 0)
+            {
+                Loader.LogDebug($"Resetting current waypoint as active");
+                ManagedWaypoint nextWaypoint = state.Waypoints.First();
+                state.UnresolvedWaypoint = nextWaypoint;
+                SendToWaypointFromQueue(nextWaypoint, ordersHelper);
+                Loader.LogDebug($"Invoking OnWaypointsUpdated in RemoveCurrentWaypoint");
+                OnWaypointsUpdated.Invoke();
             }
         }
 
@@ -290,7 +331,7 @@ namespace WaypointQueue
                 List<Car> coupledToOriginal = EnumerateCoupledToEnd(carCoupledTo, directionToCountCars);
 
                 // If we are taking, then we need to include original at index 0
-                if(isTake)
+                if (isTake)
                 {
                     coupledToOriginal.Insert(0, carCoupledTo);
                 }

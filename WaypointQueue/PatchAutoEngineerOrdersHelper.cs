@@ -5,6 +5,7 @@ using Track;
 using Model;
 using WaypointQueue.UUM;
 using UnityEngine;
+using System;
 
 namespace WaypointQueue
 {
@@ -19,9 +20,10 @@ namespace WaypointQueue
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
             bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeKey.keyCode);
+            bool isReplacingWaypoint = Input.GetKey(Loader.Settings.replaceWaypointModeKey.keyCode);
 
-            // Setting a waypoint without the appending modifier will reset the locomotive's waypoint list
-            if (!isAppendingWaypoint)
+            // Setting a waypoint without one of the modifiers will reset the locomotive's waypoint list
+            if (!isAppendingWaypoint && !isReplacingWaypoint)
             {
                 WaypointQueueController.Shared.ClearWaypointState(____locomotive);
             }
@@ -33,7 +35,7 @@ namespace WaypointQueue
             // Always add the waypoint to the queue
             if (location != null)
             {
-                WaypointQueueController.Shared.AddWaypoint(____locomotive, location, coupleToCarId);
+                WaypointQueueController.Shared.AddWaypoint(____locomotive, location, coupleToCarId, isReplacingWaypoint);
             }
 
             // Skip original since we need to manage waypoints to keep track of any orders that need to be resolved
@@ -47,5 +49,9 @@ namespace WaypointQueue
             Loader.LogDebug($"ClearWaypoint postfix");
             WaypointQueueController.Shared.RemoveCurrentWaypoint(____locomotive);
         }
+
+        [HarmonyReversePatch]
+        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
+        public static void ClearWaypointReversePatch(object instance) => throw new NotImplementedException();
     }
 }

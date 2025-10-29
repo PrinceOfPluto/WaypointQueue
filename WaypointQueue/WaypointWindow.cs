@@ -1,4 +1,6 @@
-﻿using Model;
+﻿using Game.Messages;
+using Game.State;
+using Model;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -134,6 +136,8 @@ namespace WaypointQueue
                     builder.Spacer();
 
                     List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
+                    options.Add(new DropdownMenu.RowData("Reroute", "Reroute the current waypoint"));
+                    options.Add(new DropdownMenu.RowData("Refresh", "Forces a refresh of the waypoint window"));
                     options.Add(new DropdownMenu.RowData("Delete all", ""));
 
                     builder.AddOptionsDropdown(options, (int value) =>
@@ -142,8 +146,12 @@ namespace WaypointQueue
                         {
                             case 0:
                                 Loader.LogDebug($"Refreshing orders");
+                                WaypointQueueController.Shared.RerouteCurrentWaypoint(selectedLocomotive);
                                 break;
                             case 1:
+                                Rebuild();
+                                break;
+                            case 2:
                                 PresentDeleteAllModal(selectedLocomotive);
                                 break;
                             default:

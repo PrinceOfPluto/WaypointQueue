@@ -58,6 +58,7 @@ namespace WaypointQueue
         static void LoadPostfix(string saveName)
         {
             Loader.LogDebug($"Load postfix for save name: {saveName}");
+            _timeAlreadyStarted = false;
             try
             {
                 if (saveName == null || saveName.Length == 0)
