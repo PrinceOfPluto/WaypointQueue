@@ -134,6 +134,11 @@ namespace WaypointQueue
                         }
                     }
 
+                    if(!entry.Locomotive.IsStopped(2f))
+                    {
+                        continue;
+                    }
+
                     ResolveWaypointOrders(entry.UnresolvedWaypoint);
                     entry.UnresolvedWaypoint = null;
                     // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
@@ -693,13 +698,14 @@ namespace WaypointQueue
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
+            Loader.LogDebug($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
             if(waypoint.TakeUncoupledCarsAsActiveCut)
             {
                 activeCut = carsToCut;
                 inactiveCut = carsRemaining;
             }
 
-            Loader.LogDebug("Cutting " + String.Join("-", carsToCut.Select(c => $"[{c.Ident}]") + " from " + String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]"))) + " as " + (waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut"));
+            Loader.LogDebug("Cutting " + String.Join("-", carsToCut.Select(c => $"[{c.Ident}]")) + " from " + String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]")) + " as " + (waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut"));
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
@@ -788,12 +794,11 @@ namespace WaypointQueue
             {
                 if (car.TryGetAdjacentCar(endToUncouple, out var adjacent))
                 {
-                    // Leave anglecock open on the car being uncoupled
-                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 1.0f);
+                    // Close anglecocks on both sides to simplify uncoupling. Bleeding air is already a separate option
+                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsCoupled, boolValue: false);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
 
-                    // Close anglecock on the car still connected to the train
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.Anglecock, f: 0f);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsCoupled, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
