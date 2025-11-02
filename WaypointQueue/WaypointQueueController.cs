@@ -129,6 +129,7 @@ namespace WaypointQueue
                         }
                         else
                         {
+                            //Loader.LogDebug($"Still refueling");
                             continue;
                         }
                     }
@@ -466,16 +467,49 @@ namespace WaypointQueue
             return vector;
         }
 
+        private List<string> GetValidLoadsForLoco(BaseLocomotive locomotive)
+        {
+            if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveSteam)
+            {
+                return new List<string> { "water", "coal" };
+            }
+            if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveDiesel)
+            {
+                return new List<string> { "diesel-fuel" };
+            }
+            return null;
+        }
+
         private void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
             InitCarLoaders();
-            List<string> validLoads = ["water", "coal", "diesel"];
+            List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
             CarLoadTargetLoader closestLoader = null;
             float shortestDistance = 0;
 
             foreach (CarLoadTargetLoader targetLoader in _carLoadTargetLoaders)
             {
-                if (validLoads.Contains(targetLoader.load?.name) && Graph.Shared.TryGetLocationFromWorldPoint(targetLoader.transform.position, 10f, out Location loaderLocation))
+                if (!validLoads.Contains(targetLoader.load?.name?.ToLower()))
+                {
+                    continue;
+                }
+                //Loader.LogDebug($"Checking if target {targetLoader.load?.name} loader transform is null");
+
+                bool hasLocation = false;
+                Location loaderLocation;
+                try
+                {
+                    hasLocation = Graph.Shared.TryGetLocationFromWorldPoint(targetLoader.transform.position, 10f, out loaderLocation);
+                }
+                catch (NullReferenceException e)
+                {
+                    //Loader.LogDebug($"Failed to get location for target loader: {e}");
+                    continue;
+                }
+                //Loader.LogDebug($"Target {targetLoader.load?.name} loader transform was not null");
+
+
+                if (hasLocation)
                 {
                     float distanceFromWaypointToLoader = Vector3.Distance(waypoint.Location.GetPosition(), loaderLocation.GetPosition());
 
@@ -483,6 +517,7 @@ namespace WaypointQueue
 
                     if (distanceFromWaypointToLoader < radiusToSearch)
                     {
+                        Loader.LogDebug($"Found {targetLoader.load.name} loader within {distanceFromWaypointToLoader}");
                         if (closestLoader == null)
                         {
                             shortestDistance = distanceFromWaypointToLoader;
@@ -499,6 +534,7 @@ namespace WaypointQueue
 
             if (closestLoader != null)
             {
+                Loader.LogDebug($"Using {closestLoader.load.name} loader at {closestLoader.transform?.position}");
                 Vector3 loaderPosition = WorldTransformer.WorldToGame(closestLoader.transform.position);
                 // CarLoadTargetLoader uses game position for loading logic, not graph Location
                 waypoint.SerializableRefuelPoint = new SerializableVector3(loaderPosition.x, loaderPosition.y, loaderPosition.z);
@@ -548,8 +584,10 @@ namespace WaypointQueue
                     coupledToOriginal.Insert(0, carCoupledTo);
                 }
 
+                int clampedNumberOfCarsToCut = Mathf.Clamp(waypoint.NumberOfCarsToCut, 0, coupledToOriginal.Count);
+
                 Loader.LogDebug($"Cars coupled to original coupled car: " + String.Join("-", coupledToOriginal.Select(c => $"[{c.Ident}]")));
-                Car targetCar = coupledToOriginal.ElementAt(waypoint.NumberOfCarsToCut - 1);
+                Car targetCar = coupledToOriginal.ElementAt(clampedNumberOfCarsToCut - 1);
                 Loader.LogDebug($"Target car is {targetCar.Ident}");
 
                 List<Car> carsLeftBehind = [];
@@ -574,17 +612,20 @@ namespace WaypointQueue
                     SetHandbrakes(carsLeftBehind);
                 }
 
-                Car carToUncouple = carsLeftBehind.First();
+                Car carToUncouple = carsLeftBehind.FirstOrDefault();
 
-                Loader.LogDebug($"Uncoupling {carToUncouple.Ident} for cut of {waypoint.NumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
-                UncoupleCar(carToUncouple, closestEnd);
-
-                if (waypoint.BleedAirOnUncouple)
+                if (carToUncouple != null)
                 {
-                    Loader.LogDebug($"Bleeding air on {carsLeftBehind.Count} cars");
-                    foreach (Car car in carsLeftBehind)
+                    Loader.LogDebug($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
+                    UncoupleCar(carToUncouple, closestEnd);
+
+                    if (waypoint.BleedAirOnUncouple)
                     {
-                        car.air.BleedBrakeCylinder();
+                        Loader.LogDebug($"Bleeding air on {carsLeftBehind.Count} cars");
+                        foreach (Car car in carsLeftBehind)
+                        {
+                            car.air.BleedBrakeCylinder();
+                        }
                     }
                 }
             }
@@ -693,8 +734,12 @@ namespace WaypointQueue
 
         private List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut)
         {
+            if (carsToCut.Count == 0)
+            {
+                return carsToCut;
+            }
             // Check first and last to make sure we aren't splitting a loco and tender
-            List<Car> firstAndLastCars = [carsToCut.First(), carsToCut.Last()];
+            List<Car> firstAndLastCars = [carsToCut.FirstOrDefault(), carsToCut.LastOrDefault()];
             foreach (Car car in firstAndLastCars)
             {
                 if (car.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(car, out Car tender) && !carsToCut.Any(c => c.id == tender.id))
@@ -753,6 +798,10 @@ namespace WaypointQueue
 
         private void SetHandbrakes(List<Car> cars)
         {
+            if(cars.Count == 0)
+            {
+                return;
+            }
             float handbrakePercentage = Loader.Settings.HandbrakePercentOnUncouple;
             float minimum = Loader.Settings.MinimumHandbrakesOnUncouple;
 
