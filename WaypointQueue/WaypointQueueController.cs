@@ -469,9 +469,12 @@ namespace WaypointQueue
         private void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
             InitCarLoaders();
+            List<string> validLoads = ["water", "coal", "diesel"];
+            CarLoadTargetLoader closestLoader = null;
+            float shortestDistance = 0;
+
             foreach (CarLoadTargetLoader targetLoader in _carLoadTargetLoaders)
             {
-                List<string> validLoads = ["water", "coal", "diesel"];
                 if (validLoads.Contains(targetLoader.load?.name) && Graph.Shared.TryGetLocationFromWorldPoint(targetLoader.transform.position, 10f, out Location loaderLocation))
                 {
                     float distanceFromWaypointToLoader = Vector3.Distance(waypoint.Location.GetPosition(), loaderLocation.GetPosition());
@@ -480,15 +483,28 @@ namespace WaypointQueue
 
                     if (distanceFromWaypointToLoader < radiusToSearch)
                     {
-                        Vector3 loaderPosition = WorldTransformer.WorldToGame(targetLoader.transform.position);
-                        // CarLoadTargetLoader uses game position for loading logic, not graph Location
-                        waypoint.SerializableRefuelPoint = new SerializableVector3(loaderPosition.x, loaderPosition.y, loaderPosition.z);
-                        // Water towers will have a null source industry
-                        waypoint.RefuelIndustryId = targetLoader.sourceIndustry?.identifier;
-                        waypoint.RefuelLoadName = targetLoader.load.name;
-                        break;
+                        if (closestLoader == null)
+                        {
+                            shortestDistance = distanceFromWaypointToLoader;
+                            closestLoader = targetLoader;
+                        }
+                        if (distanceFromWaypointToLoader < shortestDistance)
+                        {
+                            shortestDistance = distanceFromWaypointToLoader;
+                            closestLoader = targetLoader;
+                        }
                     }
                 }
+            }
+
+            if (closestLoader != null)
+            {
+                Vector3 loaderPosition = WorldTransformer.WorldToGame(closestLoader.transform.position);
+                // CarLoadTargetLoader uses game position for loading logic, not graph Location
+                waypoint.SerializableRefuelPoint = new SerializableVector3(loaderPosition.x, loaderPosition.y, loaderPosition.z);
+                // Water towers will have a null source industry
+                waypoint.RefuelIndustryId = closestLoader.sourceIndustry?.identifier;
+                waypoint.RefuelLoadName = closestLoader.load.name;
             }
         }
 
