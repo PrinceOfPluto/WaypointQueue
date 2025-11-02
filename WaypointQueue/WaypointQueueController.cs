@@ -505,6 +505,7 @@ namespace WaypointQueue
                 // Water towers will have a null source industry
                 waypoint.RefuelIndustryId = closestLoader.sourceIndustry?.identifier;
                 waypoint.RefuelLoadName = closestLoader.load.name;
+                waypoint.WillRefuel = true;
             }
         }
 
