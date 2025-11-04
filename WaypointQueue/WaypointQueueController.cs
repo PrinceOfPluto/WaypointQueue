@@ -72,8 +72,8 @@ namespace WaypointQueue
         {
             if (_carLoadTargetLoaders == null || _carLoadTargetLoaders.Count <= 0)
             {
-                Loader.LogDebug($"Initializing list of car load target loaders");
-                _carLoadTargetLoaders = FindObjectsOfType<CarLoadTargetLoader>().ToList();
+            Loader.LogDebug($"Initializing list of car load target loaders");
+            _carLoadTargetLoaders = FindObjectsOfType<CarLoadTargetLoader>().ToList();
             }
         }
 
@@ -484,7 +484,7 @@ namespace WaypointQueue
             {
                 distanceFromEndToSlot = -distanceFromEndToSlot;
             }
-
+            
             Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceFromEndToSlot, true, true);
 
             Loader.LogDebug($"Location to refuel {waypoint.RefuelLoadName} is {locationToMove}");
@@ -595,7 +595,7 @@ namespace WaypointQueue
             else
             {
                 Loader.LogDebug($"No result found for fuel loader");
-        }
+            }
         }
 
         private void ResolveCouplingOrders(ManagedWaypoint waypoint)
@@ -603,7 +603,7 @@ namespace WaypointQueue
             Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
             {
-                Loader.LogDebug($"Resolving coupling orders on {car.Ident}");
+                //Loader.LogDebug($"Resolving coupling orders on {car.Ident}");
                 if (waypoint.ConnectAirOnCouple)
                 {
                     ConnectAir(car);
@@ -611,7 +611,7 @@ namespace WaypointQueue
 
                 if (waypoint.ReleaseHandbrakesOnCouple)
                 {
-                    Loader.LogDebug($"Releasing handbrake on {car.Ident}");
+                    //Loader.LogDebug($"Releasing handbrake on {car.Ident}");
                     car.SetHandbrake(false);
                 }
             }
@@ -702,7 +702,7 @@ namespace WaypointQueue
             {
                 if (car.TryGetAdjacentCar(LogicalEnd.A, out var adjacent))
                 {
-                    Loader.LogDebug($"Connecting air from {car.Ident} to {adjacent.Ident}");
+                    //Loader.LogDebug($"Connecting air from {car.Ident} to {adjacent.Ident}");
                     adjacent.ApplyEndGearChange(LogicalEnd.B, EndGearStateKey.IsAirConnected, boolValue: true);
                     adjacent.ApplyEndGearChange(LogicalEnd.B, EndGearStateKey.Anglecock, f: 1.0f);
                 }
@@ -715,7 +715,7 @@ namespace WaypointQueue
 
                 if (car.TryGetAdjacentCar(LogicalEnd.B, out var adjacent2))
                 {
-                    Loader.LogDebug($"Connecting air from {car.Ident} to {adjacent2.Ident}");
+                    //Loader.LogDebug($"Connecting air from {car.Ident} to {adjacent2.Ident}");
                     adjacent2.ApplyEndGearChange(LogicalEnd.A, EndGearStateKey.IsAirConnected, boolValue: true);
                     adjacent2.ApplyEndGearChange(LogicalEnd.A, EndGearStateKey.Anglecock, f: 1.0f);
                 }
@@ -741,19 +741,50 @@ namespace WaypointQueue
 
             carsToCut = FilterAnySplitLocoTenderPairs(carsToCut);
 
-            List<Car> carsRemaining = allCarsFromEnd.Except(carsToCut).ToList();
+            // This can happen if the user selected counting from nearest to waypoint and the locomotive backed up to the waypoint
+            if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
+            {
+                // If the tender and locomotive are the "front" two cars that would be cut, we can treat that as 1 car to cut instead.
+                Car maybeLocoOrTenderA = allCarsFromEnd.ElementAtOrDefault(0);
+                Car maybeLocoOrTenderB = allCarsFromEnd.ElementAtOrDefault(1);
+                Car tender;
+
+                if (maybeLocoOrTenderA.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderA, out tender) && tender.id == maybeLocoOrTenderB.id)
+                {
+                    carsToCut.Add(maybeLocoOrTenderA);
+                    carsToCut.Add(maybeLocoOrTenderB);
+                }
+                if (maybeLocoOrTenderB.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderB, out tender) && tender.id == maybeLocoOrTenderA.id)
+                {
+                    carsToCut.Add(maybeLocoOrTenderA);
+                    carsToCut.Add(maybeLocoOrTenderB);
+                }
+            }
+
+            List<Car> carsRemaining = allCarsFromEnd.Where(c => !carsToCut.Contains(c)).ToList();
 
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
+            Loader.LogDebug($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
+
             Loader.LogDebug($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
-            if(waypoint.TakeUncoupledCarsAsActiveCut)
+            if (waypoint.TakeUncoupledCarsAsActiveCut)
             {
                 activeCut = carsToCut;
                 inactiveCut = carsRemaining;
             }
 
-            Loader.LogDebug("Cutting " + String.Join("-", carsToCut.Select(c => $"[{c.Ident}]")) + " from " + String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]")) + " as " + (waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut"));
+            if (carsToCut.Count == 0)
+            {
+                Loader.LogDebug($"No valid cars to cut found for uncoupling");
+                // Should probably send an alert to the player
+                return;
+            }
+
+            string carsToCutFormatted = String.Join("-", carsToCut.Select(c => $"[{c.Ident}]"));
+            string allCarsFromEndFormatted = String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]"));
+            Loader.LogDebug($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
@@ -856,7 +887,7 @@ namespace WaypointQueue
 
         private void SetHandbrakes(List<Car> cars)
         {
-            if(cars.Count == 0)
+            if (cars.Count == 0)
             {
                 return;
             }
