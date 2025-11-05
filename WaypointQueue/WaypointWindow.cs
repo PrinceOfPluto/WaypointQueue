@@ -1,16 +1,12 @@
-﻿using Game.Messages;
-using Game.State;
-using Model;
-using Model.Ops;
-using System;
+﻿using Model;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using TMPro;
 using UI;
 using UI.Builder;
 using UI.Common;
 using UnityEngine;
+using UnityEngine.UI;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
@@ -31,6 +27,7 @@ namespace WaypointQueue
 
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
+        private float _scrollPosition;
 
         private void OnEnable()
         {
@@ -45,7 +42,34 @@ namespace WaypointQueue
         private void OnWaypointsUpdated()
         {
             //Loader.LogDebug($"WaypointWindow OnWaypointsUpdated");
+            RebuildWithScroll();
+        }
+
+        private void RebuildWithScroll()
+        {
+            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            bool setScrollOnNextUpdate = false;
+            if (scrollRect != null)
+            {
+                _scrollPosition = scrollRect.verticalNormalizedPosition;
+                setScrollOnNextUpdate = true;
+            }
+
             Rebuild();
+
+            if (setScrollOnNextUpdate)
+            {
+                Invoke(nameof(HandleScrollUpdate), 0f);
+            }
+        }
+
+        private void HandleScrollUpdate()
+        {
+            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            if (scrollRect != null)
+            {
+                scrollRect.verticalNormalizedPosition = _scrollPosition;
+            }
         }
 
         private IEnumerator Ticker()
@@ -63,14 +87,14 @@ namespace WaypointQueue
             if (TrainController.Shared.SelectedLocomotive.id != _selectedLocomotiveId && Shared.Window.IsShown)
             {
                 Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
-                Rebuild();
+                RebuildWithScroll();
             }
         }
 
         public void Show()
         {
             Loader.LogDebug($"Rebuilding and showing waypoint panel");
-            Rebuild();
+            RebuildWithScroll();
             WindowPersistence.SetInitialPositionSize(Shared.Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing);
             Shared.Window.ShowWindow();
 
@@ -151,7 +175,7 @@ namespace WaypointQueue
                                 WaypointQueueController.Shared.RerouteCurrentWaypoint(selectedLocomotive);
                                 break;
                             case 1:
-                                Rebuild();
+                                RebuildWithScroll();
                                 break;
                             case 2:
                                 PresentDeleteAllModal(selectedLocomotive);
@@ -308,7 +332,7 @@ namespace WaypointQueue
                 }
             }
 
-            if(waypoint.CanRefuelNearby)
+            if (waypoint.CanRefuelNearby)
             {
                 builder.AddField($"Refuel {waypoint.RefuelLoadName}", builder.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
                 {
