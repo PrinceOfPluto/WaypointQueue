@@ -47,9 +47,6 @@
   </ItemGroup>
   <!-- Mod Loader -->
   <ItemGroup>
-    <PackageReference Include="System.Text.Json">
-      <Version>9.0.10</Version>
-    </PackageReference>
     <PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <!-- Null Checking -->
@@ -73,6 +70,10 @@
     </Reference>
     <Reference Include="MessagePack.Annotations">
       <HintPath>$(RrManagedDir)\MessagePack.Annotations.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(RrManagedDir)\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />

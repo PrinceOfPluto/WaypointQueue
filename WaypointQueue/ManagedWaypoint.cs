@@ -1,7 +1,7 @@
 ﻿using Model;
 using Model.Ops;
+using Newtonsoft.Json;
 using System;
-using System.Text.Json.Serialization;
 using Track;
 using UnityEngine;
 using WaypointQueue.UUM;
@@ -15,22 +15,22 @@ namespace WaypointQueue
             Take,
             Leave
         }
-        [JsonInclude]
+        [JsonProperty]
         public string Id { get; private set; }
 
-        [JsonInclude]
+        [JsonProperty]
         public string LocomotiveId { get; private set; }
 
         [JsonIgnore]
         public Car Locomotive { get; private set; }
 
-        [JsonInclude]
+        [JsonProperty]
         public string LocationString { get; private set; }
 
         [JsonIgnore]
         public Location Location { get; private set; }
 
-        [JsonInclude]
+        [JsonProperty]
         public string CoupleToCarId { get; private set; }
 
         [JsonIgnore]
@@ -76,7 +76,7 @@ namespace WaypointQueue
             }
         }
 
-        [JsonInclude]
+        [JsonProperty]
         public SerializableVector3 SerializableRefuelPoint { get; set; }
 
         public string RefuelIndustryId { get; set; }

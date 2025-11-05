@@ -1,10 +1,10 @@
 ﻿using Game.Persistence;
 using Game.State;
 using HarmonyLib;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using UnityEngine;
 using WaypointQueue.UUM;
 
@@ -43,7 +43,7 @@ namespace WaypointQueue
 
                 string fullSavePath = PathForSaveName(saveName);
                 Loader.LogDebug($"Snapshot of waypoint state has {saveState.WaypointStates.Count} members");
-                string json = JsonSerializer.Serialize(saveState);
+                string json = JsonConvert.SerializeObject(saveState);
                 File.WriteAllText(fullSavePath, json);
                 Loader.Log($"Wrote {json.Length} to {fullSavePath}");
             }
@@ -74,7 +74,7 @@ namespace WaypointQueue
 
                 Loader.Log($"Loading from {fullSavePath}");
                 string json = File.ReadAllText(fullSavePath);
-                UnappliedSaveState = JsonSerializer.Deserialize<WaypointSaveState>(json);
+                UnappliedSaveState = JsonConvert.DeserializeObject<WaypointSaveState>(json);
                 Loader.Log($"Deserialized waypoints v{UnappliedSaveState.Version} with {UnappliedSaveState.WaypointStates.Count} entries");
             }
             catch (Exception e)

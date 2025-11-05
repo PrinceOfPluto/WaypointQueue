@@ -1,14 +1,14 @@
 ﻿using Model;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
     public class LocoWaypointState
     {
-        [JsonInclude]
+        [JsonProperty]
         public string LocomotiveId { get; private set; }
         public List<ManagedWaypoint> Waypoints { get; set; }
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
