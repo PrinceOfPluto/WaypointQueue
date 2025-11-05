@@ -112,7 +112,7 @@ namespace WaypointQueue
                 {
                     if (entry.UnresolvedWaypoint.WillRefuel && !entry.UnresolvedWaypoint.CurrentlyRefueling)
                     {
-                        Loader.LogDebug($"Start currently refueling {entry.Locomotive.Ident}");
+                        Loader.Log($"Start currently refueling {entry.Locomotive.Ident}");
                         entry.UnresolvedWaypoint.CurrentlyRefueling = true;
                         ResolveRefuel(entry.UnresolvedWaypoint, ordersHelper);
                         continue;
@@ -122,7 +122,7 @@ namespace WaypointQueue
                     {
                         if (IsDoneRefueling(entry.UnresolvedWaypoint))
                         {
-                            Loader.LogDebug($"Done refueling {entry.Locomotive.Ident}");
+                            Loader.Log($"Done refueling {entry.Locomotive.Ident}");
                             entry.UnresolvedWaypoint.WillRefuel = false;
                             entry.UnresolvedWaypoint.CurrentlyRefueling = false;
                             SetCarLoadTargetLoaderCanLoad(entry.UnresolvedWaypoint, false);
@@ -166,7 +166,7 @@ namespace WaypointQueue
                 // Mark if empty
                 if (waypointList.Count == 0)
                 {
-                    Loader.LogDebug($"Marking {entry.Locomotive.Ident} waypoint queue for removal");
+                    Loader.Log($"Marking {entry.Locomotive.Ident} waypoint queue for removal");
                     listForRemoval.Add(entry);
                 }
             }
@@ -182,7 +182,7 @@ namespace WaypointQueue
 
             if (WaypointStateList.Count == 0)
             {
-                Loader.LogDebug("Stopping coroutine because queue list is empty");
+                Loader.Log("Stopping coroutine because queue list is empty");
                 Stop();
             }
         }
@@ -191,7 +191,7 @@ namespace WaypointQueue
         {
             bool isCoupling = coupleToCarId != null && coupleToCarId.Length > 0;
             string couplingLogSegment = isCoupling ? $"coupling to ${coupleToCarId}" : "no coupling";
-            Loader.LogDebug($"Trying to add waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
+            Loader.Log($"Trying to add waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
 
             LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
 
@@ -217,25 +217,25 @@ namespace WaypointQueue
             {
                 entry.Waypoints.Add(waypoint);
             }
-            Loader.LogDebug($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
+            Loader.Log($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
 
             OnWaypointsUpdated?.Invoke();
 
             if (_coroutine == null)
             {
-                Loader.LogDebug($"Starting waypoint coroutine after adding waypoint");
+                Loader.Log($"Starting waypoint coroutine after adding waypoint");
                 _coroutine = StartCoroutine(Ticker());
             }
         }
 
         public void ClearWaypointState(Car loco)
         {
-            Loader.LogDebug($"Trying to clear waypoint state for {loco.Ident}");
+            Loader.Log($"Trying to clear waypoint state for {loco.Ident}");
             LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
             if (entry != null)
             {
                 WaypointStateList = WaypointStateList.FindAll(x => x.Locomotive.id != loco.id);
-                Loader.LogDebug($"Removed waypoint state entry for {loco.Ident}");
+                Loader.Log($"Removed waypoint state entry for {loco.Ident}");
             }
             CancelActiveOrders(loco);
             Loader.LogDebug($"Invoking OnWaypointsUpdated in ClearWaypointState");
@@ -244,14 +244,14 @@ namespace WaypointQueue
 
         private void CancelActiveOrders(Car loco)
         {
-            Loader.LogDebug($"Canceling active orders for {loco.Ident}");
+            Loader.Log($"Canceling active orders for {loco.Ident}");
             GetOrdersHelper(loco).ClearWaypoint();
         }
 
         public void RemoveWaypoint(ManagedWaypoint waypoint)
         {
             LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == waypoint.Locomotive.id);
-            Loader.LogDebug($"Removing waypoint {waypoint.Location} for {waypoint.Locomotive.Ident}");
+            Loader.Log($"Removing waypoint {waypoint.Location} for {waypoint.Locomotive.Ident}");
             entry?.Waypoints.Remove(waypoint);
             if (entry.UnresolvedWaypoint.Id == waypoint.Id)
             {
@@ -313,7 +313,7 @@ namespace WaypointQueue
             LocoWaypointState state = WaypointStateList.Find(x => x.Locomotive.id == locomotive.id);
             if (state != null && state.Waypoints.Count > 0)
             {
-                Loader.LogDebug($"Resetting current waypoint as active");
+                Loader.Log($"Resetting current waypoint as active");
                 ManagedWaypoint nextWaypoint = state.Waypoints.First();
                 state.UnresolvedWaypoint = nextWaypoint;
                 SendToWaypointFromQueue(nextWaypoint, ordersHelper);
@@ -583,7 +583,7 @@ namespace WaypointQueue
 
             if (closestLoader != null)
             {
-                Loader.LogDebug($"Using {closestLoader.load.name} loader at {closestLoader.transform?.position}");
+                Loader.Log($"Using {closestLoader.load.name} loader at {closestLoader.transform?.position}");
                 Vector3 loaderPosition = WorldTransformer.WorldToGame(closestLoader.transform.position);
                 // CarLoadTargetLoader uses game position for loading logic, not graph Location
                 waypoint.SerializableRefuelPoint = new SerializableVector3(loaderPosition.x, loaderPosition.y, loaderPosition.z);
@@ -600,7 +600,7 @@ namespace WaypointQueue
 
         private void ResolveCouplingOrders(ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
+            Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
             {
                 //Loader.LogDebug($"Resolving coupling orders on {car.Ident}");
@@ -619,7 +619,7 @@ namespace WaypointQueue
             if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
                 bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
-                Loader.LogDebug($"Resolving post-coupling cut of type: " + (isTake ? "Take" : "Leave"));
+                Loader.Log($"Resolving post-coupling cut of type: " + (isTake ? "Take" : "Leave"));
                 LogicalEnd closestEnd = ClosestLogicalEndTo(carCoupledTo, waypoint.Location);
                 LogicalEnd furthestEnd = FurthestLogicalEndFrom(carCoupledTo, waypoint.Location);
 
@@ -639,9 +639,9 @@ namespace WaypointQueue
 
                 int clampedNumberOfCarsToCut = Mathf.Clamp(waypoint.NumberOfCarsToCut, 0, coupledToOriginal.Count);
 
-                Loader.LogDebug($"Cars coupled to original coupled car: " + String.Join("-", coupledToOriginal.Select(c => $"[{c.Ident}]")));
+                Loader.Log($"Cars coupled to original coupled car: " + String.Join("-", coupledToOriginal.Select(c => $"[{c.Ident}]")));
                 Car targetCar = coupledToOriginal.ElementAt(clampedNumberOfCarsToCut - 1);
-                Loader.LogDebug($"Target car is {targetCar.Ident}");
+                Loader.Log($"Target car is {targetCar.Ident}");
 
                 List<Car> carsLeftBehind = [];
                 if (!isTake)
@@ -657,7 +657,7 @@ namespace WaypointQueue
 
                 carsLeftBehind = FilterAnySplitLocoTenderPairs(carsLeftBehind);
 
-                Loader.LogDebug("Post-couple cutting " + String.Join("-", carsLeftBehind.Select(c => $"[{c.Ident}]")) + " from " + String.Join("-", waypoint.Locomotive.EnumerateCoupled(directionToCountCars).Select(c => $"[{c.Ident}]")));
+                Loader.Log("Post-couple cutting " + String.Join("-", carsLeftBehind.Select(c => $"[{c.Ident}]")) + " from " + String.Join("-", waypoint.Locomotive.EnumerateCoupled(directionToCountCars).Select(c => $"[{c.Ident}]")));
 
                 // Only apply handbrakes and bleed air on cars we leave behind
                 if (waypoint.ApplyHandbrakesOnUncouple)
@@ -669,7 +669,7 @@ namespace WaypointQueue
 
                 if (carToUncouple != null)
                 {
-                    Loader.LogDebug($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
+                    Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
                     UncoupleCar(carToUncouple, closestEnd);
 
                     if (waypoint.BleedAirOnUncouple)
@@ -730,7 +730,7 @@ namespace WaypointQueue
 
         private void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Resolving uncoupling orders");
+            Loader.Log($"Resolving uncoupling orders");
 
             LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
 
@@ -766,9 +766,9 @@ namespace WaypointQueue
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
-            Loader.LogDebug($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
+            Loader.Log($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
 
-            Loader.LogDebug($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
+            Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
             if (waypoint.TakeUncoupledCarsAsActiveCut)
             {
                 activeCut = carsToCut;
@@ -777,14 +777,14 @@ namespace WaypointQueue
 
             if (carsToCut.Count == 0)
             {
-                Loader.LogDebug($"No valid cars to cut found for uncoupling");
+                Loader.Log($"No valid cars to cut found for uncoupling");
                 // Should probably send an alert to the player
                 return;
             }
 
             string carsToCutFormatted = String.Join("-", carsToCut.Select(c => $"[{c.Ident}]"));
             string allCarsFromEndFormatted = String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]"));
-            Loader.LogDebug($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
@@ -809,7 +809,7 @@ namespace WaypointQueue
              */
             LogicalEnd endToUncouple = GetEndRelativeToWapoint(carToUncouple, waypoint.Location, useFurthestEnd: waypoint.CountUncoupledFromNearestToWaypoint);
 
-            Loader.LogDebug($"Uncoupling {carToUncouple.Ident} for cut of {carsToCut.Count} cars");
+            Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {carsToCut.Count} cars");
             UncoupleCar(carToUncouple, endToUncouple);
 
             if (waypoint.BleedAirOnUncouple)
@@ -915,14 +915,14 @@ namespace WaypointQueue
 
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
+            Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
             (Location, string)? maybeWaypoint = (waypoint.Location, waypoint.CoupleToCarId);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
         private void SendToWaypointFromRefuel(ManagedWaypoint waypoint, Location refuelLocation, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {refuelLocation}");
+            Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {refuelLocation}");
             (Location, string)? maybeWaypoint = (refuelLocation, null);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }

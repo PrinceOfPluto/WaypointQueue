@@ -100,7 +100,7 @@ namespace WaypointQueue
             }
             else
             {
-                Loader.LogDebug($"No save state to load for WaypointQueueController");
+                Loader.Log($"No save state to load for WaypointQueueController");
             }
         }
 
