@@ -206,8 +206,13 @@ namespace WaypointQueue
                 Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
             }
 
-            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
+            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId, 
+                connectAirOnCouple: Loader.Settings.ConnectAirByDefault, 
+                releaseHandbrakesOnCouple: Loader.Settings.ReleaseHandbrakesByDefault, 
+                applyHandbrakeOnUncouple: Loader.Settings.ApplyHandbrakesByDefault,
+                bleedAirOnUncouple: Loader.Settings.BleedAirByDefault);
             CheckNearbyFuelLoaders(waypoint);
+
             if (isReplacing && entry.Waypoints.Count > 0)
             {
                 entry.Waypoints[0] = waypoint;
