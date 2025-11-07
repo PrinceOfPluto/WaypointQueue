@@ -964,5 +964,49 @@ namespace WaypointQueue
                 _coroutine = StartCoroutine(Ticker());
             }
         }
+        public void AssignRouteToLoco(RouteDefinition route, Model.Car loco, bool append)
+        {
+            if (route == null || loco == null) return;
+            if (!append) ClearWaypointState(loco);
+
+            foreach (var rw in route.Waypoints)
+            {
+                var mw = rw.ToManagedWaypoint(loco);
+                AddWaypoint(loco, mw.Location, mw.CoupleToCarId, isReplacing: false);
+
+                var list = GetWaypointList(loco);
+                if (list != null && list.Count > 0)
+                {
+                    var last = list[list.Count - 1];
+                    last.ConnectAirOnCouple = mw.ConnectAirOnCouple;
+                    last.ReleaseHandbrakesOnCouple = mw.ReleaseHandbrakesOnCouple;
+                    last.ApplyHandbrakesOnUncouple = mw.ApplyHandbrakesOnUncouple;
+                    last.BleedAirOnUncouple = mw.BleedAirOnUncouple;
+                    last.NumberOfCarsToCut = mw.NumberOfCarsToCut;
+                    last.CountUncoupledFromNearestToWaypoint = mw.CountUncoupledFromNearestToWaypoint;
+                    last.TakeOrLeaveCut = mw.TakeOrLeaveCut;
+                    last.TakeUncoupledCarsAsActiveCut = mw.TakeUncoupledCarsAsActiveCut;
+
+                    last.SerializableRefuelPoint = mw.SerializableRefuelPoint;
+                    last.RefuelIndustryId = mw.RefuelIndustryId;
+                    last.RefuelLoadName = mw.RefuelLoadName;
+                    last.RefuelMaxCapacity = mw.RefuelMaxCapacity;
+                    last.WillRefuel = mw.WillRefuel;
+
+                    UpdateWaypoint(last);
+                }
+            }
+        }
+
+        public RouteDefinition CaptureRouteFromLocoQueue(Model.Car loco, string routeName)
+        {
+            var route = new RouteDefinition { Name = string.IsNullOrWhiteSpace(routeName) ? "New Route" : routeName };
+            var list = GetWaypointList(loco);
+            if (list != null)
+                foreach (var mw in list)
+                    route.Waypoints.Add(RouteWaypoint.FromManagedWaypoint(mw));
+            return route;
+        }
     }
+
 }

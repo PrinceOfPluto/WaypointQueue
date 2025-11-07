@@ -296,15 +296,6 @@ namespace WaypointQueue
             }
             else
             {
-
-                builder.HStack(delegate (UIPanelBuilder builder)
-                {
-                    builder.AddField($"Roll Through", builder.HStack(delegate (UIPanelBuilder field)
-                    {
-                        AddRollThroughButtons(waypoint, field);
-                    }));
-                });
-                builder.Spacer(8);
                 builder.HStack(delegate (UIPanelBuilder builder)
                 {
                     builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
@@ -398,37 +389,6 @@ namespace WaypointQueue
                 waypoint.NumberOfCarsToCut += GetOffsetAmount();
                 WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             }).Width(24f);
-        }
-
-        public static void AddRollThroughButtons(ManagedWaypoint waypoint, UIPanelBuilder field)
-        {
-            field.AddToggle(
-                () => waypoint.RollThrough,
-                value => {
-                    waypoint.RollThrough = value;
-                    // initialize default when turning on
-                    if (value && waypoint.RollThroughSpeed == 0)
-
-                        waypoint.RollThroughSpeed = 45;
-                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                }
-            ).Tooltip("Roll through", "If enabled, the Auto Engineer will roll through this waypoint at the specified speed.");
-            if (waypoint.RollThrough)
-            {
-                field.AddLabel($"  {waypoint.RollThroughSpeed} Mph")
-                            .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
-                            .Width(100f);
-                field.AddButtonCompact("-", delegate
-                {
-                    waypoint.RollThroughSpeed = Mathf.Max(5, waypoint.RollThroughSpeed - 5);
-                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                }).Disable(waypoint.RollThroughSpeed <= 5).Width(24f);
-                field.AddButtonCompact("+", delegate
-                {
-                    waypoint.RollThroughSpeed = Mathf.Min(60, waypoint.RollThroughSpeed + 5);
-                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                }).Disable(waypoint.RollThroughSpeed >= 60).Width(24f);
-            }
         }
         private int GetOffsetAmount()
         {

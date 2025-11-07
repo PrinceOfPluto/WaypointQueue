@@ -57,9 +57,6 @@ namespace WaypointQueue
         public bool BleedAirOnUncouple { get; set; }
 
         public int NumberOfCarsToCut { get; set; }
-
-        public bool RollThrough { get; set; }
-        public int RollThroughSpeed { get; set; }
         public bool CountUncoupledFromNearestToWaypoint { get; set; }
         public PostCoupleCutType TakeOrLeaveCut { get; set; }
         public bool TakeUncoupledCarsAsActiveCut { get; set; }
@@ -108,7 +105,7 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
         }
 
-        public ManagedWaypoint(Car locomotive, Location location, string coupleToCarId = "", bool connectAirOnCouple = true, bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true, int numberOfCarsToCut = 0, bool countUncoupledFromNearestToWaypoint = true, bool bleedAirOnUncouple = true, PostCoupleCutType takeOrLeaveCut = PostCoupleCutType.Take, bool rollThrough=false, int rollThroughSpeed = 0)
+        public ManagedWaypoint(Car locomotive, Location location, string coupleToCarId = "", bool connectAirOnCouple = true, bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true, int numberOfCarsToCut = 0, bool countUncoupledFromNearestToWaypoint = true, bool bleedAirOnUncouple = true, PostCoupleCutType takeOrLeaveCut = PostCoupleCutType.Take)
         {
             Id = Guid.NewGuid().ToString();
             Locomotive = locomotive;
@@ -120,8 +117,6 @@ namespace WaypointQueue
             ReleaseHandbrakesOnCouple = releaseHandbrakesOnCouple;
             ApplyHandbrakesOnUncouple = applyHandbrakeOnUncouple;
             NumberOfCarsToCut = numberOfCarsToCut;
-            RollThrough = rollThrough;
-            RollThroughSpeed = rollThroughSpeed;
             CountUncoupledFromNearestToWaypoint = countUncoupledFromNearestToWaypoint;
             BleedAirOnUncouple = bleedAirOnUncouple;
             TakeOrLeaveCut = takeOrLeaveCut;
@@ -132,7 +127,7 @@ namespace WaypointQueue
         }
 
         [JsonConstructor]
-        public ManagedWaypoint(string id, string locomotiveId, string locationString, string coupleToCarId, bool connectAirOnCouple, bool releaseHandbrakesOnCouple, bool applyHandbrakesOnUncouple, bool bleedAirOnUncouple, int numberOfCarsToCut, bool countUncoupledFromNearestToWaypoint, PostCoupleCutType takeOrLeaveCut, SerializableVector3 serializableRefuelPoint, string refuelIndustryId, string refuelLoadName, float refuelMaxCapacity, bool willRefuel, bool currentlyRefueling, string areaName, bool takeUncoupledCarsAsActiveCut, int maxSpeedAfterRefueling, bool rollThrough, int rollThroughSpeed)
+        public ManagedWaypoint(string id, string locomotiveId, string locationString, string coupleToCarId, bool connectAirOnCouple, bool releaseHandbrakesOnCouple, bool applyHandbrakesOnUncouple, bool bleedAirOnUncouple, int numberOfCarsToCut, bool countUncoupledFromNearestToWaypoint, PostCoupleCutType takeOrLeaveCut, SerializableVector3 serializableRefuelPoint, string refuelIndustryId, string refuelLoadName, float refuelMaxCapacity, bool willRefuel, bool currentlyRefueling, string areaName, bool takeUncoupledCarsAsActiveCut, int maxSpeedAfterRefueling)
         {
             Id = id;
             LocomotiveId = locomotiveId;
@@ -143,8 +138,6 @@ namespace WaypointQueue
             ApplyHandbrakesOnUncouple = applyHandbrakesOnUncouple;
             BleedAirOnUncouple = bleedAirOnUncouple;
             NumberOfCarsToCut = numberOfCarsToCut;
-            RollThrough = rollThrough;
-            RollThroughSpeed = rollThroughSpeed;
             CountUncoupledFromNearestToWaypoint = countUncoupledFromNearestToWaypoint;
             TakeOrLeaveCut = takeOrLeaveCut;
             SerializableRefuelPoint = serializableRefuelPoint;

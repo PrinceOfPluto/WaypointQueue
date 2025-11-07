@@ -17,6 +17,9 @@ namespace WaypointQueue
         [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
         [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
 
+        [Draw("Toggle Routes window")]
+        public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.Z };
+
         public override void Save(UnityModManager.ModEntry modEntry)
         {
             Save(this, modEntry);

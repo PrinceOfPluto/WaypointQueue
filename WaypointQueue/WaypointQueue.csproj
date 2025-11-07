@@ -132,12 +132,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PatchAutoEngineerPlanner.cs" />
+    <Compile Include="RouteDefinition.cs" />
+    <Compile Include="RouteManagerWindow.cs" />
     <Compile Include="LocoWaypointState.cs" />
     <Compile Include="ManagedWaypoint.cs" />
     <Compile Include="Loader.cs" />
     <Compile Include="PatchAutoEngineerOrdersHelper.cs" />
     <Compile Include="PatchSteamLocomotive.cs" />
+    <Compile Include="RouteRegistry.cs" />
+    <Compile Include="RouteSaveManager.cs" />
     <Compile Include="WaypointQueueController.cs" />
     <Compile Include="WaypointSaveManager.cs" />
     <Compile Include="WaypointWindow.cs" />
