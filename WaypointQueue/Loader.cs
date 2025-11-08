@@ -72,7 +72,7 @@ namespace WaypointQueue.UUM
                 WaypointWindow.Toggle();
             }
 
-            if (Settings.toggleRoutesPanelKey.Down())
+            if (Settings.toggleRoutesPanelKey.Down() && RouteManagerWindow != null)
             {
                 // Try to get existing instance
                 var win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
@@ -87,8 +87,6 @@ namespace WaypointQueue.UUM
                 win.Toggle();
             }
 
-            // NEW: flush debounced saves for route assignments
-            RouteAssignmentSaveManager.Update(delta);
         }
 
         private static bool Unload(UnityModManager.ModEntry modEntry)
@@ -122,8 +120,6 @@ namespace WaypointQueue.UUM
             MapHasLoaded = true;
 
             RouteRegistry.ReloadFromDisk();
-
-            RouteAssignmentSaveManager.ReloadFromDisk();
 
             InitWindows();
         }

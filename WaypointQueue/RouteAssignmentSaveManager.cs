@@ -1,20 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Game.Persistence;
+using HarmonyLib;
 using Newtonsoft.Json;
 using UnityEngine;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
+    [HarmonyPatch]
+    public static class RouteAssignmentSavePatches
+    {
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(WorldStore), nameof(WorldStore.Save))]
+        static void SavePostfix(string saveName)
+        {
+            RouteAssignmentSaveManager.SaveForSave(saveName);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(WorldStore), nameof(WorldStore.Load))]
+        static void LoadPostfix(string saveName)
+        {
+            RouteAssignmentSaveManager.LoadForSave(saveName);
+        }
+    }
     public static class RouteAssignmentSaveManager
     {
-        private const float SaveDebounceSeconds = 0.35f;
-        private static float _sinceDirty = 0f;
-        private static bool _dirty = false;
-
-        private static string Dir => Path.Combine(Application.persistentDataPath, "Routes");
-        private static string FilePath => Path.Combine(Dir, "route_assignments.json");
+        private static string BaseDir => Path.Combine(Application.persistentDataPath, "Routes");
 
         [Serializable]
         private class AssignmentFile
@@ -23,65 +37,60 @@ namespace WaypointQueue
             public List<RouteAssignment> items = new List<RouteAssignment>();
         }
 
-        static RouteAssignmentSaveManager()
+        private static string PathFor(string saveName)
         {
-            RouteAssignmentRegistry.OnChanged += () =>
-            {
-                _dirty = true;
-                _sinceDirty = 0f;
-            };
+            return Path.Combine(BaseDir, saveName + ".route_assignments.json");
         }
 
-        public static void ReloadFromDisk()
+        public static void LoadForSave(string saveName)
         {
             try
             {
-                if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
-                if (!File.Exists(FilePath))
+                if (!Directory.Exists(BaseDir))
+                    Directory.CreateDirectory(BaseDir);
+
+                var path = PathFor(saveName);
+                if (!File.Exists(path))
                 {
+                    // no assignments for this save → clear
                     RouteAssignmentRegistry.ReplaceAll(null);
+                    Loader.Log($"[RouteAssign] No assignments for save '{saveName}', cleared.");
                     return;
                 }
 
-                var json = File.ReadAllText(FilePath);
+                var json = File.ReadAllText(path);
                 var data = JsonConvert.DeserializeObject<AssignmentFile>(json);
                 RouteAssignmentRegistry.ReplaceAll(data?.items);
-                Loader.Log($"[RouteAssign] Loaded {data?.items?.Count ?? 0} assignments.");
+                Loader.Log($"[RouteAssign] Loaded {data?.items?.Count ?? 0} assignments for '{saveName}'.");
             }
             catch (Exception e)
             {
-                Loader.Log($"[RouteAssign] Load failed: {e}");
+                Loader.Log($"[RouteAssign] Load failed for '{saveName}': {e}");
                 RouteAssignmentRegistry.ReplaceAll(null);
             }
         }
 
-        public static void Update(float deltaTime)
+        public static void SaveForSave(string saveName)
         {
-            if (!_dirty) return;
-
-            _sinceDirty += deltaTime;
-            if (_sinceDirty < SaveDebounceSeconds) return;
-
             try
             {
-                if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
+                if (!Directory.Exists(BaseDir))
+                    Directory.CreateDirectory(BaseDir);
+
                 var data = new AssignmentFile
                 {
                     version = 1,
                     items = RouteAssignmentRegistry.All()
                 };
+
                 var json = JsonConvert.SerializeObject(data, Formatting.Indented);
-                File.WriteAllText(FilePath, json);
-                Loader.Log($"[RouteAssign] Saved {data.items.Count} assignments → {FilePath}");
+                var path = PathFor(saveName);
+                File.WriteAllText(path, json);
+                Loader.Log($"[RouteAssign] Saved {data.items.Count} assignments for '{saveName}' → {path}");
             }
             catch (Exception e)
             {
-                Loader.Log($"[RouteAssign] Save failed: {e}");
-            }
-            finally
-            {
-                _dirty = false;
-                _sinceDirty = 0f;
+                Loader.Log($"[RouteAssign] Save failed for '{saveName}': {e}");
             }
         }
     }

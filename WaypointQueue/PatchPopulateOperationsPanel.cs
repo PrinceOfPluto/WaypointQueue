@@ -14,15 +14,15 @@ namespace WaypointQueue
     [HarmonyPatch(typeof(CarInspector), "PopulateOperationsPanel")]
     internal static class PatchPopulateOperationsPanel
     {
-        static void Postfix(CarInspector __instance, UIPanelBuilder builder)
+        static void Postfix(CarInspector __instance, UIPanelBuilder builder, ref Car ___car)
         {
-            // Access the current car
-            var carField = typeof(CarInspector).GetField("_car", BindingFlags.NonPublic | BindingFlags.Instance);
-            var car = carField?.GetValue(__instance) as Car;
+            var car = ___car;
             if (car == null) return;
 
             // Only for locomotives
             if (!car.Archetype.IsLocomotive()) return;
+
+            var carID = car.id;
 
             builder.Spacer(2f);
 
@@ -35,7 +35,7 @@ namespace WaypointQueue
                 names.AddRange(routes.Select(r => r.Name));
 
                 // Read current assignment from registry
-                var (currentRouteId, currentLoop) = RouteAssignmentRegistry.Get(car.id);  // :contentReference[oaicite:2]{index=2}
+                var (currentRouteId, currentLoop) = RouteAssignmentRegistry.Get(carID);  // :contentReference[oaicite:2]{index=2}
 
                 // Calculate selected index (0 = placeholder)
                 int selectedIndex = 0;
@@ -65,8 +65,8 @@ namespace WaypointQueue
                             }
 
                             // Preserve existing loop flag; write through the registry so it persists
-                            var (_, prevLoop) = RouteAssignmentRegistry.Get(car.id);
-                            RouteAssignmentRegistry.Set(car.id, newRouteId, prevLoop);  // :contentReference[oaicite:3]{index=3}
+                            var (_, prevLoop) = RouteAssignmentRegistry.Get(carID);
+                            RouteAssignmentRegistry.Set(carID, newRouteId, prevLoop);  // :contentReference[oaicite:3]{index=3}
 
                             // Refresh the UI so the Loop toggle visibility updates immediately
                             section.Rebuild();
@@ -77,7 +77,7 @@ namespace WaypointQueue
 
                     row.AddButton("Show", () =>
                     {
-                        var win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
+                        var win = Loader.RouteManagerWindow;
                         if (win == null)
                         {
                             WindowHelper.CreateWindow<RouteManagerWindow>(null);
@@ -95,12 +95,12 @@ namespace WaypointQueue
                     section.HStack(loopRow =>
                     {
                         loopRow.AddToggle(
-                            () => RouteAssignmentRegistry.Get(car.id).loop,   // live read
+                            () => RouteAssignmentRegistry.Get(carID).loop,   // live read
                             (bool v) =>
                             {
                                 // Preserve current route; update loop; persist via registry
-                                var (rid, _) = RouteAssignmentRegistry.Get(car.id);
-                                RouteAssignmentRegistry.Set(car.id, rid, v);   // :contentReference[oaicite:4]{index=4}
+                                var (rid, _) = RouteAssignmentRegistry.Get(carID);
+                                RouteAssignmentRegistry.Set(carID, rid, v);   // :contentReference[oaicite:4]{index=4}
                             });
                         loopRow.AddLabel("Loop");
                     });
