@@ -276,7 +276,13 @@ namespace WaypointQueue
                     });
                     field.Spacer(8f);
 
-                })).Tooltip("Cutting cars after coupling", "After coupling, you can \"Take\" or \"Leave\" a number of cars. This is very useful when queueing switching orders.\n\nIf you couple to a cut of 3 cars and \"Take\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. \n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Leave\" 2 cars and continue to the next queued waypoint.");
+                })).Tooltip("Cutting cars after coupling", "After coupling, you can \"Take\" or \"Leave\" a number of cars. " +
+                "This is very useful when queueing switching orders." +
+                "\n\nIf you couple to a cut of 3 cars and \"Take\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. " +
+                "You \"Take\" cars from the cut you are coupling to." +
+                "\n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Leave\" 2 cars and continue to the next queued waypoint. " +
+                "You \"Leave\" cars from your current consist." +
+                "\n\nIf you Take or Leave 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to the full cut.");
 
                 if (waypoint.NumberOfCarsToCut > 0)
                 {
