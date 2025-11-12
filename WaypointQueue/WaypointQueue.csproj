@@ -132,7 +132,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchPopulateOperationsPanel.cs" />
     <Compile Include="RouteAssignmentRegistry.cs" />
     <Compile Include="RouteAssignmentSaveManager.cs" />
