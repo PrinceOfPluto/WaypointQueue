@@ -223,8 +223,13 @@ namespace WaypointQueue
                 Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
             }
 
-            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
+            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId, 
+                connectAirOnCouple: Loader.Settings.ConnectAirByDefault, 
+                releaseHandbrakesOnCouple: Loader.Settings.ReleaseHandbrakesByDefault, 
+                applyHandbrakeOnUncouple: Loader.Settings.ApplyHandbrakesByDefault,
+                bleedAirOnUncouple: Loader.Settings.BleedAirByDefault);
             CheckNearbyFuelLoaders(waypoint);
+
             if (isReplacing && entry.Waypoints.Count > 0)
             {
                 entry.Waypoints[0] = waypoint;
@@ -392,7 +397,7 @@ namespace WaypointQueue
             double refillThreshold = 25;
             if (waypoint.RefuelMaxCapacity - carLoadInfo.Value.Quantity < refillThreshold)
             {
-                Loader.LogDebug($"Loco is full");
+                Loader.Log($"Fuel car {fuelCar.Ident} is full");
                 return true;
             }
             //Loader.LogDebug($"Loco is not full yet");
@@ -411,12 +416,23 @@ namespace WaypointQueue
                 return false;
             }
 
+            if (industry.Storage == null)
+            {
+                Loader.Log($"Storage is null for {industry.name}");
+                return true;
+            }
+
             Load matchingLoad = industry.Storage.Loads().ToList().Find(l => l.name == loadId);
 
-            double loaderStorageThreshold = 10;
-            if (industry.Storage.QuantityInStorage(matchingLoad) < loaderStorageThreshold)
+            if (matchingLoad == null)
             {
-                Loader.LogDebug($"Industry is empty");
+                Loader.Log($"Industry {industry.name} is empty, did not find matching load for {loadId}");
+                return true;
+            }
+
+            if (industry.Storage.QuantityInStorage(matchingLoad) <= 0f)
+            {
+                Loader.Log($"Industry {industry.name} is empty, quantity in storage was zero");
                 return true;
             }
             return false;

@@ -287,7 +287,7 @@ namespace WaypointQueue
                     AddConnectAirAndReleaseBrakeToggles(waypoint, builder);
                 }
 
-                builder.AddField($"Post-coupling cut", builder.HStack(delegate (UIPanelBuilder field)
+                var postCouplingCutField = builder.AddField($"Post-coupling cut", builder.HStack(delegate (UIPanelBuilder field)
                 {
                     string prefix = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? "Take " : "Leave ";
                     AddCarCutButtons(waypoint, field, prefix);
@@ -297,8 +297,18 @@ namespace WaypointQueue
                         WaypointQueueController.Shared.UpdateWaypoint(waypoint);
                     });
                     field.Spacer(8f);
+                }));
 
-                })).Tooltip("Cutting cars after coupling", "After coupling, you can \"Take\" or \"Leave\" a number of cars. This is very useful when queueing switching orders.\n\nIf you couple to a cut of 3 cars and \"Take\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. \n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Leave\" 2 cars and continue to the next queued waypoint.");
+                if (Loader.Settings.EnableTooltips)
+                {
+                    postCouplingCutField.Tooltip("Cutting cars after coupling", "After coupling, you can \"Take\" or \"Leave\" a number of cars. " +
+                    "This is very useful when queueing switching orders." +
+                    "\n\nIf you couple to a cut of 3 cars and \"Take\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. " +
+                    "You \"Take\" cars from the cut you are coupling to." +
+                    "\n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Leave\" 2 cars and continue to the next queued waypoint. " +
+                    "You \"Leave\" cars from your current consist." +
+                    "\n\nIf you Take or Leave 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to the full cut.");
+                }
 
                 if (waypoint.NumberOfCarsToCut > 0)
                 {
@@ -346,11 +356,20 @@ namespace WaypointQueue
                         AddBleedAirAndSetBrakeToggles(waypoint, builder);
                     }
 
-                    builder.AddField($"Take active cut", builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
+                    var takeActiveCutField = builder.AddField($"Take active cut", builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
                     {
                         waypoint.TakeUncoupledCarsAsActiveCut = value;
                         WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                    })).Tooltip("Take active cut", "If this is active, the number of cars to uncouple will still be part of the active train. The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. This is particularly useful for local freight switching.\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. By checking \"Take active cut\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                    }));
+
+                    if (Loader.Settings.EnableTooltips)
+                    {
+                        takeActiveCutField.Tooltip("Take active cut", "If this is active, the number of cars to uncouple will still be part of the active train. " +
+                            "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
+                            "This is particularly useful for local freight switching." +
+                            "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
+                            "By checking \"Take active cut\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                    }
                 }
             }
 
