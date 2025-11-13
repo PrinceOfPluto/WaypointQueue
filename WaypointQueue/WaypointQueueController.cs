@@ -118,10 +118,10 @@ namespace WaypointQueue
                     {
                         if (TimeWeather.Now.TotalSeconds >= entry.UnresolvedWaypoint.WaitUntilGameTotalSeconds)
                         {
+                            Loader.Log($"Loco {entry.UnresolvedWaypoint.Locomotive.Ident} done waiting");
                             entry.UnresolvedWaypoint.WillWait = false;
                             entry.UnresolvedWaypoint.CurrentlyWaiting = false;
                             // We don't want to start waiting until after we resolve the current waypoint orders, but we also don't want that resolving logic to run again after we are finished waiting
-                            Loader.Log($"Loco {entry.UnresolvedWaypoint.Locomotive.Ident} done waiting");
                             goto AfterWaiting;
                         }
                         else
@@ -258,11 +258,7 @@ namespace WaypointQueue
                 Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
             }
 
-            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId,
-                connectAirOnCouple: Loader.Settings.ConnectAirByDefault,
-                releaseHandbrakesOnCouple: Loader.Settings.ReleaseHandbrakesByDefault,
-                applyHandbrakeOnUncouple: Loader.Settings.ApplyHandbrakesByDefault,
-                bleedAirOnUncouple: Loader.Settings.BleedAirByDefault);
+            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
             CheckNearbyFuelLoaders(waypoint);
 
             if (isReplacing && entry.Waypoints.Count > 0)
