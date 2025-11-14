@@ -363,9 +363,11 @@ namespace WaypointQueue
             
             RebuildWithScrolls();
         }
+
+
         private void RebuildWithScrolls()
         {
-            
+            //get the position of every scroll bar in the window
             var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
 
             _scrollPositions.Clear();
@@ -383,6 +385,7 @@ namespace WaypointQueue
 
         private void RestoreScrolls()
         {
+            //restore the scroll bars to their original position
             var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
 
             var count = Mathf.Min(scrollRects.Length, _scrollPositions.Count);
