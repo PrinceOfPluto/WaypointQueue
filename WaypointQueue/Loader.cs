@@ -109,8 +109,6 @@ namespace WaypointQueue.UUM
         {
             MapHasLoaded = true;
 
-            RouteRegistry.ReloadFromDisk();
-
             InitWindows();
         }
 

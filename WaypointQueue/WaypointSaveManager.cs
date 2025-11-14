@@ -61,6 +61,7 @@ namespace WaypointQueue
         {
             Loader.LogDebug($"Load postfix for save name: {saveName}");
             RoutesSaveDir = ExtractSaveName(saveName);
+            RouteRegistry.ReloadFromDisk();
             _timeAlreadyStarted = false;
             try
             {
