@@ -245,12 +245,12 @@ namespace WaypointQueue
             var loco = TrainController.Shared.SelectedLocomotive;
             if (loco == null || route == null) return;
 
+            if (route.Waypoints == null || route.Waypoints.Count == 0) return;
+
             if (!append)
             {
                 WaypointQueueController.Shared.ClearWaypointState(loco);
             }
-
-            if (route.Waypoints == null || route.Waypoints.Count == 0) return;
 
             foreach (var rw in route.Waypoints)
             {

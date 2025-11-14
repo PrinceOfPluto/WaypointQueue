@@ -289,18 +289,18 @@ namespace WaypointQueue
                 {
                     builder.HStack(delegate (UIPanelBuilder builder)
                     {
-                        AddConnectAirAndReleaseBrakeToggles(waypoint, builder);
+                        AddConnectAirAndReleaseBrakeToggles(waypoint, builder, onChanged);
                     });
                 }
                 else
                 {
-                    AddConnectAirAndReleaseBrakeToggles(waypoint, builder);
+                    AddConnectAirAndReleaseBrakeToggles(waypoint, builder, onChanged);
                 }
 
                 var postCouplingCutField = builder.AddField($"Post-coupling cut", builder.HStack(delegate (UIPanelBuilder field)
                 {
                     string prefix = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? "Take " : "Leave ";
-                    AddCarCutButtons(waypoint, field, prefix);
+                    AddCarCutButtons(waypoint, field, prefix, onChanged);
                     field.AddButtonCompact("Swap", () =>
                     {
                         waypoint.TakeOrLeaveCut = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? ManagedWaypoint.PostCoupleCutType.Leave : ManagedWaypoint.PostCoupleCutType.Take;
@@ -327,12 +327,12 @@ namespace WaypointQueue
                     {
                         builder.HStack(delegate (UIPanelBuilder builder)
                     {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder);
+                        AddBleedAirAndSetBrakeToggles(waypoint, builder, onChanged);
                     });
                     }
                     else
                     {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder);
+                        AddBleedAirAndSetBrakeToggles(waypoint, builder , onChanged);
                     }
                 }
             }
@@ -342,7 +342,7 @@ namespace WaypointQueue
                 {
                     builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
                     {
-                        AddCarCutButtons(waypoint, field, null);
+                        AddCarCutButtons(waypoint, field, null , onChanged);
                     }));
                 });
 

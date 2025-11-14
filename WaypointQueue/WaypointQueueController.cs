@@ -933,11 +933,11 @@ namespace WaypointQueue
             Loader.Log($"Setting handbrakes on {carsToTieDown} uncoupled cars");
             for (int i = 0; i < carsToTieDown; i++)
             {
-                if (cars[i].Archetype.IsLocomotive())
-                {
-                    carsToTieDown++;
-                    continue;
-                }
+                //if (cars[i].Archetype.IsLocomotive())
+                //{
+                //    carsToTieDown++;
+                //    continue;
+                //}
                     
                 cars[i].SetHandbrake(true);
             }
@@ -1021,54 +1021,29 @@ namespace WaypointQueue
                     ? rw.Location
                     : Track.Graph.Shared.ResolveLocationString(rw.LocationString);
 
-                // make a loco-bound waypoint from the route waypoint
-                var mw = new ManagedWaypoint(
-                    loco,
-                    loc,
-                    rw.CoupleToCarId,
-                    rw.ConnectAirOnCouple,
-                    rw.ReleaseHandbrakesOnCouple,
-                    rw.ApplyHandbrakesOnUncouple,
-                    rw.NumberOfCarsToCut,
-                    rw.CountUncoupledFromNearestToWaypoint,
-                    rw.BleedAirOnUncouple,
-                    rw.TakeOrLeaveCut,
-                    rw.TimetableSymbol
-                );
+                // add to loco's queue using existing plumbing (creates a ManagedWaypoint with defaults)
+                AddWaypoint(loco, loc, rw.CoupleToCarId, isReplacing: false);
 
-                mw.TakeUncoupledCarsAsActiveCut = rw.TakeUncoupledCarsAsActiveCut;
-                mw.SerializableRefuelPoint = rw.SerializableRefuelPoint;
-                mw.RefuelIndustryId = rw.RefuelIndustryId;
-                mw.RefuelLoadName = rw.RefuelLoadName;
-                mw.RefuelMaxCapacity = rw.RefuelMaxCapacity;
-                mw.WillRefuel = rw.WillRefuel;
-
-                // add to loco's queue
-                AddWaypoint(loco, mw.Location, mw.CoupleToCarId, isReplacing: false);
-
-                // copy the rest onto the actual queued waypoint (same pattern you already use)
                 var list = GetWaypointList(loco);
-                if (list != null && list.Count > 0)
+                if (list is { Count: > 0 })
                 {
                     var last = list[list.Count - 1];
 
-                    last.ConnectAirOnCouple = mw.ConnectAirOnCouple;
-                    last.ReleaseHandbrakesOnCouple = mw.ReleaseHandbrakesOnCouple;
-                    last.ApplyHandbrakesOnUncouple = mw.ApplyHandbrakesOnUncouple;
-                    last.BleedAirOnUncouple = mw.BleedAirOnUncouple;
-                    last.NumberOfCarsToCut = mw.NumberOfCarsToCut;
-                    last.CountUncoupledFromNearestToWaypoint = mw.CountUncoupledFromNearestToWaypoint;
-                    last.TakeOrLeaveCut = mw.TakeOrLeaveCut;
-                    last.TakeUncoupledCarsAsActiveCut = mw.TakeUncoupledCarsAsActiveCut;
+                    last.ConnectAirOnCouple = rw.ConnectAirOnCouple;
+                    last.ReleaseHandbrakesOnCouple = rw.ReleaseHandbrakesOnCouple;
+                    last.ApplyHandbrakesOnUncouple = rw.ApplyHandbrakesOnUncouple;
+                    last.BleedAirOnUncouple = rw.BleedAirOnUncouple;
+                    last.NumberOfCarsToCut = rw.NumberOfCarsToCut;
+                    last.CountUncoupledFromNearestToWaypoint = rw.CountUncoupledFromNearestToWaypoint;
+                    last.TakeOrLeaveCut = rw.TakeOrLeaveCut;
+                    last.TakeUncoupledCarsAsActiveCut = rw.TakeUncoupledCarsAsActiveCut;
 
-                    last.SerializableRefuelPoint = mw.SerializableRefuelPoint;
-                    last.RefuelIndustryId = mw.RefuelIndustryId;
-                    last.RefuelLoadName = mw.RefuelLoadName;
-                    last.RefuelMaxCapacity = mw.RefuelMaxCapacity;
-                    last.WillRefuel = mw.WillRefuel;
-                    last.TimetableSymbol = mw.TimetableSymbol;
-
-                    UpdateWaypoint(last);
+                    last.SerializableRefuelPoint = rw.SerializableRefuelPoint;
+                    last.RefuelIndustryId = rw.RefuelIndustryId;
+                    last.RefuelLoadName = rw.RefuelLoadName;
+                    last.RefuelMaxCapacity = rw.RefuelMaxCapacity;
+                    last.WillRefuel = rw.WillRefuel;
+                    last.TimetableSymbol = rw.TimetableSymbol;
                 }
             }
         }
@@ -1080,7 +1055,7 @@ namespace WaypointQueue
             if (list != null)
                 foreach (var mw in list)
                 {
-                    // make a copy without the locomotive
+                    
                     var copy = new ManagedWaypoint(
                         mw.Location,
                         mw.CoupleToCarId,

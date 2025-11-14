@@ -26,10 +26,9 @@ namespace WaypointQueue
             RouteAssignmentSaveManager.LoadForSave(saveName);
         }
     }
+
     public static class RouteAssignmentSaveManager
     {
-        private static string BaseDir => Path.Combine(Application.persistentDataPath, "Routes");
-
         [Serializable]
         private class AssignmentFile
         {
@@ -37,22 +36,19 @@ namespace WaypointQueue
             public List<RouteAssignment> items = new List<RouteAssignment>();
         }
 
-        private static string PathFor(string saveName)
+        private static string PathFor()
         {
-            return Path.Combine(BaseDir, saveName + ".route_assignments.json");
+            var dir = RouteSaveManager.GetRoutesDirectory();
+            return Path.Combine(dir, "route_assignments.json");
         }
 
         public static void LoadForSave(string saveName)
         {
             try
             {
-                if (!Directory.Exists(BaseDir))
-                    Directory.CreateDirectory(BaseDir);
-
-                var path = PathFor(saveName);
+                var path = PathFor();
                 if (!File.Exists(path))
                 {
-                    
                     RouteAssignmentRegistry.ReplaceAll(null);
                     Loader.Log($"[RouteAssign] No assignments for save '{saveName}', cleared.");
                     return;
@@ -74,9 +70,6 @@ namespace WaypointQueue
         {
             try
             {
-                if (!Directory.Exists(BaseDir))
-                    Directory.CreateDirectory(BaseDir);
-
                 var data = new AssignmentFile
                 {
                     version = 1,
@@ -84,7 +77,7 @@ namespace WaypointQueue
                 };
 
                 var json = JsonConvert.SerializeObject(data, Formatting.Indented);
-                var path = PathFor(saveName);
+                var path = PathFor();
                 File.WriteAllText(path, json);
                 Loader.Log($"[RouteAssign] Saved {data.items.Count} assignments for '{saveName}' → {path}");
             }

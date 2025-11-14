@@ -74,17 +74,7 @@ namespace WaypointQueue.UUM
 
             if (Settings.toggleRoutesPanelKey.Down() && RouteManagerWindow != null)
             {
-                // Try to get existing instance
-                var win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
-                if (win == null)
-                {
-                    // Create once, then fetch that same instance
-                    WindowHelper.CreateWindow<RouteManagerWindow>(null);
-                    win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
-                }
-
-                // Toggle the existing instance
-                win.Toggle();
+                RouteManagerWindow.Toggle();
             }
 
         }

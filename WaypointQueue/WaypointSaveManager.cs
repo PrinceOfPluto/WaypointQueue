@@ -19,6 +19,7 @@ namespace WaypointQueue
 
         private static bool _timeAlreadyStarted = false;
 
+        public static string RoutesSaveDir { get; private set; }
         public class WaypointSaveState
         {
             public int Version { get; set; }
@@ -31,6 +32,7 @@ namespace WaypointQueue
         static void SavePostfix(string saveName)
         {
             Loader.LogDebug($"Save postfix for save name: {saveName}");
+            RoutesSaveDir = ExtractSaveName(saveName);
             try
             {
                 WaypointSaveState saveState = CaptureSaveState();
@@ -58,6 +60,7 @@ namespace WaypointQueue
         static void LoadPostfix(string saveName)
         {
             Loader.LogDebug($"Load postfix for save name: {saveName}");
+            RoutesSaveDir = ExtractSaveName(saveName);
             _timeAlreadyStarted = false;
             try
             {
@@ -108,7 +111,6 @@ namespace WaypointQueue
         {
             return Path.Combine(SavePath, saveName + ".waypoints.json");
         }
-
         private static WaypointSaveState CaptureSaveState()
         {
             WaypointSaveState saveState = new WaypointSaveState();
@@ -116,7 +118,19 @@ namespace WaypointQueue
             saveState.WaypointStates = WaypointQueueController.Shared.WaypointStateList;
             return saveState;
         }
+        private static string ExtractSaveName(string saveName)
+        {
+            if (string.IsNullOrWhiteSpace(saveName))
+                return "Global";
 
+            var trimmed = saveName.Trim();
+            var autoIndex = trimmed.IndexOf("_auto", StringComparison.OrdinalIgnoreCase);
+            if (autoIndex > 0)
+            {
+                trimmed = trimmed.Substring(0, autoIndex);
+            }
+            return trimmed;
+        }
 
     }
 }

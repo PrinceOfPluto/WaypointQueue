@@ -21,7 +21,17 @@ namespace WaypointQueue
         {
             if (!Directory.Exists(RoutesPath))
                 Directory.CreateDirectory(RoutesPath);
-            return RoutesPath;
+
+            var saveName = WaypointSaveManager.RoutesSaveDir;
+            if (string.IsNullOrWhiteSpace(saveName))
+                saveName = "Global";
+
+            var dir = Path.Combine(RoutesPath, saveName);
+
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            return dir;
         }
 
         public static List<RouteDefinition> LoadAll()
