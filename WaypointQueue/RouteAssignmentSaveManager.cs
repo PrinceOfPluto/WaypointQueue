@@ -18,13 +18,6 @@ namespace WaypointQueue
         {
             RouteAssignmentSaveManager.SaveForSave(saveName);
         }
-
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(WorldStore), nameof(WorldStore.Load))]
-        static void LoadPostfix(string saveName)
-        {
-            RouteAssignmentSaveManager.LoadForSave(saveName);
-        }
     }
 
     public static class RouteAssignmentSaveManager
