@@ -21,7 +21,7 @@ using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
 using static Model.Car;
-using static WaypointQueue.WaypointSaveManager;
+using static WaypointQueue.ModSaveManager;
 
 namespace WaypointQueue
 {
@@ -218,6 +218,20 @@ namespace WaypointQueue
                 // Mark if empty
                 if (waypointList.Count == 0)
                 {
+                    var (assignedRouteId, loop) = RouteAssignmentRegistry.Get(entry.Locomotive.id);
+                    if (loop && !string.IsNullOrEmpty(assignedRouteId))
+                    {
+                        var assignedRoute = RouteRegistry.GetById(assignedRouteId);
+                        if (assignedRoute != null)
+                        {
+                            Loader.Log($"[WaypointQueue] Loco {entry.Locomotive.Ident}: queue empty & looping enabled → reassigning route '{assignedRoute.Name}' (apply mode).");
+                            // Re-apply the saved route in APPLY mode (append: false)
+                            AssignRouteToLoco(assignedRoute, entry.Locomotive, append: false);
+
+                            // After reassigning, continue to next loco without marking for removal
+                            continue;
+                        }
+                    }
                     Loader.Log($"Marking {entry.Locomotive.Ident} waypoint queue for removal");
                     listForRemoval.Add(entry);
                 }
@@ -234,6 +248,7 @@ namespace WaypointQueue
 
             if (WaypointStateList.Count == 0)
             {
+
                 Loader.Log("Stopping coroutine because queue list is empty");
                 Stop();
             }
@@ -963,6 +978,12 @@ namespace WaypointQueue
             Loader.Log($"Setting handbrakes on {carsToTieDown} uncoupled cars");
             for (int i = 0; i < carsToTieDown; i++)
             {
+                //if (cars[i].Archetype.IsLocomotive())
+                //{
+                //    carsToTieDown++;
+                //    continue;
+                //}
+
                 cars[i].SetHandbrake(true);
             }
         }
@@ -979,6 +1000,7 @@ namespace WaypointQueue
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
+            ApplyTimetableSymbolIfRequested(waypoint);
             (Location, string)? maybeWaypoint = (waypoint.Location, waypoint.CoupleToCarId);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
@@ -986,11 +1008,12 @@ namespace WaypointQueue
         private void SendToWaypointFromRefuel(ManagedWaypoint waypoint, Location refuelLocation, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {refuelLocation}");
+            ApplyTimetableSymbolIfRequested(waypoint);
             (Location, string)? maybeWaypoint = (refuelLocation, null);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
-        public void LoadWaypointSaveState(WaypointSaveState saveState)
+        internal void LoadWaypointSaveState(WaypointSaveState saveState)
         {
             Loader.LogDebug($"Starting LoadWaypointSaveState");
             foreach (var entry in saveState.WaypointStates)
@@ -1027,5 +1050,89 @@ namespace WaypointQueue
                 _coroutine = StartCoroutine(Ticker());
             }
         }
+        public void AssignRouteToLoco(RouteDefinition route, Car loco, bool append)
+        {
+            if (route == null || loco == null) return;
+
+            if (!append)
+            {
+                ClearWaypointState(loco);
+            }
+
+            foreach (var rw in route.Waypoints)
+            {
+                // route waypoint may not have a resolved Location yet
+                Location loc = rw.Location != null
+                    ? rw.Location
+                    : Track.Graph.Shared.ResolveLocationString(rw.LocationString);
+
+                // add to loco's queue using existing plumbing (creates a ManagedWaypoint with defaults)
+                AddWaypoint(loco, loc, rw.CoupleToCarId, isReplacing: false);
+
+                var list = GetWaypointList(loco);
+                if (list is { Count: > 0 })
+                {
+                    var last = list[list.Count - 1];
+
+                    last.ConnectAirOnCouple = rw.ConnectAirOnCouple;
+                    last.ReleaseHandbrakesOnCouple = rw.ReleaseHandbrakesOnCouple;
+                    last.ApplyHandbrakesOnUncouple = rw.ApplyHandbrakesOnUncouple;
+                    last.BleedAirOnUncouple = rw.BleedAirOnUncouple;
+                    last.NumberOfCarsToCut = rw.NumberOfCarsToCut;
+                    last.CountUncoupledFromNearestToWaypoint = rw.CountUncoupledFromNearestToWaypoint;
+                    last.TakeOrLeaveCut = rw.TakeOrLeaveCut;
+                    last.TakeUncoupledCarsAsActiveCut = rw.TakeUncoupledCarsAsActiveCut;
+
+                    last.SerializableRefuelPoint = rw.SerializableRefuelPoint;
+                    last.RefuelIndustryId = rw.RefuelIndustryId;
+                    last.RefuelLoadName = rw.RefuelLoadName;
+                    last.RefuelMaxCapacity = rw.RefuelMaxCapacity;
+                    last.WillRefuel = rw.WillRefuel;
+                    last.TimetableSymbol = rw.TimetableSymbol;
+                }
+            }
+        }
+
+        public RouteDefinition CaptureRouteFromLocoQueue(Model.Car loco, string routeName)
+        {
+            var route = new RouteDefinition { Name = string.IsNullOrWhiteSpace(routeName) ? "New Route" : routeName };
+            var list = GetWaypointList(loco);
+            if (list != null)
+                foreach (var mw in list)
+                {
+                    ManagedWaypoint copy = mw.CopyForRoute();
+                    route.Waypoints.Add(copy);
+                }
+            return route;
+        }
+
+
+        private void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
+        {
+            if (waypoint.TimetableSymbol == null) return;
+
+            string valueToSet = string.IsNullOrEmpty(waypoint.TimetableSymbol) ? null : waypoint.TimetableSymbol;
+
+            string crewId = waypoint.Locomotive?.trainCrewId;
+
+            if (string.IsNullOrEmpty(crewId))
+            {
+                var ident = (waypoint.Locomotive != null)
+                    ? waypoint.Locomotive.Ident.ToString()
+                    : "This locomotive";
+
+                ModalAlertController.Present(
+                    "No crew assigned to train",
+                    $"{ident} has no crew. Assign a crew to use timetable symbols.",
+                    new (bool, string)[] { (true, "OK") },
+                    _ => { }
+                );
+                return;
+            }
+
+            StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, valueToSet));
+            Loader.Log($"[Timetable] {(valueToSet ?? "None")} for {waypoint.Locomotive.Ident}");
+        }
     }
+
 }

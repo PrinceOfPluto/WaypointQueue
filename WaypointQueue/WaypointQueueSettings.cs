@@ -9,6 +9,7 @@ namespace WaypointQueue
         [Draw("Activate queue waypoint mode")] public KeyBinding queuedWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftControl };
         [Draw("Activate replace waypoint mode")] public KeyBinding replaceWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftAlt };
         [Draw("Toggle Waypoints window")] public KeyBinding toggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
+        [Draw("Toggle Route Manager window")] public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
 
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;

@@ -1,6 +1,6 @@
-﻿using UI.Builder;
+﻿using UI;
+using UI.Builder;
 using UI.Common;
-using UI;
 using UnityEngine;
 
 namespace WaypointQueue

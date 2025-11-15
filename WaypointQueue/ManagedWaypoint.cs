@@ -56,7 +56,7 @@ namespace WaypointQueue
         public string LocationString { get; private set; }
 
         [JsonIgnore]
-        public Location Location { get; private set; }
+        public Location Location { get; internal set; }
 
         [JsonProperty]
         public string CoupleToCarId { get; private set; }
@@ -114,6 +114,7 @@ namespace WaypointQueue
         public bool CurrentlyRefueling { get; set; }
         public int MaxSpeedAfterRefueling { get; set; }
         public string AreaName { get; set; }
+        public string TimetableSymbol { get; set; }
 
         public bool WillWait { get; set; }
         public bool CurrentlyWaiting { get; set; }
@@ -125,6 +126,15 @@ namespace WaypointQueue
 
         public void Load()
         {
+
+            if (string.IsNullOrEmpty(LocomotiveId))
+            {
+                Location = Graph.Shared.ResolveLocationString(LocationString);
+                AreaName = OpsController.Shared
+                    .ClosestAreaForGamePosition(Location.GetPosition()).name;
+                return;
+            }
+
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out Car locomotive))
             {
                 Loader.LogDebug($"Loaded locomotive {locomotive.Ident} for ManagedWaypoint");
@@ -141,6 +151,21 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
         }
 
+        public bool TryResolveLocation(out Location loc)
+        {
+            try
+            {
+                loc = Graph.Shared.ResolveLocationString(LocationString);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Loader.LogDebug($"Failed to resolve location string {LocationString}: {e}");
+                loc = default;
+                return false;
+            }
+        }
+
         public void SetWaitUntilByMinutes(int inputMinutesAfterMidnight, out GameDateTime waitUntilTime)
         {
             GameDateTime currentTime = TimeWeather.Now;
@@ -148,6 +173,8 @@ namespace WaypointQueue
             waitUntilTime = new GameDateTime(day, 0).AddingMinutes(inputMinutesAfterMidnight);
             WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
         }
+
+        
 
         public void ClearWaiting()
         {
@@ -158,6 +185,17 @@ namespace WaypointQueue
             WaitUntilDay = TodayOrTomorrow.Today;
             WaitForDurationMinutes = 0;
             WaitUntilGameTotalSeconds = 0;
+        }
+
+        public ManagedWaypoint CopyForRoute()
+        {
+            string serializedWaypoint = JsonConvert.SerializeObject(this);
+            ManagedWaypoint copy = JsonConvert.DeserializeObject<ManagedWaypoint>(serializedWaypoint);
+            copy.Id = Guid.NewGuid().ToString();
+            copy.Locomotive = null;
+            copy.LocomotiveId = null;
+            copy.Location = Location;
+            return copy;
         }
     }
 
