@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿using Model.Ops;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using Model;
-using Model.Ops;
-using Model.Ops.Timetable;
-using TMPro;
 using Track;
 using UI;
 using UI.Builder;
@@ -23,7 +17,7 @@ namespace WaypointQueue
     {
         public override string WindowIdentifier => "RouteManagerPanel";
         public override string Title => "Routes";
-        public override Vector2Int DefaultSize => new Vector2Int(700, 560);
+        public override Vector2Int DefaultSize => new Vector2Int(800, 560);
         public override Window.Position DefaultPosition => Window.Position.Center;
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
 
@@ -59,6 +53,36 @@ namespace WaypointQueue
             if (Window.IsShown) Hide();
             else Show();
         }
+
+        private void RebuildWithScrolls()
+        {
+            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
+
+            _scrollPositions.Clear();
+            foreach (var sr in scrollRects)
+            {
+                _scrollPositions.Add(sr.verticalNormalizedPosition);
+            }
+
+
+            Rebuild();
+
+
+            Invoke(nameof(RestoreScrolls), 0f);
+        }
+
+        private void RestoreScrolls()
+        {
+            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
+
+            var count = Mathf.Min(scrollRects.Length, _scrollPositions.Count);
+            for (int i = 0; i < count; i++)
+            {
+
+                scrollRects[i].verticalNormalizedPosition = Mathf.Clamp01(_scrollPositions[i]);
+            }
+        }
+
         public override void Populate(UIPanelBuilder builder)
         {
             builder.Spacing = 0f;
@@ -83,26 +107,26 @@ namespace WaypointQueue
                     detail.FieldLabelWidth = 110f;
                     detail.AddField("Name", detail.AddInputField(route.Name, newName =>
                     {
-                        RouteRegistry.Rename(route, newName, moveFile: true);
+                        RouteRegistry.Rename(route, newName);
                         RebuildWithScrolls();
                     }, placeholder: "Route name"));
 
                     detail.Spacer(8f);
                     detail.ButtonStrip(row =>
                     {
-                        row.AddButton("Replace from Loco", () =>
+                        row.AddButtonCompact("Replace from Loco", () =>
                         {
                             SetFromSelectedLoco(route);
                         });
 
-                        row.AddButton("Add from Loco", () =>
+                        row.AddButtonCompact("Add from Loco", () =>
                         {
                             AppendFromSelectedLoco(route);
                         });
 
                         row.Spacer();
 
-                        row.AddButton("Copy to Loco", () => AssignToSelectedLoco(route, append: true));
+                        row.AddButtonCompact("Copy to Loco", () => AssignToSelectedLoco(route, append: true));
                     });
 
                     detail.Spacer(12f);
@@ -128,10 +152,10 @@ namespace WaypointQueue
                             {
                                 switch (v)
                                 {
-                                    case 0: 
+                                    case 0:
                                         RebuildWithScrolls();
                                         break;
-                                    case 1: 
+                                    case 1:
                                         PresentDeleteAllModal(route);
                                         break;
                                 }
@@ -157,8 +181,7 @@ namespace WaypointQueue
             {
                 row.AddButton("New Route", () =>
                 {
-                    var r = new RouteDefinition { Name = $"Route {RouteRegistry.Routes.Count + 1}" };
-                    RouteRegistry.Add(r, save: true);
+                    var r = RouteRegistry.CreateNewRoute();
                     _selectedRouteId.Value = r.Id;
                     RebuildWithScrolls();
                 });
@@ -166,36 +189,13 @@ namespace WaypointQueue
                 row.AddButton("Delete", () =>
                 {
                     if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
-                    RouteRegistry.Remove(_selectedRouteId.Value, deleteFile: true);
+                    RouteRegistry.Remove(_selectedRouteId.Value);
                     _selectedRouteId.Value = RouteRegistry.Routes.FirstOrDefault()?.Id;
                     RebuildWithScrolls();
                 });
             });
         }
-
-        private static bool TryResolveLocation(ManagedWaypoint mw, out Location loc)
-        {
-            try
-            {
-                loc = Graph.Shared.ResolveLocationString(mw.LocationString);
-                return true;
-            }
-            catch
-            {
-                loc = default; 
-                return false;
-            }
-        }
-
-        private static string GetAreaName(ManagedWaypoint mw)
-        {
-            if (TryResolveLocation(mw, out var loc))
-            {
-                var area = OpsController.Shared.ClosestAreaForGamePosition(loc.GetPosition());
-                return area?.name ?? "Unknown";
-            }
-            return "Unknown";
-        }
+        
         private void PresentDeleteAllModal(RouteDefinition route)
         {
             ModalAlertController.Present($"Delete all waypoints for route '{route.Name}'?", "This cannot be undone.",
@@ -205,39 +205,32 @@ namespace WaypointQueue
                     if (b)
                     {
                         route.Waypoints.Clear();
-                        SaveAndRebuild(route);
+                        RebuildWithScrolls();
                     }
                 });
         }
 
         private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int number, UIPanelBuilder builder)
         {
-            
-            if (mw.Location == null)
+            if (!mw.TryResolveLocation(out Location loc))
             {
-                try
-                {
-                    mw.Location = Track.Graph.Shared.ResolveLocationString(mw.LocationString);
-                }
-                catch
-                {
-                    
-                }
+                return;
             }
 
             WaypointWindow.Shared.BuildWaypointSection(
              mw,
              number,
              builder,
-             onChanged: () =>
+             onWaypointChange: (ManagedWaypoint waypoint) =>
              {
-                 SaveAndRebuild(route);
+                 RebuildWithScrolls();
              },
-             onDelete: () =>
+             onWaypointDelete: (ManagedWaypoint waypoint) =>
              {
-                 route.Waypoints.Remove(mw);
-                 SaveAndRebuild(route);
-             });
+                 route.Waypoints.Remove(waypoint);
+                 RebuildWithScrolls();
+             },
+             isRouteWindow: true);
         }
 
         private void AssignToSelectedLoco(RouteDefinition route, bool append)
@@ -254,12 +247,12 @@ namespace WaypointQueue
 
             foreach (var rw in route.Waypoints)
             {
-                if (TryResolveLocation(rw, out var location))
+                if (rw.TryResolveLocation(out var location))
                 {
                     WaypointQueueController.Shared.AddWaypoint(loco, location, rw.CoupleToCarId, isReplacing: false);
                 }
 
-                
+
                 var list = WaypointQueueController.Shared.GetWaypointList(loco);
                 if (list != null && list.Count > 0)
                 {
@@ -285,6 +278,7 @@ namespace WaypointQueue
                 }
             }
         }
+
         private void SetFromSelectedLoco(RouteDefinition route)
         {
             var loco = TrainController.Shared.SelectedLocomotive;
@@ -321,8 +315,9 @@ namespace WaypointQueue
                 }
             }
 
-            SaveAndRebuild(route);
+            RebuildWithScrolls();
         }
+
         private void AppendFromSelectedLoco(RouteDefinition route)
         {
             var loco = TrainController.Shared.SelectedLocomotive;
@@ -354,49 +349,6 @@ namespace WaypointQueue
 
                 route.Waypoints.Add(copy);
             }
-
-            SaveAndRebuild(route);
-        }
-
-        private void OnRouteUpdated()
-        {
-            
-            RebuildWithScrolls();
-        }
-        private void RebuildWithScrolls()
-        {
-            
-            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
-
-            _scrollPositions.Clear();
-            foreach (var sr in scrollRects)
-            {
-                _scrollPositions.Add(sr.verticalNormalizedPosition);
-            }
-
-            
-            Rebuild();
-
-            
-            Invoke(nameof(RestoreScrolls), 0f);
-        }
-
-        private void RestoreScrolls()
-        {
-            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
-
-            var count = Mathf.Min(scrollRects.Length, _scrollPositions.Count);
-            for (int i = 0; i < count; i++)
-            {
-                
-                scrollRects[i].verticalNormalizedPosition = Mathf.Clamp01(_scrollPositions[i]);
-            }
-        }
-
-        private void SaveAndRebuild(RouteDefinition route)
-        {
-            if (route != null)
-                RouteRegistry.Save(route);
 
             RebuildWithScrolls();
         }

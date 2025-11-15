@@ -8,7 +8,7 @@ namespace WaypointQueue
     public class RouteAssignment
     {
         public string LocoId;
-        public string RouteId; 
+        public string RouteId;
         public bool Loop;
     }
 

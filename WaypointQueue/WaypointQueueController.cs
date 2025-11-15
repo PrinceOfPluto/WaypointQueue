@@ -19,7 +19,7 @@ using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
 using static Model.Car;
-using static WaypointQueue.WaypointSaveManager;
+using static WaypointQueue.ModSaveManager;
 
 namespace WaypointQueue
 {
@@ -968,7 +968,7 @@ namespace WaypointQueue
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
-        public void LoadWaypointSaveState(WaypointSaveState saveState)
+        internal void LoadWaypointSaveState(WaypointSaveState saveState)
         {
             Loader.LogDebug($"Starting LoadWaypointSaveState");
             foreach (var entry in saveState.WaypointStates)

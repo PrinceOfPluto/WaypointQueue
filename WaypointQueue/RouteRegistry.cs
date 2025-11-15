@@ -15,10 +15,8 @@ namespace WaypointQueue
         {
             OnChanged?.Invoke();
         }
-        public static void ReloadFromDisk()
+        public static void LoadWaypointsForRoutes()
         {
-            Routes = RouteSaveManager.LoadAll();
-
             foreach (var route in Routes)
             {
                 if (route?.Waypoints == null) continue;
@@ -47,34 +45,30 @@ namespace WaypointQueue
 
         public static RouteDefinition GetById(string id) => Routes.FirstOrDefault(r => r.Id == id);
 
-        public static void Add(RouteDefinition def, bool save = true)
+        public static RouteDefinition CreateNewRoute()
         {
-            Routes.Add(def);
-            if (save) RouteSaveManager.Save(def);
+            var r = new RouteDefinition { Name = $"Route {Routes.Count + 1}" };
+            Routes.Add(r);
             RaiseChanged();
+            return r;
         }
 
-        public static void Remove(string id, bool deleteFile = true)
+        public static void Remove(string id)
         {
             var r = GetById(id);
             if (r == null) return;
-            if (deleteFile) RouteSaveManager.Delete(r);
             Routes.RemoveAll(x => x.Id == id);
             RaiseChanged();
         }
+        
+        public static void Rename(RouteDefinition route, string newName)
+        {
+            if (route == null) return;
+            newName = (newName ?? "").Trim();
+            if (newName.Length == 0 || newName == route.Name) return;
 
-        public static void Save(RouteDefinition r)
-        {
-            RouteSaveManager.Save(r);
-        }
-        public static void SaveAs(RouteDefinition r, string newName)
-        {
-            RouteSaveManager.SaveAs(r, newName);
-            RaiseChanged();
-        }
-        public static void Rename(RouteDefinition r, string newName, bool moveFile = true)
-        {
-            RouteSaveManager.Rename(r, newName, moveFile);
+            route.Name = newName.Trim();
+            
             RaiseChanged();
         }
     }

@@ -115,6 +115,21 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
         }
 
+        public bool TryResolveLocation(out Location loc)
+        {
+            try
+            {
+                loc = Graph.Shared.ResolveLocationString(LocationString);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Loader.LogDebug($"Failed to resolve location string {LocationString}: {e}");
+                loc = default;
+                return false;
+            }
+        }
+
         public ManagedWaypoint(Car locomotive, Location location,
             string coupleToCarId = "", bool connectAirOnCouple = true,
             bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true,
