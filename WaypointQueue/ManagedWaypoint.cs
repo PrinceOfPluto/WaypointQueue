@@ -28,7 +28,7 @@ namespace WaypointQueue
         public string LocationString { get; private set; }
 
         [JsonIgnore]
-        public Location Location { get; private set; }
+        public Location Location { get; internal set; }
 
         [JsonProperty]
         public string CoupleToCarId { get; private set; }
@@ -86,9 +86,19 @@ namespace WaypointQueue
         public bool CurrentlyRefueling { get; set; }
         public int MaxSpeedAfterRefueling { get; set; }
         public string AreaName { get; set; }
+        public string TimetableSymbol { get; set; }
 
         public void Load()
         {
+
+            if (string.IsNullOrEmpty(LocomotiveId))
+            {
+                Location = Graph.Shared.ResolveLocationString(LocationString);
+                AreaName = OpsController.Shared
+                    .ClosestAreaForGamePosition(Location.GetPosition()).name;
+                return;
+            }
+
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out Car locomotive))
             {
                 Loader.LogDebug($"Loaded locomotive {locomotive.Ident} for ManagedWaypoint");
@@ -105,7 +115,27 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
         }
 
-        public ManagedWaypoint(Car locomotive, Location location, string coupleToCarId = "", bool connectAirOnCouple = true, bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true, int numberOfCarsToCut = 0, bool countUncoupledFromNearestToWaypoint = true, bool bleedAirOnUncouple = true, PostCoupleCutType takeOrLeaveCut = PostCoupleCutType.Leave)
+        public bool TryResolveLocation(out Location loc)
+        {
+            try
+            {
+                loc = Graph.Shared.ResolveLocationString(LocationString);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Loader.LogDebug($"Failed to resolve location string {LocationString}: {e}");
+                loc = default;
+                return false;
+            }
+        }
+
+        public ManagedWaypoint(Car locomotive, Location location,
+            string coupleToCarId = "", bool connectAirOnCouple = true,
+            bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true,
+            int numberOfCarsToCut = 0, bool countUncoupledFromNearestToWaypoint = true,
+            bool bleedAirOnUncouple = true, PostCoupleCutType takeOrLeaveCut = PostCoupleCutType.Take,
+            string timetableSymbol = null)
         {
             Id = Guid.NewGuid().ToString();
             Locomotive = locomotive;
@@ -124,10 +154,46 @@ namespace WaypointQueue
             CurrentlyRefueling = false;
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
             TakeUncoupledCarsAsActiveCut = false;
+            TimetableSymbol = timetableSymbol;
+        }
+        public ManagedWaypoint(
+            Location location,
+            string coupleToCarId = "", bool connectAirOnCouple = true,
+            bool releaseHandbrakesOnCouple = true, bool applyHandbrakeOnUncouple = true,
+            int numberOfCarsToCut = 0, bool countUncoupledFromNearestToWaypoint = true,
+            bool bleedAirOnUncouple = true, PostCoupleCutType takeOrLeaveCut = PostCoupleCutType.Take,
+            string timetableSymbol = null)
+        {
+            Id = Guid.NewGuid().ToString();
+            Locomotive = null;
+            LocomotiveId = null;
+            Location = location;
+            LocationString = Graph.Shared.LocationToString(location);
+            CoupleToCarId = coupleToCarId;
+            ConnectAirOnCouple = connectAirOnCouple;
+            ReleaseHandbrakesOnCouple = releaseHandbrakesOnCouple;
+            ApplyHandbrakesOnUncouple = applyHandbrakeOnUncouple;
+            NumberOfCarsToCut = numberOfCarsToCut;
+            CountUncoupledFromNearestToWaypoint = countUncoupledFromNearestToWaypoint;
+            BleedAirOnUncouple = bleedAirOnUncouple;
+            TakeOrLeaveCut = takeOrLeaveCut;
+            WillRefuel = false;
+            CurrentlyRefueling = false;
+            AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
+            TakeUncoupledCarsAsActiveCut = false;
+            TimetableSymbol = timetableSymbol;
         }
 
         [JsonConstructor]
-        public ManagedWaypoint(string id, string locomotiveId, string locationString, string coupleToCarId, bool connectAirOnCouple, bool releaseHandbrakesOnCouple, bool applyHandbrakesOnUncouple, bool bleedAirOnUncouple, int numberOfCarsToCut, bool countUncoupledFromNearestToWaypoint, PostCoupleCutType takeOrLeaveCut, SerializableVector3 serializableRefuelPoint, string refuelIndustryId, string refuelLoadName, float refuelMaxCapacity, bool willRefuel, bool currentlyRefueling, string areaName, bool takeUncoupledCarsAsActiveCut, int maxSpeedAfterRefueling)
+        public ManagedWaypoint(
+            string id, string locomotiveId, string locationString, string coupleToCarId,
+            bool connectAirOnCouple, bool releaseHandbrakesOnCouple, bool applyHandbrakesOnUncouple,
+            bool bleedAirOnUncouple, int numberOfCarsToCut, bool countUncoupledFromNearestToWaypoint,
+            PostCoupleCutType takeOrLeaveCut, SerializableVector3 serializableRefuelPoint,
+            string refuelIndustryId, string refuelLoadName, float refuelMaxCapacity,
+            bool willRefuel, bool currentlyRefueling, string areaName,
+            bool takeUncoupledCarsAsActiveCut, int maxSpeedAfterRefueling,
+            string timetableSymbol)
         {
             Id = id;
             LocomotiveId = locomotiveId;
@@ -149,6 +215,7 @@ namespace WaypointQueue
             AreaName = areaName;
             TakeUncoupledCarsAsActiveCut = takeUncoupledCarsAsActiveCut;
             MaxSpeedAfterRefueling = maxSpeedAfterRefueling;
+            TimetableSymbol = timetableSymbol;
         }
     }
 

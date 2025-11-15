@@ -1,11 +1,6 @@
 ﻿using HarmonyLib;
 using Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Model.Car;
 
 namespace WaypointQueue
 {
@@ -20,6 +15,6 @@ namespace WaypointQueue
         [HarmonyPatch(typeof(SteamLocomotive), "FuelCar")]
         public static Car FuelCar(object instance) => throw new NotImplementedException();
 
-        
+
     }
 }
