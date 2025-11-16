@@ -144,6 +144,7 @@
 		<Compile Include="RouteRegistry.cs" />
 		<Compile Include="WaypointQueueController.cs" />
 		<Compile Include="ModSaveManager.cs" />
+		<Compile Include="WaypointResolver.cs" />
 		<Compile Include="WaypointWindow.cs" />
 		<Compile Include="WaypointQueueSettings.cs" />
 		<Compile Include="WindowBase.cs" />
