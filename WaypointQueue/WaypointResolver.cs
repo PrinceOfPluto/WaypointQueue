@@ -1,4 +1,5 @@
 ﻿using Game;
+using Game.Messages;
 using Game.State;
 using Helpers;
 using Model;
@@ -10,8 +11,6 @@ using RollingStock;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Track;
 using UI.Common;
 using UI.EngineControls;
@@ -28,42 +27,35 @@ namespace WaypointQueue
          */
         public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
         {
+            // Check if done waiting
             if (wp.CurrentlyWaiting)
             {
-                if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
+                if (TryEndWaiting(wp))
                 {
-                    Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
-                    wp.WillWait = false;
-                    wp.CurrentlyWaiting = false;
-                    // We don't want to start waiting until after we resolve the current waypoint orders, but we also don't want that resolving logic to run again after we are finished waiting
+                    // We don't want to start waiting until after we resolve the current waypoint orders,
+                    // but we also don't want that resolving logic to run again after we are finished waiting
                     goto AfterWaiting;
                 }
                 else
                 {
+                    //Loader.LogDebug($"Still waiting");
                     return false;
                 }
             }
 
+            // Begin refueling
             if (wp.WillRefuel && !wp.CurrentlyRefueling)
             {
-                Loader.Log($"Start currently refueling {wp.Locomotive.Ident}");
-                wp.CurrentlyRefueling = true;
-                ResolveRefuel(wp, ordersHelper);
+                OrderToRefuel(wp, ordersHelper);
                 return false;
             }
 
+            // Check if done refueling
             if (wp.CurrentlyRefueling)
             {
                 if (IsDoneRefueling(wp))
                 {
-                    Loader.Log($"Done refueling {wp.Locomotive.Ident}");
-                    wp.WillRefuel = false;
-                    wp.CurrentlyRefueling = false;
-                    SetCarLoadTargetLoaderCanLoad(wp, false);
-
-                    int maxSpeed = wp.MaxSpeedAfterRefueling;
-                    if (maxSpeed == 0) maxSpeed = 35;
-                    ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
+                    CleanupAfterRefuel(wp, ordersHelper);
                 }
                 else
                 {
@@ -82,37 +74,15 @@ namespace WaypointQueue
                 return false;
             }
 
-            ResolveWaypointOrders(wp);
+            ResolveCouplingOrders(wp);
 
-            if (wp.WillWait)
+            ResolveUncouplingOrders(wp);
+
+            if (TryBeginWaiting(wp, onWaypointsUpdated))
             {
-                if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
-                {
-                    GameDateTime waitUntilTime = TimeWeather.Now.AddingMinutes(wp.WaitForDurationMinutes);
-                    wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
-                    wp.CurrentlyWaiting = true;
-                    Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
-                    onWaypointsUpdated?.Invoke();
-                    return false;
-                }
-
-                if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
-                {
-                    if (TimetableReader.TryParseTime(wp.WaitUntilTimeString, out TimetableTime time))
-                    {
-                        wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
-                        wp.CurrentlyWaiting = true;
-                        Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
-                        onWaypointsUpdated?.Invoke();
-                        return false;
-                    }
-                    else
-                    {
-                        Loader.Log($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
-                        Toast.Present("Waypoint wait time must be in HH:MM 24-hour format.");
-                    }
-                }
+                return false;
             }
+
         AfterWaiting:
 
             wp = null;
@@ -121,9 +91,62 @@ namespace WaypointQueue
             return true;
         }
 
-        public static void ResolveRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private static bool TryEndWaiting(ManagedWaypoint wp)
         {
-            Loader.LogDebug($"Resolving refuel");
+            if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
+            {
+                Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
+                wp.ClearWaiting();
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryBeginWaiting(ManagedWaypoint wp, Action onWaypointsUpdated)
+        {
+            return wp.WillWait && (TryBeginWaitingDuration(wp, onWaypointsUpdated) || TryBeginWaitingUntilTime(wp, onWaypointsUpdated));
+        }
+
+        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action onWaypointsUpdated)
+        {
+            if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
+            {
+                GameDateTime waitUntilTime = TimeWeather.Now.AddingMinutes(wp.WaitForDurationMinutes);
+                wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
+                wp.CurrentlyWaiting = true;
+                Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
+                onWaypointsUpdated?.Invoke();
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action onWaypointsUpdated)
+        {
+            if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
+            {
+                if (TimetableReader.TryParseTime(wp.WaitUntilTimeString, out TimetableTime time))
+                {
+                    wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
+                    wp.CurrentlyWaiting = true;
+                    Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
+                    onWaypointsUpdated?.Invoke();
+                    return true;
+                }
+                else
+                {
+                    Loader.Log($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
+                    Toast.Present("Waypoint wait time must be in HH:MM 24-hour format.");
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        public static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident}");
+            waypoint.CurrentlyRefueling = true;
             // maybe in the future, support refueling multiple locomotives if they are MU'd
 
             waypoint.MaxSpeedAfterRefueling = ordersHelper.Orders.MaxSpeedMph;
@@ -133,7 +156,19 @@ namespace WaypointQueue
 
             Location locationToMove = GetRefuelLocation(waypoint, ordersHelper);
             SetCarLoadTargetLoaderCanLoad(waypoint, true);
-            WaypointQueueController.Shared.SendToWaypointFromRefuel(waypoint, locationToMove, ordersHelper);
+            WaypointQueueController.Shared.SendToWaypointForRefuel(waypoint, locationToMove, ordersHelper);
+        }
+
+        private static void CleanupAfterRefuel(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.Log($"Done refueling {wp.Locomotive.Ident}");
+            wp.WillRefuel = false;
+            wp.CurrentlyRefueling = false;
+            SetCarLoadTargetLoaderCanLoad(wp, false);
+
+            int maxSpeed = wp.MaxSpeedAfterRefueling;
+            if (maxSpeed == 0) maxSpeed = 35;
+            ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
         }
 
         private static void SetCarLoadTargetLoaderCanLoad(ManagedWaypoint waypoint, bool value)
@@ -316,14 +351,7 @@ namespace WaypointQueue
         private static void ResolveWaypointOrders(ManagedWaypoint waypoint)
         {
             Loader.LogDebug($"Resolving loco {waypoint.Locomotive.Ident} waypoint to {waypoint.Location}");
-            if (waypoint.IsCoupling)
-            {
-                ResolveCouplingOrders(waypoint);
-            }
-            if (waypoint.IsUncoupling)
-            {
-                ResolveUncouplingOrders(waypoint);
-            }
+
         }
 
         private static Car GetFuelCar(BaseLocomotive locomotive)
@@ -392,6 +420,7 @@ namespace WaypointQueue
 
         private static void ResolveCouplingOrders(ManagedWaypoint waypoint)
         {
+            if (!waypoint.IsCoupling) return;
             Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
             {
@@ -522,7 +551,8 @@ namespace WaypointQueue
 
         private static void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
-            Loader.Log($"Resolving uncoupling orders");
+            if (!waypoint.IsUncoupling) return;
+            Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
             LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
 
@@ -700,6 +730,33 @@ namespace WaypointQueue
 
                 cars[i].SetHandbrake(true);
             }
+        }
+
+        internal static void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
+        {
+            if (waypoint.TimetableSymbol == null) return;
+
+            string valueToSet = string.IsNullOrEmpty(waypoint.TimetableSymbol) ? null : waypoint.TimetableSymbol;
+
+            string crewId = waypoint.Locomotive?.trainCrewId;
+
+            if (string.IsNullOrEmpty(crewId))
+            {
+                var ident = (waypoint.Locomotive != null)
+                    ? waypoint.Locomotive.Ident.ToString()
+                    : "This locomotive";
+
+                ModalAlertController.Present(
+                    "No crew assigned to train",
+                    $"{ident} has no crew. Assign a crew to use timetable symbols.",
+                    new (bool, string)[] { (true, "OK") },
+                    _ => { }
+                );
+                return;
+            }
+
+            StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, valueToSet));
+            Loader.Log($"[Timetable] {(valueToSet ?? "None")} for {waypoint.Locomotive.Ident}");
         }
     }
 }
