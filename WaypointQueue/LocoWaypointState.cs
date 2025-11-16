@@ -16,6 +16,11 @@ namespace WaypointQueue
         [JsonIgnore]
         public Car Locomotive { get; private set; }
 
+        public bool HasAnyWaypoints()
+        {
+            return Waypoints != null && Waypoints.Count > 0;
+        }
+
         public void Load()
         {
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out Car locomotive))
