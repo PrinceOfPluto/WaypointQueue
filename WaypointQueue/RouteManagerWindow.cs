@@ -1,7 +1,5 @@
-﻿using Newtonsoft.Json;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using Track;
 using UI;
 using UI.Builder;
 using UI.Common;
@@ -212,7 +210,7 @@ namespace WaypointQueue
 
         private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int number, UIPanelBuilder builder)
         {
-            if (!mw.TryResolveLocation(out Location loc))
+            if (!mw.IsValid())
             {
                 return;
             }
@@ -236,47 +234,7 @@ namespace WaypointQueue
         private void AssignToSelectedLoco(RouteDefinition route, bool append)
         {
             var loco = TrainController.Shared.SelectedLocomotive;
-            if (loco == null || route == null) return;
-
-            if (route.Waypoints == null || route.Waypoints.Count == 0) return;
-
-            if (!append)
-            {
-                WaypointQueueController.Shared.ClearWaypointState(loco);
-            }
-
-            foreach (var rw in route.Waypoints)
-            {
-                if (rw.TryResolveLocation(out var location))
-                {
-                    WaypointQueueController.Shared.AddWaypoint(loco, location, rw.CoupleToCarId, isReplacing: false);
-                }
-
-
-                var list = WaypointQueueController.Shared.GetWaypointList(loco);
-                if (list != null && list.Count > 0)
-                {
-                    var last = list[list.Count - 1];
-
-                    last.ConnectAirOnCouple = rw.ConnectAirOnCouple;
-                    last.ReleaseHandbrakesOnCouple = rw.ReleaseHandbrakesOnCouple;
-                    last.ApplyHandbrakesOnUncouple = rw.ApplyHandbrakesOnUncouple;
-                    last.BleedAirOnUncouple = rw.BleedAirOnUncouple;
-                    last.NumberOfCarsToCut = rw.NumberOfCarsToCut;
-                    last.CountUncoupledFromNearestToWaypoint = rw.CountUncoupledFromNearestToWaypoint;
-                    last.TakeOrLeaveCut = rw.TakeOrLeaveCut;
-                    last.TakeUncoupledCarsAsActiveCut = rw.TakeUncoupledCarsAsActiveCut;
-
-                    last.SerializableRefuelPoint = rw.SerializableRefuelPoint;
-                    last.RefuelIndustryId = rw.RefuelIndustryId;
-                    last.RefuelLoadName = rw.RefuelLoadName;
-                    last.RefuelMaxCapacity = rw.RefuelMaxCapacity;
-                    last.WillRefuel = rw.WillRefuel;
-                    last.TimetableSymbol = rw.TimetableSymbol;
-
-                    WaypointQueueController.Shared.UpdateWaypoint(last);
-                }
-            }
+            WaypointQueueController.Shared.AddWaypointsFromRoute(loco, route, append);
         }
 
         private void SetFromSelectedLoco(RouteDefinition route)
@@ -292,8 +250,11 @@ namespace WaypointQueue
             {
                 foreach (var mw in list)
                 {
-                    ManagedWaypoint copy = mw.CopyForRoute();
-                    route.Waypoints.Add(copy);
+                    if (mw.IsValid())
+                    {
+                        ManagedWaypoint copy = mw.CopyForRoute();
+                        route.Waypoints.Add(copy);
+                    }
                 }
             }
 
@@ -310,8 +271,11 @@ namespace WaypointQueue
 
             foreach (var mw in list)
             {
-                ManagedWaypoint copy = mw.CopyForRoute();
-                route.Waypoints.Add(copy);
+                if (mw.IsValid())
+                {
+                    ManagedWaypoint copy = mw.CopyForRoute();
+                    route.Waypoints.Add(copy);
+                }
             }
 
             RebuildWithScrolls();

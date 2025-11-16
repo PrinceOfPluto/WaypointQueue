@@ -50,7 +50,18 @@ namespace WaypointQueue
         public string LocomotiveId { get; private set; }
 
         [JsonIgnore]
-        public Car Locomotive { get; private set; }
+        public Car Locomotive
+        {
+            get
+            {
+                return Locomotive;
+            }
+            set
+            {
+                Locomotive = value;
+                LocomotiveId = value?.id ?? "";
+            }
+        }
 
         [JsonProperty]
         public string LocationString { get; private set; }
@@ -124,38 +135,45 @@ namespace WaypointQueue
         public int WaitForDurationMinutes { get; set; }
         public double WaitUntilGameTotalSeconds { get; set; }
 
+        public bool IsValid()
+        {
+            return TryResolveLocation(out Location loc);
+        }
+
         public void Load()
         {
+            TryResolveLocation(out Location loc);
+            TryResolveLocomotive(out Car loco);
+        }
 
-            if (string.IsNullOrEmpty(LocomotiveId))
+        public bool TryResolveLocomotive(out Car loco)
+        {
+            // loco is null if false
+            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
-                Location = Graph.Shared.ResolveLocationString(LocationString);
-                AreaName = OpsController.Shared
-                    .ClosestAreaForGamePosition(Location.GetPosition()).name;
-                return;
-            }
-
-            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out Car locomotive))
-            {
-                Loader.LogDebug($"Loaded locomotive {locomotive.Ident} for ManagedWaypoint");
-                Locomotive = locomotive;
+                Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
+                Locomotive = loco;
             }
             else
             {
-                throw new InvalidOperationException($"Could not find car for {LocomotiveId}");
+                Loader.LogDebug($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
             }
-
-            Location = Graph.Shared.ResolveLocationString(LocationString);
-            Loader.LogDebug($"Loaded location {Location} for {locomotive.Ident} ManagedWaypoint");
-
-            AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
+            return loco != null;
         }
 
         public bool TryResolveLocation(out Location loc)
         {
+            if (Location != null)
+            {
+                loc = Location;
+                return true;
+            }
             try
             {
                 loc = Graph.Shared.ResolveLocationString(LocationString);
+                Location = loc;
+                AreaName = OpsController.Shared.ClosestAreaForGamePosition(loc.GetPosition()).name;
+                Loader.LogDebug($"Loaded location {Location} with area {AreaName} for waypoint {Id}");
                 return true;
             }
             catch (Exception e)
@@ -174,7 +192,7 @@ namespace WaypointQueue
             WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
         }
 
-        
+
 
         public void ClearWaiting()
         {
@@ -187,13 +205,12 @@ namespace WaypointQueue
             WaitUntilGameTotalSeconds = 0;
         }
 
-        public ManagedWaypoint CopyForRoute()
+        public ManagedWaypoint CopyForRoute(Car loco = null)
         {
             string serializedWaypoint = JsonConvert.SerializeObject(this);
             ManagedWaypoint copy = JsonConvert.DeserializeObject<ManagedWaypoint>(serializedWaypoint);
             copy.Id = Guid.NewGuid().ToString();
-            copy.Locomotive = null;
-            copy.LocomotiveId = null;
+            copy.Locomotive = loco;
             copy.Location = Location;
             return copy;
         }

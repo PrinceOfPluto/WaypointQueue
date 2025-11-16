@@ -2,7 +2,6 @@
 using Game.Messages;
 using Game.State;
 using Helpers;
-using KeyValue.Runtime;
 using Model;
 using Model.AI;
 using Model.Definition.Data;
@@ -169,7 +168,7 @@ namespace WaypointQueue
                     }
 
                     ResolveWaypointOrders(entry.UnresolvedWaypoint);
-                    
+
                     if (entry.UnresolvedWaypoint.WillWait)
                     {
                         if (entry.UnresolvedWaypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && entry.UnresolvedWaypoint.WaitForDurationMinutes > 0)
@@ -184,7 +183,7 @@ namespace WaypointQueue
 
                         if (entry.UnresolvedWaypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
                         {
-                            if(TimetableReader.TryParseTime(entry.UnresolvedWaypoint.WaitUntilTimeString, out TimetableTime time))
+                            if (TimetableReader.TryParseTime(entry.UnresolvedWaypoint.WaitUntilTimeString, out TimetableTime time))
                             {
                                 entry.UnresolvedWaypoint.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
                                 entry.UnresolvedWaypoint.CurrentlyWaiting = true;
@@ -199,7 +198,7 @@ namespace WaypointQueue
                             }
                         }
                     }
-                    AfterWaiting:
+                AfterWaiting:
 
                     entry.UnresolvedWaypoint = null;
                     // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
@@ -260,18 +259,7 @@ namespace WaypointQueue
             string couplingLogSegment = isCoupling ? $"coupling to ${coupleToCarId}" : "no coupling";
             Loader.Log($"Trying to add waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
 
-            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
-
-            if (entry == null)
-            {
-                Loader.LogDebug($"No existing waypoint list found for {loco.Ident}");
-                entry = new LocoWaypointState(loco);
-                WaypointStateList.Add(entry);
-            }
-            else
-            {
-                Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
-            }
+            LocoWaypointState entry = GetOrAddLocoWaypointState(loco);
 
             ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
             CheckNearbyFuelLoaders(waypoint);
@@ -287,6 +275,55 @@ namespace WaypointQueue
             }
             Loader.Log($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
 
+            OnWaypointWasAdded();
+        }
+
+        public LocoWaypointState GetOrAddLocoWaypointState(Car loco)
+        {
+            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
+
+            if (entry == null)
+            {
+                Loader.LogDebug($"No existing waypoint list found for {loco.Ident}");
+                entry = new LocoWaypointState(loco);
+                WaypointStateList.Add(entry);
+            }
+            else
+            {
+                Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
+            }
+            return entry;
+        }
+
+        public void AddWaypointsFromRoute(Car loco, RouteDefinition route, bool append)
+        {
+            if (loco == null || route == null) return;
+
+            if (route.Waypoints == null || route.Waypoints.Count == 0) return;
+
+            if (!append)
+            {
+                ClearWaypointState(loco);
+            }
+
+            var entry = GetOrAddLocoWaypointState(loco);
+
+            int validWaypointsAdded = 0;
+            foreach (var rw in route.Waypoints)
+            {
+                if (rw.IsValid())
+                {
+                    ManagedWaypoint copy = rw.CopyForRoute(loco);
+                    entry.Waypoints.Add(copy);
+                    validWaypointsAdded++;
+                }
+            }
+            Loader.Log($"Added {validWaypointsAdded} waypoints for {loco.Ident} from route {route.Name}");
+            OnWaypointWasAdded();
+        }
+
+        private void OnWaypointWasAdded()
+        {
             OnWaypointsUpdated?.Invoke();
 
             if (_coroutine == null)
@@ -1023,7 +1060,15 @@ namespace WaypointQueue
                 foreach (var waypoint in entry.Waypoints)
                 {
                     Loader.LogDebug($"Loading waypoint {waypoint.Id}");
-                    waypoint.Load();
+                    try
+                    {
+                        waypoint.Load();
+                    }
+                    catch (Exception e)
+                    {
+                        Loader.Log($"Failed to hydrate waypoint {waypoint?.Id} {e}");
+                        continue;
+                    }
                 }
                 if (entry.UnresolvedWaypoint != null)
                 {
