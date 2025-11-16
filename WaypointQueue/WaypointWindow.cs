@@ -403,7 +403,7 @@ namespace WaypointQueue
                 }));
             }
 
-            AddWaitingSection(waypoint, builder);
+            AddWaitingSection(waypoint, builder, onWaypointChange);
         }
 
         private void AddConnectAirAndReleaseBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
@@ -461,7 +461,7 @@ namespace WaypointQueue
             return offsetAmount;
         }
 
-        private void AddWaitingSection(ManagedWaypoint waypoint, UIPanelBuilder builder)
+        private void AddWaitingSection(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             if (waypoint.CurrentlyWaiting)
             {
@@ -473,7 +473,7 @@ namespace WaypointQueue
                 builder.AddField("Then wait", builder.AddToggle(() => waypoint.WillWait, (bool _) =>
                 {
                     waypoint.WillWait = true;
-                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                    onWaypointChange(waypoint);
                 }));
                 return;
             }
@@ -490,7 +490,7 @@ namespace WaypointQueue
                         default:
                             break;
                     }
-                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                    onWaypointChange(waypoint);
                 }).Width(200f);
             }));
 
@@ -511,7 +511,7 @@ namespace WaypointQueue
                                     Loader.Log($"Parsed duration as {minutes}");
                                     waypoint.WaitUntilTimeString = value;
                                     waypoint.WaitForDurationMinutes = minutes;
-                                    WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                                    onWaypointChange(waypoint);
                                 }
                                 else
                                 {
@@ -525,7 +525,7 @@ namespace WaypointQueue
                             {
                                 waypoint.WaitForDurationMinutes = 0;
                                 waypoint.WaitUntilTimeString = BuildDurationString(waypoint.WaitForDurationMinutes);
-                                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                                onWaypointChange(waypoint);
                             }).Width(70f);
                         });
                         builder.Spacer(8f);
@@ -535,19 +535,19 @@ namespace WaypointQueue
                             {
                                 waypoint.WaitForDurationMinutes += 5;
                                 waypoint.WaitUntilTimeString = BuildDurationString(waypoint.WaitForDurationMinutes);
-                                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                                onWaypointChange(waypoint);
                             }).Width(50f);
                             field.AddButtonCompact("+15m", () =>
                             {
                                 waypoint.WaitForDurationMinutes += 15;
                                 waypoint.WaitUntilTimeString = BuildDurationString(waypoint.WaitForDurationMinutes);
-                                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                                onWaypointChange(waypoint);
                             }).Width(60f);
                             field.AddButtonCompact("+30m", () =>
                             {
                                 waypoint.WaitForDurationMinutes += 30;
                                 waypoint.WaitUntilTimeString = BuildDurationString(waypoint.WaitForDurationMinutes);
-                                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                                onWaypointChange(waypoint);
                             }).Width(60f);
                         });
                     });
@@ -575,7 +575,7 @@ namespace WaypointQueue
                     field.AddDropdown(["Today", "Tomorrow"], waypoint.WaitUntilDay == ManagedWaypoint.TodayOrTomorrow.Today ? 0 : 1, (int value) =>
                     {
                         waypoint.WaitUntilDay = (ManagedWaypoint.TodayOrTomorrow)value;
-                        WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                        onWaypointChange(waypoint);
                     }).Width(116f);
                 }));
             }
