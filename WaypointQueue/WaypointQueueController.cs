@@ -1062,23 +1062,27 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"Loading waypoint state for {entry.LocomotiveId}");
                 entry.Load();
+                List<ManagedWaypoint> validWaypoints = [];
                 foreach (var waypoint in entry.Waypoints)
                 {
                     Loader.LogDebug($"Loading waypoint {waypoint.Id}");
-                    try
+                    if (waypoint.IsValidWithLoco())
                     {
-                        waypoint.Load();
+                        validWaypoints.Add(waypoint);
                     }
-                    catch (Exception e)
+                    else
                     {
-                        Loader.Log($"Failed to hydrate waypoint {waypoint?.Id} {e}");
-                        continue;
+                        Loader.Log($"Failed to hydrate waypoint {waypoint?.Id}");
                     }
                 }
+                entry.Waypoints = validWaypoints;
                 if (entry.UnresolvedWaypoint != null)
                 {
                     Loader.LogDebug($"Loading unresolved waypoint {entry.UnresolvedWaypoint.Id}");
-                    entry.UnresolvedWaypoint.Load();
+                    if (!entry.UnresolvedWaypoint.IsValidWithLoco())
+                    {
+                        Loader.Log($"Failed to hydrate unresolved waypoint {entry.UnresolvedWaypoint?.Id}");
+                    }
                 }
             }
             WaypointStateList = saveState.WaypointStates;

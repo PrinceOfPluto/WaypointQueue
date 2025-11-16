@@ -129,6 +129,11 @@ namespace WaypointQueue
             return TryResolveLocation(out Location loc);
         }
 
+        public bool IsValidWithLoco()
+        {
+            return TryResolveLocation(out Location loc) && TryResolveLocomotive(out Car loco);
+        }
+
         public void Load()
         {
             TryResolveLocation(out Location loc);
