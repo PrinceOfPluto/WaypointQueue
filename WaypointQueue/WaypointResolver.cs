@@ -27,6 +27,19 @@ namespace WaypointQueue
          */
         public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
         {
+            if (wp.DoNotStop)
+            {
+                Loader.LogDebug($"Loco {wp.Locomotive.Ident} to {wp.LocationString} should NOT stop at waypoint");
+                wp = null;
+                // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
+                ordersHelper.ClearWaypoint();
+                return true;
+            }
+            else
+            {
+                Loader.LogDebug($"Loco {wp.Locomotive.Ident} to {wp.LocationString} should stop at waypoint");
+            }
+
             // Check if done waiting
             if (wp.CurrentlyWaiting)
             {

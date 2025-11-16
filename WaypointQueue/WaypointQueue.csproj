@@ -1,189 +1,190 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-	<Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-	<Import Project="$(SolutionDir)Paths.user" Condition="Exists('$(SolutionDir)Paths.user')" />
-	<PropertyGroup>
-		<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-		<Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-		<ProjectGuid>{B270F353-9D49-451F-B25A-CCB72EEE9D7C}</ProjectGuid>
-		<OutputType>Library</OutputType>
-		<AppDesignerFolder>Properties</AppDesignerFolder>
-		<RootNamespace>WaypointQueue</RootNamespace>
-		<AssemblyName>WaypointQueue</AssemblyName>
-		<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-		<LangVersion>latest</LangVersion>
-		<FileAlignment>512</FileAlignment>
-		<Deterministic>false</Deterministic>
-	</PropertyGroup>
-	<PropertyGroup>
-		<!-- Change this path to match your Railroader game installation directory -->
-		<RrManagedDir>$(RrInstallDir)\Railroader_Data\Managed</RrManagedDir>
-		<ModDirectory>$(RrInstallDir)\Mods\$(AssemblyName)\</ModDirectory>
-		<ModAssembly>$(ModDirectory)$(AssemblyName).dll</ModAssembly>
-		<TargetFrameworkProfile />
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-		<DebugSymbols>true</DebugSymbols>
-		<DebugType>full</DebugType>
-		<Optimize>false</Optimize>
-		<OutputPath>$(ModDirectory)</OutputPath>
-		<DefineConstants>DEBUG;TRACE</DefineConstants>
-		<ErrorReport>prompt</ErrorReport>
-		<WarningLevel>4</WarningLevel>
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-		<DebugType>pdbonly</DebugType>
-		<Optimize>true</Optimize>
-		<OutputPath>$(ModDirectory)</OutputPath>
-		<DefineConstants>TRACE</DefineConstants>
-		<ErrorReport>prompt</ErrorReport>
-		<WarningLevel>4</WarningLevel>
-	</PropertyGroup>
-	<!-- Railroader -->
-	<ItemGroup>
-		<Reference Include="Assembly-CSharp">
-			<HintPath>$(RrManagedDir)\Assembly-CSharp.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-	</ItemGroup>
-	<!-- Mod Loader -->
-	<ItemGroup>
-		<PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
-	</ItemGroup>
-	<!-- Null Checking -->
-	<ItemGroup>
-		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
-	</ItemGroup>
-	<!-- Unity -->
-	<ItemGroup>
-		<Reference Include="Definition">
-			<HintPath>$(RrManagedDir)\Definition.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="KeyValue.Runtime">
-			<HintPath>$(RrManagedDir)\KeyValue.Runtime.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="MessagePack">
-			<HintPath>$(RrManagedDir)\MessagePack.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="MessagePack.Annotations">
-			<HintPath>$(RrManagedDir)\MessagePack.Annotations.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Newtonsoft.Json">
-			<HintPath>$(RrManagedDir)\Newtonsoft.Json.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="System" />
-		<Reference Include="UnityEngine">
-			<HintPath>$(RrManagedDir)\UnityEngine.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.CoreModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.IMGUIModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.InputModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.InputModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.JSONSerializeModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.PhysicsModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.PhysicsModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.UI">
-			<HintPath>$(RrManagedDir)\UnityEngine.UI.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.UIModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.UIModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.ImageConversionModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.InputLegacyModule">
-			<HintPath>$(RrManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Unity.InputSystem">
-			<HintPath>$(RrManagedDir)\Unity.InputSystem.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Unity.RenderPipelines.Universal.Runtime">
-			<HintPath>$(RrManagedDir)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Unity.TextMeshPro">
-			<HintPath>$(RrManagedDir)\Unity.TextMeshPro.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-	</ItemGroup>
-	<ItemGroup>
-		<Compile Include="PatchPopulateOperationsPanel.cs" />
-		<Compile Include="RouteAssignmentRegistry.cs" />
-		<Compile Include="RouteDefinition.cs" />
-		<Compile Include="RouteManagerWindow.cs" />
-		<Compile Include="LocoWaypointState.cs" />
-		<Compile Include="ManagedWaypoint.cs" />
-		<Compile Include="Loader.cs" />
-		<Compile Include="PatchAutoEngineerOrdersHelper.cs" />
-		<Compile Include="PatchSteamLocomotive.cs" />
-		<Compile Include="RouteRegistry.cs" />
-		<Compile Include="WaypointQueueController.cs" />
-		<Compile Include="ModSaveManager.cs" />
-		<Compile Include="WaypointResolver.cs" />
-		<Compile Include="WaypointWindow.cs" />
-		<Compile Include="WaypointQueueSettings.cs" />
-		<Compile Include="WindowBase.cs" />
-		<Compile Include="WindowHelper.cs" />
-	</ItemGroup>
-	<ItemGroup>
-		<WCFMetadata Include="Connected Services\" />
-	</ItemGroup>
-	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-	<ItemGroup>
-		<ModAssemblies Include="$(ModAssembly)" />
-	</ItemGroup>
-	<ItemGroup>
-		<Folder Include="Properties\" />
-	</ItemGroup>
-	<Target Name="ExtractVersion" AfterTargets="AfterBuild">
-		<GetAssemblyIdentity AssemblyFiles="@(ModAssemblies)">
-			<Output TaskParameter="Assemblies" ItemName="ModAssemblyIdentities" />
-		</GetAssemblyIdentity>
-	</Target>
-	<Target Name="CopyReadme" AfterTargets="AfterBuild">
-		<Exec Command="copy &quot;$(SolutionDir)README.md&quot; &quot;$(ModDirectory)README.md&quot;" />
-	</Target>
-	<Target Name="CopyInfo" AfterTargets="ExtractVersion">
-		<Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
-	</Target>
-	<Target Name="SetVersion" AfterTargets="CopyInfo">
-		<Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(SolutionDir)UpdateVersion.ps1&quot; -FilePath &quot;$(ModDirectory)Info.json&quot; -FullVersion &quot;%(ModAssemblyIdentities.Version)&quot;" />
-	</Target>
-	<Target Name="PackageMod" AfterTargets="SetVersion" Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-		<PropertyGroup>
-			<PublishPath>$(SolutionDir)bin</PublishPath>
-			<ZipName>$(PublishPath)\$(AssemblyName)_%(ModAssemblyIdentities.Version).zip</ZipName>
-		</PropertyGroup>
-		<MakeDir Directories="$(PublishPath)" />
-		<ItemGroup>
-			<OldZips Include="$(PublishPath)\$(AssemblyName)_*.zip" />
-		</ItemGroup>
-		<Delete Files="@(OldZips)" />
-		<Exec Command="powershell -Command &quot;Compress-Archive -Path '$(ModDirectory)\*' -Destination '$(ZipName)'&quot;" />
-	</Target>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="$(SolutionDir)Paths.user" Condition="Exists('$(SolutionDir)Paths.user')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{B270F353-9D49-451F-B25A-CCB72EEE9D7C}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>WaypointQueue</RootNamespace>
+    <AssemblyName>WaypointQueue</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>false</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Change this path to match your Railroader game installation directory -->
+    <RrManagedDir>$(RrInstallDir)\Railroader_Data\Managed</RrManagedDir>
+    <ModDirectory>$(RrInstallDir)\Mods\$(AssemblyName)\</ModDirectory>
+    <ModAssembly>$(ModDirectory)$(AssemblyName).dll</ModAssembly>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>$(ModDirectory)</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>$(ModDirectory)</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <!-- Railroader -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RrManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <!-- Mod Loader -->
+  <ItemGroup>
+    <PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <!-- Null Checking -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- Unity -->
+  <ItemGroup>
+    <Reference Include="Definition">
+      <HintPath>$(RrManagedDir)\Definition.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="KeyValue.Runtime">
+      <HintPath>$(RrManagedDir)\KeyValue.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MessagePack">
+      <HintPath>$(RrManagedDir)\MessagePack.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MessagePack.Annotations">
+      <HintPath>$(RrManagedDir)\MessagePack.Annotations.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(RrManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="UnityEngine">
+      <HintPath>$(RrManagedDir)\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.InputModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(RrManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(RrManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(RrManagedDir)\Unity.InputSystem.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.RenderPipelines.Universal.Runtime">
+      <HintPath>$(RrManagedDir)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(RrManagedDir)\Unity.TextMeshPro.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="PatchAutoEngineerPlanner.cs" />
+    <Compile Include="PatchPopulateOperationsPanel.cs" />
+    <Compile Include="RouteAssignmentRegistry.cs" />
+    <Compile Include="RouteDefinition.cs" />
+    <Compile Include="RouteManagerWindow.cs" />
+    <Compile Include="LocoWaypointState.cs" />
+    <Compile Include="ManagedWaypoint.cs" />
+    <Compile Include="Loader.cs" />
+    <Compile Include="PatchAutoEngineerOrdersHelper.cs" />
+    <Compile Include="PatchSteamLocomotive.cs" />
+    <Compile Include="RouteRegistry.cs" />
+    <Compile Include="WaypointQueueController.cs" />
+    <Compile Include="ModSaveManager.cs" />
+    <Compile Include="WaypointResolver.cs" />
+    <Compile Include="WaypointWindow.cs" />
+    <Compile Include="WaypointQueueSettings.cs" />
+    <Compile Include="WindowBase.cs" />
+    <Compile Include="WindowHelper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ModAssemblies Include="$(ModAssembly)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <Target Name="ExtractVersion" AfterTargets="AfterBuild">
+    <GetAssemblyIdentity AssemblyFiles="@(ModAssemblies)">
+      <Output TaskParameter="Assemblies" ItemName="ModAssemblyIdentities" />
+    </GetAssemblyIdentity>
+  </Target>
+  <Target Name="CopyReadme" AfterTargets="AfterBuild">
+    <Exec Command="copy &quot;$(SolutionDir)README.md&quot; &quot;$(ModDirectory)README.md&quot;" />
+  </Target>
+  <Target Name="CopyInfo" AfterTargets="ExtractVersion">
+    <Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
+  </Target>
+  <Target Name="SetVersion" AfterTargets="CopyInfo">
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(SolutionDir)UpdateVersion.ps1&quot; -FilePath &quot;$(ModDirectory)Info.json&quot; -FullVersion &quot;%(ModAssemblyIdentities.Version)&quot;" />
+  </Target>
+  <Target Name="PackageMod" AfterTargets="SetVersion" Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PropertyGroup>
+      <PublishPath>$(SolutionDir)bin</PublishPath>
+      <ZipName>$(PublishPath)\$(AssemblyName)_%(ModAssemblyIdentities.Version).zip</ZipName>
+    </PropertyGroup>
+    <MakeDir Directories="$(PublishPath)" />
+    <ItemGroup>
+      <OldZips Include="$(PublishPath)\$(AssemblyName)_*.zip" />
+    </ItemGroup>
+    <Delete Files="@(OldZips)" />
+    <Exec Command="powershell -Command &quot;Compress-Archive -Path '$(ModDirectory)\*' -Destination '$(ZipName)'&quot;" />
+  </Target>
 </Project>

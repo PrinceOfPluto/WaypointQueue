@@ -287,6 +287,17 @@ namespace WaypointQueue
                 }));
             }
 
+            builder.AddField($"Do not stop", builder.AddToggle(() => waypoint.DoNotStop, delegate (bool value)
+            {
+                waypoint.DoNotStop = value;
+                onWaypointChange(waypoint);
+            }));
+
+            if (waypoint.DoNotStop)
+            {
+                return;
+            }
+
             if (waypoint.IsCoupling)
             {
                 TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car couplingToCar);

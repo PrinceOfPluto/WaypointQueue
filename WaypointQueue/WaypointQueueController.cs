@@ -200,6 +200,12 @@ namespace WaypointQueue
             return entry;
         }
 
+        public LocoWaypointState GetLocoWaypointState(Car loco)
+        {
+            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
+            return entry;
+        }
+
         public void AddWaypointsFromRoute(Car loco, RouteDefinition route, bool append)
         {
             if (loco == null || route == null) return;
@@ -354,7 +360,7 @@ namespace WaypointQueue
             return ordersHelper.Orders.Waypoint.HasValue;
         }
 
-        private AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
+        internal AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
         {
             Type plannerType = typeof(AutoEngineerPlanner);
             FieldInfo fieldInfo = plannerType.GetField("_persistence", BindingFlags.NonPublic | BindingFlags.Instance);
