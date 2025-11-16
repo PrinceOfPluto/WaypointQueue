@@ -434,6 +434,33 @@ namespace WaypointQueue
                 _coroutine = StartCoroutine(Ticker());
             }
         }
+
+        public static bool TryGetActiveWaypointFor(Car loco, out ManagedWaypoint waypoint)
+        {
+            waypoint = null;
+
+            if (loco == null)
+                return false;
+
+            var controller = Shared;
+            if (controller == null || controller.WaypointStateList == null)
+                return false;
+
+            // Find the LocoWaypointState for this locomotive
+            var state = controller.WaypointStateList
+                .FirstOrDefault(x => x.Locomotive != null && x.Locomotive.id == loco.id);
+
+            if (state == null)
+                return false;
+
+            // The "active" waypoint is the unresolved one if present, otherwise the first in the list
+            var active = state.UnresolvedWaypoint ?? state.Waypoints.FirstOrDefault();
+            if (active == null)
+                return false;
+
+            waypoint = active;
+            return true;
+        }
     }
 
 }

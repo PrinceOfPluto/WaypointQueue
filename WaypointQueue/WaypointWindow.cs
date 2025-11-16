@@ -287,16 +287,49 @@ namespace WaypointQueue
                 }));
             }
 
-            builder.AddField($"Do not stop", builder.AddToggle(() => waypoint.DoNotStop, delegate (bool value)
+            // --- Target speed (mph) ----------------------------------------------
+            // Uses +/- buttons to set a roll through speed
+            // Buttons increase and decrease roll through speed by
+            // increments of 5
+            builder.AddField("Roll Through Speed", builder.HStack(delegate (UIPanelBuilder field)
             {
-                waypoint.DoNotStop = value;
-                onWaypointChange(waypoint);
-            }));
+                field.AddButtonCompact("-", () =>
+                {
+                    int step = 5;
+                    int newSpeed = waypoint.WaypointTargetSpeed - step;
 
-            if (waypoint.DoNotStop)
-            {
-                return;
-            }
+                    // Wrap 0–45
+                    if (newSpeed < 0)
+                        newSpeed = 45;
+
+                    waypoint.WaypointTargetSpeed = newSpeed;
+                    onWaypointChange(waypoint);
+                });
+
+                field.Spacer(4f);
+
+                string speedLabel = waypoint.WaypointTargetSpeed.ToString();
+
+                field.AddLabel(speedLabel).Width(25f);
+
+                field.Spacer(4f);
+
+                field.AddButtonCompact("+", () =>
+                {
+                    int step = 5;
+                    int newSpeed = waypoint.WaypointTargetSpeed + step;
+
+                    // Wrap 0–45
+                    if (newSpeed > 45)
+                        newSpeed = 0;
+
+                    waypoint.WaypointTargetSpeed = newSpeed;
+                    onWaypointChange(waypoint);
+                });
+
+                field.Spacer(4f);
+
+            }));
 
             if (waypoint.IsCoupling)
             {
