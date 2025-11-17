@@ -4,6 +4,7 @@ using Model.AI;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Track;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
@@ -103,6 +104,71 @@ namespace WaypointQueue
             catch (Exception e)
             {
                 Loader.Log($"UpdateTargetsPostfix exception: {e}");
+            }
+        }
+
+        private const float HighSpeedMphThreshold = 35f;
+        private const float HighSpeedWaypointRadiusMeters = 25f;
+
+        [HarmonyPostfix]
+        [HarmonyPatch("IsWaypointSatisfied")]
+        private static void IsWaypointSatisfiedPostfix(
+            AutoEngineerPlanner __instance,
+            OrderWaypoint waypoint,
+            ref bool __result,
+            BaseLocomotive ____locomotive,
+            Graph ____graph,
+            ref Location? ____routeTargetLocation
+        )
+        {
+            try
+            {
+
+                if (__result)
+                    return;
+
+                if (____locomotive == null)
+                    return;
+
+                if (!WaypointQueueController.Shared.TryGetActiveWaypointFor(____locomotive, out ManagedWaypoint managed))
+                    return;
+
+                if (!managed.DoNotStop || managed.WaypointTargetSpeed <= 0)
+                    return;
+
+                float speedMph = ____locomotive.VelocityMphAbs;
+                if (speedMph < HighSpeedMphThreshold)
+                    return;
+
+                if (!____routeTargetLocation.HasValue || ____graph == null)
+                    return;
+
+                Location targetLoc = ____routeTargetLocation.Value;
+
+                float bestDistance;
+                try
+                {
+                    Location locF = ____locomotive.LocationF;
+                    Location locR = ____locomotive.LocationR;
+
+                    float dF = Mathf.Abs(____graph.GetDistanceBetweenClose(targetLoc, locF));
+                    float dR = Mathf.Abs(____graph.GetDistanceBetweenClose(targetLoc, locR));
+                    bestDistance = Mathf.Min(dF, dR);
+                }
+                catch (Exception ex)
+                {
+                    Loader.LogDebug($"High-speed waypoint distance calc failed: {ex.Message}");
+                    return;
+                }
+
+                if (bestDistance <= HighSpeedWaypointRadiusMeters)
+                {
+                    __result = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Loader.Log($"IsWaypointSatisfiedPostfix failed: {ex}");
             }
         }
     }
