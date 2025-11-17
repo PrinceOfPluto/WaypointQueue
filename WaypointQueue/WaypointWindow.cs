@@ -90,8 +90,12 @@ namespace WaypointQueue
 
         private void Tick()
         {
-            if (TrainController.Shared.SelectedLocomotive.id != _selectedLocomotiveId && Shared.Window.IsShown)
+            if (TrainController.Shared.SelectedLocomotive?.id != _selectedLocomotiveId)
             {
+                if (TrainController.Shared.SelectedLocomotive == null)
+                {
+                    _selectedLocomotiveId = null;
+                }
                 Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
                 RebuildWithScroll();
             }
