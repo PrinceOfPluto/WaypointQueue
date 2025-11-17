@@ -303,13 +303,21 @@ namespace WaypointQueue
 
         public void UpdateWaypoint(ManagedWaypoint updatedWaypoint)
         {
-            List<ManagedWaypoint> waypointList = GetWaypointList(updatedWaypoint.Locomotive);
-            if (waypointList != null)
+            LocoWaypointState state = GetLocoWaypointState(updatedWaypoint.Locomotive);
+
+            if (state != null && state.Waypoints != null)
             {
-                int index = waypointList.FindIndex(w => w.Id == updatedWaypoint.Id);
+                int index = state.Waypoints.FindIndex(w => w.Id == updatedWaypoint.Id);
                 if (index >= 0)
                 {
-                    waypointList[index] = updatedWaypoint;
+                    state.Waypoints[index] = updatedWaypoint;
+
+                    if (updatedWaypoint.Id == state.UnresolvedWaypoint.Id)
+                    {
+                        Loader.LogDebug($"Updated unresolved waypoint");
+                        state.UnresolvedWaypoint = updatedWaypoint;
+                    }
+
                     Loader.LogDebug($"Invoking OnWaypointsUpdated in UpdateWaypoint");
                     OnWaypointsUpdated.Invoke();
                 }
@@ -352,6 +360,28 @@ namespace WaypointQueue
         {
             List<ManagedWaypoint> waypoints = GetWaypointList(loco);
             return waypoints != null && waypoints.Count > 0;
+        }
+
+        public bool TryGetActiveWaypointFor(Car loco, out ManagedWaypoint waypoint)
+        {
+            waypoint = null;
+
+            if (loco == null)
+                return false;
+
+            // Find the LocoWaypointState for this locomotive
+            var state = WaypointStateList.FirstOrDefault(x => x.Locomotive != null && x.Locomotive.id == loco.id);
+
+            if (state == null)
+                return false;
+
+            // The "active" waypoint is the unresolved one if present, otherwise the first in the list
+            var active = state.UnresolvedWaypoint ?? state.Waypoints.FirstOrDefault();
+            if (active == null)
+                return false;
+
+            waypoint = active;
+            return true;
         }
 
         private bool HasActiveWaypoint(AutoEngineerOrdersHelper ordersHelper)

@@ -24,6 +24,7 @@ namespace WaypointQueue
         [Draw("Release handbrakes by default when coupling")] public bool ReleaseHandbrakesByDefault = true;
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
+        [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)
