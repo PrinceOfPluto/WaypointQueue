@@ -27,6 +27,16 @@ namespace WaypointQueue
          */
         public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
         {
+            if (wp.DoNotStop)
+            {
+                // Uncoupling orders are the only orders should get resolved if we are not stopping
+                ResolveUncouplingOrders(wp);
+                wp = null;
+                // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
+                ordersHelper.ClearWaypoint();
+                return true;
+            }
+
             // Check if done waiting
             if (wp.CurrentlyWaiting)
             {
