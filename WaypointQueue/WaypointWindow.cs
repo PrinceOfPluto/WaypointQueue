@@ -398,6 +398,17 @@ namespace WaypointQueue
                             AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
                         }
                     }
+
+                    if (waypoint.NumberOfCarsToCut == 0)
+                    {
+                        builder.AddField("", builder.HStack((UIPanelBuilder field) =>
+                        {
+                            field.AddLabel("Will remain coupled to ALL cars", (TMP_Text text) =>
+                            {
+                                text.fontStyle = FontStyles.Bold;
+                            });
+                        }));
+                    }
                 }
             }
             else if (!waypoint.CurrentlyWaiting)
