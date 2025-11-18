@@ -24,6 +24,7 @@ namespace WaypointQueue
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
         [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)

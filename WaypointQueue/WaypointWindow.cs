@@ -1,4 +1,5 @@
 ﻿using Game;
+using HarmonyLib;
 using Model;
 using Model.Ops;
 using Model.Ops.Timetable;
@@ -6,11 +7,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using TMPro;
 using UI;
 using UI.Builder;
 using UI.Common;
+using UI.CompanyWindow;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.UUM;
@@ -30,6 +33,8 @@ namespace WaypointQueue
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
 
         public static WaypointWindow Shared => WindowManager.Shared.GetWindow<WaypointWindow>();
+
+        private static CrewsPanelBuilder _crewsPanelBuilder => new();
 
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
@@ -715,6 +720,13 @@ namespace WaypointQueue
             CameraSelector.shared.JumpToPoint(waypoint.Location.GetPosition(), waypoint.Location.GetRotation(), CameraSelector.CameraIdentifier.Strategy);
         }
 
+        private static string DropdownLabelForTimetableTrain(Timetable.Train train)
+        {
+            MethodInfo dropdownMI = AccessTools.Method(typeof(CrewsPanelBuilder), "DropdownLabelForTimetableTrain", [typeof(Timetable.Train)]);
+            string value = (string)dropdownMI.Invoke(_crewsPanelBuilder, [train]);
+            return value;
+        }
+
         private static (List<string> labels, List<string> values, int selected) BuildTimetableSymbolChoices(string current)
         {
             // 0 = "No change" → do nothing
@@ -731,7 +743,7 @@ namespace WaypointQueue
                         .Values
                         .Where(t => !string.IsNullOrEmpty(t.Name))
                         .OrderBy(t => t.SortName)
-                        .Select(t => t.Name)
+                        .Select(t => Loader.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong)
                         .ToList();
 
                     foreach (var sym in rows)
