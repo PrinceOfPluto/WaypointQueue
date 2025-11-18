@@ -5,5 +5,7 @@
     "Version": "1.0.0",
     "ManagerVersion": "0.31.0",
     "AssemblyName": "WaypointQueue.dll",
-    "EntryMethod": "WaypointQueue.UUM.Loader.Load"
+    "EntryMethod": "WaypointQueue.UUM.Loader.Load",
+    "HomePage": "https://www.nexusmods.com/railroader/mods/1029",
+    "Repository": "https://github.com/PrinceOfPluto/WaypointQueue"
 }
