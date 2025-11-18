@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using Model;
 using Model.Definition;
+using System.Collections.Generic;
 using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
@@ -22,14 +23,11 @@ namespace WaypointQueue
 
             if (!car.Archetype.IsLocomotive()) return;
 
-            builder.Spacer(2f);
+            List<RouteDefinition> routes = RouteRegistry.Routes;
 
             builder.AddSection("Routes", section =>
             {
-                var routes = RouteRegistry.Routes;
-
-
-                var names = new System.Collections.Generic.List<string> { "(select route)" };
+                List<string> names = new System.Collections.Generic.List<string> { "(select route)" };
                 names.AddRange(routes.Select(r => r.Name));
 
 
@@ -43,11 +41,10 @@ namespace WaypointQueue
                     if (idx >= 0) selectedIndex = idx + 1;
                 }
 
+                section.FieldLabelWidth = 100f;
 
-                section.HStack(row =>
+                section.AddField("Route", section.HStack(row =>
                 {
-                    row.AddLabel("Route").Width(75f);
-
                     var dd = row.AddDropdown(
                         names,
                         selectedIndex,
@@ -69,11 +66,9 @@ namespace WaypointQueue
 
                             section.Rebuild();
                         });
-                    dd.Width(240f);
+                    dd.FlexibleWidth();
 
-                    row.Spacer(8f);
-
-                    row.AddButton("Show", () =>
+                    row.AddButtonCompact("Show", () =>
                     {
                         var win = Loader.RouteManagerWindow;
                         if (win == null)
@@ -82,26 +77,19 @@ namespace WaypointQueue
                             win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
                         }
                         win.Show();
-                    }).Width(80f);
-                });
-
-                section.Spacer(6f);
-
+                    });
+                }));
 
                 if (!string.IsNullOrEmpty(currentRouteId))
                 {
-                    section.HStack(loopRow =>
+                    section.AddField("Loop", section.AddToggle(
+                    () => RouteAssignmentRegistry.Get(carID).loop,
+                    (bool v) =>
                     {
-                        loopRow.AddToggle(
-                            () => RouteAssignmentRegistry.Get(carID).loop,
-                            (bool v) =>
-                            {
 
-                                var (rid, _) = RouteAssignmentRegistry.Get(carID);
-                                RouteAssignmentRegistry.Set(carID, rid, v);
-                            });
-                        loopRow.AddLabel("Loop");
-                    });
+                        var (rid, _) = RouteAssignmentRegistry.Get(carID);
+                        RouteAssignmentRegistry.Set(carID, rid, v);
+                    }));
                 }
             });
         }
