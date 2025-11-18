@@ -13,7 +13,6 @@ namespace WaypointQueue
 
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
-        [Draw("Enable tooltips")] public bool EnableTooltips = true;
 
         [Header("Uncoupling settings")]
         [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
