@@ -171,6 +171,10 @@ namespace WaypointQueue
 
             if (isReplacing && entry.Waypoints.Count > 0)
             {
+                if (entry.Waypoints[0].Id == entry.UnresolvedWaypoint.Id)
+                {
+                    entry.UnresolvedWaypoint = waypoint;
+                }
                 entry.Waypoints[0] = waypoint;
                 RefreshCurrentWaypoint(loco, GetOrdersHelper(loco));
             }
