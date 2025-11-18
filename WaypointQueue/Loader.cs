@@ -28,6 +28,7 @@ namespace WaypointQueue.UUM
                 modEntry.Logger.Warning("WaypointQueue is already loaded!");
                 return false;
             }
+            Log($"Loading WaypointQueue assembly version {Assembly.GetExecutingAssembly().GetName().Version}");
 
             ModEntry = modEntry;
             Settings = UnityModManager.ModSettings.Load<WaypointQueueSettings>(modEntry);
