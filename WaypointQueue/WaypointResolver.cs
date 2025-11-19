@@ -308,7 +308,7 @@ namespace WaypointQueue
                 {
                     float distanceFromWaypointToLoader = Vector3.Distance(waypoint.Location.GetPosition(), loaderLocation.GetPosition());
 
-                    float radiusToSearch = 10f;
+                    float radiusToSearch = 5f;
 
                     if (distanceFromWaypointToLoader < radiusToSearch)
                     {
