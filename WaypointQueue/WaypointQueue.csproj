@@ -135,6 +135,7 @@
     <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="PatchPopulateOperationsPanel.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RouteAssignmentRegistry.cs" />
     <Compile Include="RouteDefinition.cs" />
     <Compile Include="RouteManagerWindow.cs" />
@@ -159,16 +160,11 @@
   <ItemGroup>
     <ModAssemblies Include="$(ModAssembly)" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
+  <ItemGroup />
   <Target Name="ExtractVersion" AfterTargets="AfterBuild">
     <GetAssemblyIdentity AssemblyFiles="@(ModAssemblies)">
       <Output TaskParameter="Assemblies" ItemName="ModAssemblyIdentities" />
     </GetAssemblyIdentity>
-  </Target>
-  <Target Name="CopyReadme" AfterTargets="AfterBuild">
-    <Exec Command="copy &quot;$(SolutionDir)README.md&quot; &quot;$(ModDirectory)README.md&quot;" />
   </Target>
   <Target Name="CopyInfo" AfterTargets="ExtractVersion">
     <Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
