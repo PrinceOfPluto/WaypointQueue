@@ -739,20 +739,19 @@ namespace WaypointQueue
                 if (timetable?.Trains != null && timetable.Trains.Count > 0)
                 {
                     // Sort by SortName; store actual symbol in values = Train.Name
-                    var rows = timetable.Trains
+                    var sortedTrains = timetable.Trains
                         .Values
                         .Where(t => !string.IsNullOrEmpty(t.Name))
                         .OrderBy(t => t.SortName)
-                        .Select(t => Loader.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong)
                         .ToList();
 
-                    foreach (var sym in rows)
+                    foreach (var t in sortedTrains)
                     {
-                        labels.Add(sym);   // display plain symbol
-                        values.Add(sym);   // value = symbol
+                        labels.Add(Loader.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong);
+                        values.Add(t.Name);   // value = symbol
                     }
 
-                    Loader.LogDebug($"[TimetableSymbolDropdown] Loaded {rows.Count} symbols from TimetableController.Current.");
+                    Loader.LogDebug($"[TimetableSymbolDropdown] Loaded {sortedTrains.Count} symbols from TimetableController.Current.");
                 }
                 else
                 {

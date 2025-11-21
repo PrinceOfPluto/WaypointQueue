@@ -440,7 +440,6 @@ namespace WaypointQueue
         {
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {refuelLocation}");
             (Location, string)? maybeWaypoint = (refuelLocation, null);
-            WaypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
