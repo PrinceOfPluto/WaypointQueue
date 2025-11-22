@@ -132,6 +132,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FreighManager.cs" />
     <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="PatchPopulateOperationsPanel.cs" />

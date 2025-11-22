@@ -975,6 +975,10 @@ namespace WaypointQueue
             if (sideCars == null || sideCars.Count == 0 || string.IsNullOrEmpty(destinationKey))
                 return false;
 
+            string keyNorm = destinationKey.Trim();
+            if (keyNorm.Length == 0)
+                return false;
+
             for (int i = 0; i < sideCars.Count; i++)
             {
                 Car car = sideCars[i];
@@ -986,12 +990,21 @@ namespace WaypointQueue
                 }
 
                 var wb = car.Waybill.Value;
+                string raw = wb.Destination.ToString() ?? string.Empty;
+                string rawNorm = raw.Trim();
+
+                // Old behavior: base key from the waybill (e.g. stripping any "/..." suffix)
                 string baseKey = GetDestinationBaseKeyFromWaybill(wb);
 
-                if (!string.Equals(baseKey, destinationKey, StringComparison.Ordinal))
+                bool matches =
+                    string.Equals(rawNorm, keyNorm, StringComparison.InvariantCultureIgnoreCase) ||
+                    (!string.IsNullOrEmpty(baseKey) &&
+                     string.Equals(baseKey, keyNorm, StringComparison.InvariantCultureIgnoreCase));
+
+                if (!matches)
                 {
                     if (startIndex != -1)
-                        break; 
+                        break; // we already started a contiguous block, and this car breaks it
                     continue;
                 }
 

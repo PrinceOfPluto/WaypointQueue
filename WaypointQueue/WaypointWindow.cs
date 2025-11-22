@@ -40,7 +40,7 @@ namespace WaypointQueue
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
         private float _scrollPosition;
-
+        private string _destinationFilter = string.Empty;
         private void OnEnable()
         {
             WaypointQueueController.OnWaypointsUpdated += OnWaypointsUpdated;
@@ -502,11 +502,29 @@ namespace WaypointQueue
                     var (destLabels, destIds, destSelectedIndex) = BuildDestinationChoices(waypoint);
 
                     builder.AddField("Destination",
-                        builder.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
+                        builder.HStack(field =>
                         {
-                            waypoint.UncoupleDestinationId = destIds[idx];
-                            onWaypointChange(waypoint);
-                        }).Width(200f));
+                            field.VStack(vb =>
+                            {
+                                // Filter textbox
+                                vb.AddInputField(_destinationFilter ?? string.Empty, (string value) =>
+                                {
+                                    _destinationFilter = value ?? string.Empty;
+                                    // Rebuild UI so the dropdown options reflect the new filter
+                                    RebuildWithScroll();
+                                }, placeholder: "Filter destinations...")
+                                  .Width(200f);
+
+                                vb.Spacer(4f);
+
+                                // Dropdown of filtered destinations
+                                vb.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
+                                {
+                                    waypoint.UncoupleDestinationId = destIds[idx];
+                                    onWaypointChange(waypoint);
+                                }).Width(200f);
+                            });
+                        }));
 
                     builder.AddField("Keep String",
                         builder.AddToggle(
@@ -889,10 +907,12 @@ namespace WaypointQueue
             element.RectTransform.Find("Label").GetComponent<TMP_Text>().rectTransform.Tooltip(title, message);
         }
 
+        private static bool _loggedDestinationMapOnce = false;
+
         private (
-        System.Collections.Generic.List<string> labels,
-        System.Collections.Generic.List<string> destIds,
-        int selectedIndex) 
+            System.Collections.Generic.List<string> labels,
+            System.Collections.Generic.List<string> destIds,
+            int selectedIndex)
         BuildDestinationChoices(ManagedWaypoint waypoint)
         {
             var labels = new System.Collections.Generic.List<string>();
@@ -903,49 +923,96 @@ namespace WaypointQueue
             labels.Add("Select destination");
             destIds.Add(null);
 
-            if (waypoint.Locomotive == null)
+            var all = FreightManager.Destinations;
+            if (all == null || all.Count == 0)
             {
                 return (labels, destIds, selectedIndex);
             }
 
-            // Group by *reduced* destination key (everything before '/')
-            var grouped = new System.Collections.Generic.Dictionary<string, (string display, int count)>();
-
-            foreach (var car in waypoint.Locomotive.EnumerateCoupled())
+            // One-time debug dump: label -> all underlying Ops IDs that map to it.
+            if (!_loggedDestinationMapOnce)
             {
-                if (!car.Waybill.HasValue) continue;
-
-                var wb = car.Waybill.Value;
-
-                // Always use ToString(), then strip after '/'
-                string fullDisplay = wb.Destination.ToString() ?? string.Empty;
-                string baseKey = GetDestinationBaseKey(fullDisplay);
-                if (baseKey == null) continue;
-
-                if (!grouped.TryGetValue(baseKey, out var tuple))
+                try
                 {
-                    // display = baseKey, no "/..." ever shown
-                    grouped[baseKey] = (baseKey, 1);
+                    var debugMap = new Dictionary<string, HashSet<string>>(StringComparer.InvariantCultureIgnoreCase);
+
+                    foreach (var d in all)
+                    {
+                        string idRaw = d.Id ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(idRaw))
+                            continue;
+
+                        // Use the already-built label from FreightManager
+                        string labelForDropdown = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
+
+                        if (!debugMap.TryGetValue(labelForDropdown, out var set))
+                        {
+                            set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            debugMap[labelForDropdown] = set;
+                        }
+
+                        set.Add(idRaw);
+                    }
+
+                    foreach (var kvp in debugMap.OrderBy(k => k.Key, StringComparer.InvariantCultureIgnoreCase))
+                    {
+                        string idsJoined = string.Join(", ", kvp.Value);
+                        Loader.LogDebug($"[FreightManager] Destination label '{kvp.Key}' is backed by Ops Ids: {idsJoined}");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    grouped[baseKey] = (tuple.display, tuple.count + 1);
+                    Loader.Log($"[FreightManager] Error logging destination map: {ex}");
+                }
+
+                _loggedDestinationMapOnce = true;
+            }
+
+            string filter = _destinationFilter ?? string.Empty;
+            bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+
+            // Deduplicate by *label* (case-insensitive), keep a single label string as the stored key.
+            var byLabel = new Dictionary<string, string>(
+                StringComparer.InvariantCultureIgnoreCase); // label -> labelToStore
+
+            foreach (var d in all)
+            {
+                string idRaw = d.Id ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(idRaw))
+                    continue;
+
+                string label = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
+
+                if (hasFilter)
+                {
+                    bool labelMatch = label.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
+                    bool idMatch = idRaw.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
+
+                    if (!labelMatch && !idMatch)
+                    {
+                        continue;
+                    }
+                }
+
+                // First entry for this label "wins" and provides the text we store as UncoupleDestinationId
+                if (!byLabel.ContainsKey(label))
+                {
+                    byLabel[label] = label;
                 }
             }
 
-
-            foreach (var kvp in grouped)
+            // Sort by label for display
+            foreach (var entry in byLabel.Keys
+                                         .OrderBy(e => e, StringComparer.InvariantCultureIgnoreCase))
             {
-                string baseKey = kvp.Key;
-                var (display, count) = kvp.Value;
-
-                string label = count > 1 ? $"{display} ({count} cars)" : display;
+                string label = entry;
+                string valueToStore = byLabel[entry]; // this is the label string
 
                 labels.Add(label);
-                destIds.Add(baseKey);  // UncoupleDestinationId will be JUST the base key
+                destIds.Add(valueToStore);
 
                 if (!string.IsNullOrEmpty(waypoint.UncoupleDestinationId) &&
-                    waypoint.UncoupleDestinationId == baseKey)
+                    string.Equals(waypoint.UncoupleDestinationId, valueToStore, StringComparison.InvariantCultureIgnoreCase))
                 {
                     selectedIndex = labels.Count - 1;
                 }
@@ -953,6 +1020,5 @@ namespace WaypointQueue
 
             return (labels, destIds, selectedIndex);
         }
-
     }
 }
