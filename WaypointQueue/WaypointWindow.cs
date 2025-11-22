@@ -812,7 +812,7 @@ namespace WaypointQueue
                         values.Add(t.Name);   // value = symbol
                     }
 
-                    Loader.LogDebug($"[TimetableSymbolDropdown] Loaded {sortedTrains.Count} symbols from TimetableController.Current.");
+                    //Loader.LogDebug($"[TimetableSymbolDropdown] Loaded {sortedTrains.Count} symbols from TimetableController.Current.");
                 }
                 else
                 {
