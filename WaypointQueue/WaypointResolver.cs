@@ -1,8 +1,10 @@
 ﻿using Game;
 using Game.Messages;
 using Game.State;
+using HarmonyLib;
 using Helpers;
 using Model;
+using Model.AI;
 using Model.Definition.Data;
 using Model.Ops;
 using Model.Ops.Definition;
@@ -11,6 +13,7 @@ using RollingStock;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Track;
 using Track.Search;
 using UI.Common;
@@ -31,7 +34,18 @@ namespace WaypointQueue
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
             {
-                // Uncoupling orders are the only orders should get resolved if we are not stopping
+                if (wp.MoveTrainPastWaypoint)
+                {
+                    if (OrderClearBeyondWaypoint(wp, ordersHelper))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        Loader.Log($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                    }
+                }
+
                 ResolveUncouplingOrders(wp);
                 return true;
             }
@@ -42,6 +56,18 @@ namespace WaypointQueue
                 // We don't want to start waiting until after we resolve the current waypoint orders,
                 // but we also don't want that resolving logic to run again after we are finished waiting
                 return TryEndWaiting(wp);
+            }
+
+            if (wp.MoveTrainPastWaypoint)
+            {
+                if (OrderClearBeyondWaypoint(wp, ordersHelper))
+                {
+                    return false;
+                }
+                else
+                {
+                    Loader.Log($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                }
             }
 
             // Try to begin nearby coupling
@@ -204,6 +230,52 @@ namespace WaypointQueue
             Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
 
             return false;
+        }
+
+        public static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        {
+            waypoint.StopAtWaypoint = true;
+            waypoint.MoveTrainPastWaypoint = false;
+
+            Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
+            LogicalEnd furthest = FurthestLogicalEndFrom(waypoint.Locomotive, waypoint.Location);
+            Car furthestCar = EnumerateCoupledToEnd(waypoint.Locomotive, furthest, inclusive: true).LastOrDefault();
+            if (furthestCar == null)
+            {
+                Loader.Log($"Error while clearing beyond waypoint, furthest car was null");
+                return false;
+            }
+
+            LogicalEnd furthestEndOnCar = FurthestLogicalEndFrom(furthestCar, waypoint.Location);
+            Location furthestLocation = furthestCar.LocationFor(furthestEndOnCar);
+
+            BaseLocomotive loco = (BaseLocomotive)waypoint.Locomotive;
+
+            MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
+            float totalTrainLength = (float)calculateTotalLengthMI.Invoke(loco.AutoEngineerPlanner, []);
+
+            Location orientedLocation = Graph.Shared.LocationOrientedToward(waypoint.Location, furthestLocation);
+            Location locationToMove;
+
+            try
+            {
+                locationToMove = Graph.Shared.LocationByMoving(orientedLocation, totalTrainLength, checkSwitchAgainstMovement: false, stopAtEndOfTrack: false);
+                locationToMove.AssertValid();
+            }
+            catch (Exception)
+            {
+                Toast.Present($"{waypoint.Locomotive.Ident} cannot fit train past the waypoint");
+
+                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                return false;
+            }
+
+            waypoint.OverwriteLocation(locationToMove);
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+
+            Loader.Log($"Sending train of {waypoint.Locomotive.Ident} to {locationToMove} past the waypoint");
+            WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
+            return true;
         }
 
         public static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
@@ -569,9 +641,11 @@ namespace WaypointQueue
             }
         }
 
-        private static List<Car> EnumerateCoupledToEnd(Car car, LogicalEnd directionToCount)
+        private static List<Car> EnumerateCoupledToEnd(Car car, LogicalEnd directionToCount, bool inclusive = false)
         {
             List<Car> result = [];
+            if (inclusive) result.Add(car);
+
             Car currentCar = car;
             while (currentCar.TryGetAdjacentCar(directionToCount, out Car nextCar))
             {
