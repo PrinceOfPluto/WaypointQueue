@@ -298,7 +298,7 @@ namespace WaypointQueue
                 AddLabelOnlyTooltip(trainSymbolField, "Train symbol", "Change to this train symbol once this waypoint becomes active.");
             }
 
-            if (!waypoint.IsCoupling)
+            if (!waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
             {
                 var stopAtWaypointField = builder.AddField($"Stop at waypoint", builder.AddToggle(() => waypoint.StopAtWaypoint, delegate (bool value)
                 {
@@ -313,7 +313,7 @@ namespace WaypointQueue
                 AddLabelOnlyTooltip(stopAtWaypointField, "Stop at waypoint", "Controls whether the train will come to a complete stop at the waypoint.\n\nIf you are not stopping, you may still perform uncoupling orders, but you cannot perform coupling, refueling, or waiting orders.");
             }
 
-            if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling)
+            if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
             {
                 var passingSpeedField = builder.AddField($"Passing speed limit", builder.HStack((UIPanelBuilder field) =>
                 {
@@ -336,13 +336,35 @@ namespace WaypointQueue
                 AddLabelOnlyTooltip(passingSpeedField, "Passing speed limit", "When passing this waypoint, the engineer will aim to be traveling at or below this speed.\n\nIf there is a track speed restriction, the engineer will not exceed that speed restriction to ensure safety.");
             }
 
-            if (waypoint.IsCoupling && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
+            if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
             {
-                TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car couplingToCar);
-                builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
+                var coupleNearbyField = builder.AddField($"Couple nearest", builder.AddToggle(() => waypoint.SeekNearbyCoupling, delegate (bool value)
                 {
-                    field.AddLabel(couplingToCar.Ident.ToString());
+                    waypoint.SeekNearbyCoupling = value;
+                    waypoint.StopAtWaypoint = true;
+                    onWaypointChange(waypoint);
                 }));
+
+                AddLabelOnlyTooltip(coupleNearbyField, "Couple nearest", "Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius.\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. You can configure the search radius in the mod settings.");
+            }
+
+            if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
+            {
+                if (waypoint.IsCoupling)
+                {
+                    TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car couplingToCar);
+                    builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
+                    {
+                        field.AddLabel(couplingToCar.Ident.ToString());
+                    }));
+                }
+                else if (waypoint.SeekNearbyCoupling)
+                {
+                    builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
+                    {
+                        field.AddLabel("Nearest car upon arrival");
+                    }));
+                }
 
                 if (Loader.Settings.UseCompactLayout)
                 {
@@ -470,10 +492,7 @@ namespace WaypointQueue
                 }));
             }
 
-            if (waypoint.StopAtWaypoint)
-            {
-                AddWaitingSection(waypoint, builder, onWaypointChange);
-            }
+            AddWaitingSection(waypoint, builder, onWaypointChange);
         }
 
         private void AddConnectAirAndReleaseBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)

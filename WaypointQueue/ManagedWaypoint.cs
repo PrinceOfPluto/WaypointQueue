@@ -61,7 +61,7 @@ namespace WaypointQueue
         public Location Location { get; internal set; }
 
         [JsonProperty]
-        public string CoupleToCarId { get; private set; }
+        public string CoupleToCarId { get; internal set; }
 
         [JsonIgnore]
         public bool IsCoupling
@@ -77,7 +77,7 @@ namespace WaypointQueue
         {
             get
             {
-                return !IsCoupling && NumberOfCarsToCut > 0;
+                return !IsCoupling && !SeekNearbyCoupling && NumberOfCarsToCut > 0;
             }
         }
 
@@ -128,6 +128,8 @@ namespace WaypointQueue
         public double WaitUntilGameTotalSeconds { get; set; }
         public bool StopAtWaypoint { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
+        public bool SeekNearbyCoupling { get; set; }
+        public bool CurrentlyCouplingNearby { get; set; }
 
         public bool IsValid()
         {
@@ -210,6 +212,12 @@ namespace WaypointQueue
             WaitUntilDay = TodayOrTomorrow.Today;
             WaitForDurationMinutes = 0;
             WaitUntilGameTotalSeconds = 0;
+        }
+
+        public void OverwriteLocation(Location loc)
+        {
+            Location = loc;
+            LocationString = Graph.Shared.LocationToString(loc);
         }
 
         public bool TryCopyForRoute(out ManagedWaypoint copy, Car loco = null)

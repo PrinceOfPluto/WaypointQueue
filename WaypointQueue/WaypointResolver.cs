@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Track;
+using Track.Search;
 using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
@@ -41,6 +42,20 @@ namespace WaypointQueue
                 // We don't want to start waiting until after we resolve the current waypoint orders,
                 // but we also don't want that resolving logic to run again after we are finished waiting
                 return TryEndWaiting(wp);
+            }
+
+            // Try to begin nearby coupling
+            if (wp.SeekNearbyCoupling && !wp.CurrentlyCouplingNearby)
+            {
+                if (FindNearbyCoupling(wp, ordersHelper))
+                {
+                    return false;
+                }
+                else
+                {
+                    wp.SeekNearbyCoupling = false;
+                    Toast.Present($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                }
             }
 
             // Begin refueling
@@ -139,6 +154,58 @@ namespace WaypointQueue
             return false;
         }
 
+        public static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.LogDebug($"Starting search for nearby coupling");
+            float searchRadius = Loader.Settings.NearbyCouplingSearchRadius;
+            List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
+            List<string> nearbyCarIds = [.. TrainController.Shared
+                .CarIdsInRadius(wp.Location.GetPosition(), searchRadius)
+                .Where(cid => !alreadyCoupledIds.Contains(cid))];
+
+            Car bestMatchCar = null;
+            Location bestMatchLocation = default;
+            float bestMatchDistance = 100000;
+
+            foreach (var carId in nearbyCarIds)
+            {
+                if (TrainController.Shared.TryGetCarForId(carId, out Car car))
+                {
+                    if (car.EndGearA.IsCoupled && car.EndGearB.IsCoupled)
+                    {
+                        continue;
+                    }
+
+                    LogicalEnd nearestEnd = ClosestLogicalEndTo(car, wp.Location);
+                    Graph.Shared.TryFindDistance(wp.Location, car.LocationFor(nearestEnd), out float totalDistance, out float traverseTimeSeconds);
+                    if (totalDistance < bestMatchDistance)
+                    {
+                        bestMatchCar = car;
+                        bestMatchLocation = car.LocationFor(nearestEnd);
+                        bestMatchDistance = totalDistance;
+                    }
+                }
+            }
+            if (bestMatchCar != null)
+            {
+                wp.CoupleToCarId = bestMatchCar.id;
+                wp.CurrentlyCouplingNearby = true;
+
+                Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(bestMatchLocation, wp.Location);
+                Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
+                wp.OverwriteLocation(adjustedLocation);
+
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
+
+                Loader.Log($"Sending nearby coupling waypoint for {wp.Locomotive.Ident} to {adjustedLocation} with coupling to {bestMatchCar.Ident}");
+                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, adjustedLocation, bestMatchCar.id);
+                return true;
+            }
+            Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
+
+            return false;
+        }
+
         public static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident}");
@@ -152,7 +219,8 @@ namespace WaypointQueue
 
             Location locationToMove = GetRefuelLocation(waypoint, ordersHelper);
             SetCarLoadTargetLoaderCanLoad(waypoint, true);
-            WaypointQueueController.Shared.SendToWaypointForRefuel(waypoint, locationToMove, ordersHelper);
+            Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
+            WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
         }
 
         private static void CleanupAfterRefuel(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
