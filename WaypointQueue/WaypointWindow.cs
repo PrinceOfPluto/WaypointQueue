@@ -419,7 +419,7 @@ namespace WaypointQueue
             }
             else if (!waypoint.CurrentlyWaiting)
             {
-                
+
                 builder.HStack(delegate (UIPanelBuilder hBuilder)
                 {
                     hBuilder.AddField("Uncouple", hBuilder.HStack(delegate (UIPanelBuilder field)
@@ -544,26 +544,27 @@ namespace WaypointQueue
                                 onWaypointChange(waypoint);
                             }));
 
-                    AddLabelOnlyTooltip(takeActiveCutField, "Make uncoupled cars active", "If this is active, the number of cars to uncouple will still be part of the active train. " +
-                        "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
-                        "This is particularly useful for local freight switching." +
-                        "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
-                        "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                        AddLabelOnlyTooltip(takeActiveCutField, "Make uncoupled cars active", "If this is active, the number of cars to uncouple will still be part of the active train. " +
+                            "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
+                            "This is particularly useful for local freight switching." +
+                            "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
+                            "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                    }
                 }
-            }
 
-            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
-            {
-                builder.AddField($"Refuel {waypoint.RefuelLoadName}", builder.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+                if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
                 {
-                    waypoint.WillRefuel = value;
-                    onWaypointChange(waypoint);
-                }));
-            }
+                    builder.AddField($"Refuel {waypoint.RefuelLoadName}", builder.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+                    {
+                        waypoint.WillRefuel = value;
+                        onWaypointChange(waypoint);
+                    }));
+                }
 
-            if (waypoint.StopAtWaypoint)
-            {
-                AddWaitingSection(waypoint, builder, onWaypointChange);
+                if (waypoint.StopAtWaypoint)
+                {
+                    AddWaitingSection(waypoint, builder, onWaypointChange);
+                }
             }
         }
 
@@ -883,12 +884,16 @@ namespace WaypointQueue
             return string.IsNullOrWhiteSpace(basePart) ? null : basePart;
         }
 
+        private void AddLabelOnlyTooltip(IConfigurableElement element, string title, string message)
+        {
+            element.RectTransform.Find("Label").GetComponent<TMP_Text>().rectTransform.Tooltip(title, message);
+        }
 
         private (
-            System.Collections.Generic.List<string> labels,
-            System.Collections.Generic.List<string> destIds,
-            int selectedIndex
-        ) BuildDestinationChoices(ManagedWaypoint waypoint)
+        System.Collections.Generic.List<string> labels,
+        System.Collections.Generic.List<string> destIds,
+        int selectedIndex
+    ) BuildDestinationChoices(ManagedWaypoint waypoint)
         {
             var labels = new System.Collections.Generic.List<string>();
             var destIds = new System.Collections.Generic.List<string>();
@@ -948,8 +953,6 @@ namespace WaypointQueue
 
             return (labels, destIds, selectedIndex);
         }
-
-
 
     }
 }
