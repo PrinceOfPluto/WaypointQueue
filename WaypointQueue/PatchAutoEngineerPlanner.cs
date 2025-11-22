@@ -4,7 +4,9 @@ using Model.AI;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Track;
 using UI.EngineControls;
+using UnityEngine;
 using WaypointQueue.UUM;
 using static Model.AI.AutoEngineer;
 
@@ -15,7 +17,7 @@ namespace WaypointQueue
     {
         [HarmonyPostfix]
         [HarmonyPatch("UpdateTargets")]
-        static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, ref AutoEngineer ____engineer)
+        static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, float direction, ref AutoEngineer ____engineer)
         {
             try
             {
@@ -42,7 +44,7 @@ namespace WaypointQueue
 
                 LocoWaypointState waypointState = WaypointQueueController.Shared.GetLocoWaypointState(loco);
 
-                if (waypointState == null || !waypointState.HasAnyWaypoints())
+                if (waypointState == null || !waypointState.HasAnyWaypoints() || waypointState.UnresolvedWaypoint == null)
                 {
                     Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
                     return;
@@ -54,7 +56,7 @@ namespace WaypointQueue
                 }
 
                 // Only update targets if we are not stopping
-                if (!waypointState.UnresolvedWaypoint.DoNotStop)
+                if (waypointState.UnresolvedWaypoint.StopAtWaypoint)
                 {
                     return;
                 }
@@ -69,13 +71,19 @@ namespace WaypointQueue
 
                 List<Targets.Target> updatedTargets = [.. targets.AllTargets];
 
+                float maxSafeSpeed = Mathf.Abs(targets.MaxSpeedMph);
+                float targetSpeed = waypointState.UnresolvedWaypoint.WaypointTargetSpeed;
+                float speedToSet = Mathf.Clamp(targetSpeed, 0, maxSafeSpeed);
+                float signedSpeedToSet = speedToSet * Mathf.Sign(direction);
+
                 if (updatedTargets != null && updatedTargets.Count > 0)
                 {
                     int indexOfWaypoint = updatedTargets.FindIndex(t => t.Reason == "Running to waypoint" || t.Reason == "At waypoint");
                     if (indexOfWaypoint != -1)
                     {
+                        Loader.LogDebug($"Setting target speed to {signedSpeedToSet}");
                         Targets.Target t = updatedTargets[indexOfWaypoint];
-                        updatedTargets[indexOfWaypoint] = new Targets.Target(targets.MaxSpeedMph, t.Distance, t.Reason);
+                        updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
                     }
                     else
                     {
@@ -96,6 +104,71 @@ namespace WaypointQueue
             catch (Exception e)
             {
                 Loader.Log($"UpdateTargetsPostfix exception: {e}");
+            }
+        }
+
+        private const float HighSpeedMphThreshold = 35f;
+        private const float HighSpeedWaypointRadiusMeters = 25f;
+
+        [HarmonyPostfix]
+        [HarmonyPatch("IsWaypointSatisfied")]
+        private static void IsWaypointSatisfiedPostfix(
+            AutoEngineerPlanner __instance,
+            OrderWaypoint waypoint,
+            ref bool __result,
+            BaseLocomotive ____locomotive,
+            Graph ____graph,
+            ref Location? ____routeTargetLocation
+        )
+        {
+            try
+            {
+
+                if (__result)
+                    return;
+
+                if (____locomotive == null)
+                    return;
+
+                if (!WaypointQueueController.Shared.TryGetActiveWaypointFor(____locomotive, out ManagedWaypoint managed))
+                    return;
+
+                if (managed.StopAtWaypoint || managed.WaypointTargetSpeed <= 0)
+                    return;
+
+                float speedMph = ____locomotive.VelocityMphAbs;
+                if (speedMph < HighSpeedMphThreshold)
+                    return;
+
+                if (!____routeTargetLocation.HasValue || ____graph == null)
+                    return;
+
+                Location targetLoc = ____routeTargetLocation.Value;
+
+                float bestDistance;
+                try
+                {
+                    Location locF = ____locomotive.LocationF;
+                    Location locR = ____locomotive.LocationR;
+
+                    float dF = Mathf.Abs(____graph.GetDistanceBetweenClose(targetLoc, locF));
+                    float dR = Mathf.Abs(____graph.GetDistanceBetweenClose(targetLoc, locR));
+                    bestDistance = Mathf.Min(dF, dR);
+                }
+                catch (Exception ex)
+                {
+                    Loader.LogDebug($"High-speed waypoint distance calc failed: {ex.Message}");
+                    return;
+                }
+
+                if (bestDistance <= HighSpeedWaypointRadiusMeters)
+                {
+                    __result = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Loader.Log($"IsWaypointSatisfiedPostfix failed: {ex}");
             }
         }
     }

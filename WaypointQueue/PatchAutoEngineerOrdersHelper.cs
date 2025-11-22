@@ -1,7 +1,6 @@
 ﻿using HarmonyLib;
 using Model;
 using Model.AI;
-using System;
 using Track;
 using UI.EngineControls;
 using UnityEngine;
@@ -41,17 +40,5 @@ namespace WaypointQueue
             // Skip original since we need to manage waypoints to keep track of any orders that need to be resolved
             return false;
         }
-
-        [HarmonyPostfix]
-        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
-        static void ClearWaypointPostfix(ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
-        {
-            Loader.LogDebug($"ClearWaypoint postfix");
-            WaypointQueueController.Shared.RemoveCurrentWaypoint(____locomotive);
-        }
-
-        [HarmonyReversePatch]
-        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
-        public static void ClearWaypointReversePatch(object instance) => throw new NotImplementedException();
     }
 }

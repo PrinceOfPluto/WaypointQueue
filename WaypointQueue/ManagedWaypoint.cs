@@ -4,6 +4,7 @@ using Model.Ops;
 using Newtonsoft.Json;
 using System;
 using Track;
+using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
 
@@ -26,6 +27,7 @@ namespace WaypointQueue
             ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
+            ShowPostCouplingCut = Loader.Settings.ShowPostCouplingCutByDefault;
         }
 
         public enum WaitType
@@ -162,7 +164,8 @@ namespace WaypointQueue
         public TodayOrTomorrow WaitUntilDay { get; set; } = TodayOrTomorrow.Today;
         public int WaitForDurationMinutes { get; set; }
         public double WaitUntilGameTotalSeconds { get; set; }
-        public bool DoNotStop { get; set; }
+        public bool StopAtWaypoint { get; set; } = true;
+        public int WaypointTargetSpeed { get; set; } = 0;
 
         public bool IsValid()
         {
@@ -178,6 +181,11 @@ namespace WaypointQueue
         {
             TryResolveLocation(out Location loc);
             TryResolveLocomotive(out Car loco);
+
+            if (IsCoupling && NumberOfCarsToCut > 0)
+            {
+                ShowPostCouplingCut = true;
+            }
         }
 
         public bool TryResolveLocomotive(out Car loco)
@@ -213,6 +221,15 @@ namespace WaypointQueue
             }
         }
 
+        public void SetTargetSpeedToOrdersMax()
+        {
+            if (Locomotive != null)
+            {
+                AutoEngineerOrdersHelper ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(Locomotive);
+                WaypointTargetSpeed = ordersHelper.Orders.MaxSpeedMph;
+            }
+        }
+
         public void SetWaitUntilByMinutes(int inputMinutesAfterMidnight, out GameDateTime waitUntilTime)
         {
             GameDateTime currentTime = TimeWeather.Now;
@@ -223,6 +240,7 @@ namespace WaypointQueue
 
         public void ClearWaiting()
         {
+            Loader.LogDebug($"Clear waiting for {Locomotive.Ident} at {LocationString}");
             WillWait = false;
             CurrentlyWaiting = false;
             DurationOrSpecificTime = WaitType.Duration;
@@ -253,7 +271,7 @@ namespace WaypointQueue
 
         public override string ToString()
         {
-            return JsonConvert.SerializeObject(this);
+            return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
     }
 

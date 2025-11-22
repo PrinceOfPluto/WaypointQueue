@@ -13,7 +13,6 @@ namespace WaypointQueue
 
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
-        [Draw("Enable tooltips")] public bool EnableTooltips = true;
 
         [Header("Uncoupling settings")]
         [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
@@ -24,6 +23,8 @@ namespace WaypointQueue
         [Draw("Release handbrakes by default when coupling")] public bool ReleaseHandbrakesByDefault = true;
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
+        [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)

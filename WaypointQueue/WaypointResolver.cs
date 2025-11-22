@@ -27,33 +27,20 @@ namespace WaypointQueue
          */
         public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
         {
-            if (wp.DoNotStop)
+            // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
+            if (!wp.StopAtWaypoint)
             {
-                Loader.LogDebug($"Loco {wp.Locomotive.Ident} to {wp.LocationString} should NOT stop at waypoint");
-                wp = null;
-                // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
-                ordersHelper.ClearWaypoint();
+                // Uncoupling orders are the only orders should get resolved if we are not stopping
+                ResolveUncouplingOrders(wp);
                 return true;
-            }
-            else
-            {
-                Loader.LogDebug($"Loco {wp.Locomotive.Ident} to {wp.LocationString} should stop at waypoint");
             }
 
             // Check if done waiting
             if (wp.CurrentlyWaiting)
             {
-                if (TryEndWaiting(wp))
-                {
-                    // We don't want to start waiting until after we resolve the current waypoint orders,
-                    // but we also don't want that resolving logic to run again after we are finished waiting
-                    goto AfterWaiting;
-                }
-                else
-                {
-                    //Loader.LogDebug($"Still waiting");
-                    return false;
-                }
+                // We don't want to start waiting until after we resolve the current waypoint orders,
+                // but we also don't want that resolving logic to run again after we are finished waiting
+                return TryEndWaiting(wp);
             }
 
             // Begin refueling
@@ -78,10 +65,10 @@ namespace WaypointQueue
             }
 
             /*
-             * Locomotive must come to a complete stop before resolving coupling or uncoupling orders.
+             * Unless explicitly not stopping, loco needs a complete stop before resolving coupling or uncoupling orders.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (Math.Abs(wp.Locomotive.velocity) > 0)
+            if (wp.StopAtWaypoint && Math.Abs(wp.Locomotive.velocity) > 0)
             {
                 Loader.LogDebug($"Locomotive not stopped, continuing");
                 return false;
@@ -96,11 +83,6 @@ namespace WaypointQueue
                 return false;
             }
 
-        AfterWaiting:
-
-            wp = null;
-            // RemoveCurrentWaypoint gets called as a side effect of the ClearWaypoint postfix
-            ordersHelper.ClearWaypoint();
             return true;
         }
 
@@ -112,6 +94,7 @@ namespace WaypointQueue
                 wp.ClearWaiting();
                 return true;
             }
+            //Loader.LogDebug($"Loco {wp.Locomotive.Ident} still waiting");
             return false;
         }
 
@@ -325,7 +308,7 @@ namespace WaypointQueue
                 {
                     float distanceFromWaypointToLoader = Vector3.Distance(waypoint.Location.GetPosition(), loaderLocation.GetPosition());
 
-                    float radiusToSearch = 10f;
+                    float radiusToSearch = 5f;
 
                     if (distanceFromWaypointToLoader < radiusToSearch)
                     {
