@@ -145,7 +145,6 @@
     <Compile Include="PatchAutoEngineerOrdersHelper.cs" />
     <Compile Include="PatchSteamLocomotive.cs" />
     <Compile Include="RouteRegistry.cs" />
-    <Compile Include="RouteWaypointPlacementController .cs" />
     <Compile Include="WaypointQueueController.cs" />
     <Compile Include="ModSaveManager.cs" />
     <Compile Include="WaypointResolver.cs" />
