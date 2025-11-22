@@ -38,7 +38,7 @@ namespace WaypointQueue
                 AutoEngineerOrdersHelper ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(loco);
                 if (!ordersHelper.Orders.Waypoint.HasValue)
                 {
-                    Loader.LogDebug($"Update targets has no current order waypoint");
+                    //Loader.LogDebug($"Update targets has no current order waypoint");
                     return;
                 }
 
