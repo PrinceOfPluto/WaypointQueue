@@ -130,6 +130,7 @@ namespace WaypointQueue
         public int WaypointTargetSpeed { get; set; } = 0;
         public bool SeekNearbyCoupling { get; set; }
         public bool CurrentlyCouplingNearby { get; set; }
+        public bool MoveTrainPastWaypoint { get; set; }
 
         public bool IsValid()
         {
