@@ -81,7 +81,7 @@ namespace WaypointQueue
                     int indexOfWaypoint = updatedTargets.FindIndex(t => t.Reason == "Running to waypoint" || t.Reason == "At waypoint");
                     if (indexOfWaypoint != -1)
                     {
-                        Loader.LogDebug($"Setting target speed to {signedSpeedToSet}");
+                        //Loader.LogDebug($"Setting target speed to {signedSpeedToSet}");
                         Targets.Target t = updatedTargets[indexOfWaypoint];
                         updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
                     }
