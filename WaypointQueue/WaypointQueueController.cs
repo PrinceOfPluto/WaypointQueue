@@ -354,6 +354,36 @@ namespace WaypointQueue
             }
         }
 
+        public void ReorderWaypoint(ManagedWaypoint waypoint, int newIndex)
+        {
+            LocoWaypointState state = GetLocoWaypointState(waypoint.Locomotive);
+
+            if (state != null && state.Waypoints != null)
+            {
+                int oldIndex = state.Waypoints.IndexOf(waypoint);
+                if (oldIndex < 0) return;
+
+                state.Waypoints.RemoveAt(oldIndex);
+
+                if (newIndex > oldIndex)
+                {
+                    newIndex--; // the actual index could have shifted due to the removal
+                }
+
+                state.Waypoints.Insert(newIndex, waypoint);
+
+                if (state.Waypoints[0].Id != state.UnresolvedWaypoint.Id)
+                {
+                    Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
+                    state.UnresolvedWaypoint = waypoint;
+                    SendToWaypointFromQueue(waypoint, GetOrdersHelper(waypoint.Locomotive));
+                }
+
+                Loader.LogDebug($"Invoking OnWaypointsUpdated in ReorderWaypoint");
+                OnWaypointsUpdated.Invoke();
+            }
+        }
+
         public void RerouteCurrentWaypoint(Car locomotive)
         {
             AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(locomotive);

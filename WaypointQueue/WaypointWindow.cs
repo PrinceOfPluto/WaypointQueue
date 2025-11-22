@@ -206,7 +206,7 @@ namespace WaypointQueue
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    BuildWaypointSection(waypoint, i + 1, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete);
+                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
                     builder.Spacer(20f);
                 }
             });
@@ -220,6 +220,11 @@ namespace WaypointQueue
         private void OnWaypointDelete(ManagedWaypoint waypoint)
         {
             WaypointQueueController.Shared.RemoveWaypoint(waypoint);
+        }
+
+        private void OnWaypointReorder(ManagedWaypoint waypoint, int newIndex)
+        {
+            WaypointQueueController.Shared.ReorderWaypoint(waypoint, newIndex);
         }
 
         private void PresentDeleteAllModal(BaseLocomotive selectedLocomotive)
@@ -237,20 +242,36 @@ namespace WaypointQueue
                 });
         }
 
-        internal void BuildWaypointSection(ManagedWaypoint waypoint, int number, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, bool isRouteWindow = false)
+        internal void BuildWaypointSection(ManagedWaypoint waypoint, int index, int totalWaypoints, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, bool isRouteWindow = false)
         {
             builder.AddHRule();
             builder.Spacer(16f);
             builder.HStack(delegate (UIPanelBuilder builder)
             {
-                builder.AddLabel($"Waypoint {number}");
+                builder.AddLabel($"Waypoint {index + 1}");
                 builder.Spacer();
                 List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
                 var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
+                var moveToTopRow = new DropdownMenu.RowData("Move to top", "");
+                var moveUpOneRow = new DropdownMenu.RowData("Move up", "");
+                var moveDownOneRow = new DropdownMenu.RowData("Move down", "");
+                var moveToBottomRow = new DropdownMenu.RowData("Move to bottom", "");
                 var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
                 var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
                 options.Add(jumpToWaypointRow);
+
+                if (index > 0)
+                {
+                    options.Add(moveUpOneRow);
+                    options.Add(moveToTopRow);
+                }
+                if (index < totalWaypoints - 1)
+                {
+                    options.Add(moveDownOneRow);
+                    options.Add(moveToBottomRow);
+                }
+
                 if (waypoint.WillWait)
                 {
                     options.Add(removeWaitRow);
@@ -262,6 +283,27 @@ namespace WaypointQueue
                     if (value == options.IndexOf(jumpToWaypointRow))
                     {
                         JumpCameraToWaypoint(waypoint);
+                    }
+
+                    if (value == options.IndexOf(moveToTopRow))
+                    {
+                        onWaypointReorder(waypoint, 0);
+                    }
+
+                    if (value == options.IndexOf(moveUpOneRow))
+                    {
+                        onWaypointReorder(waypoint, index - 1);
+                    }
+
+                    if (value == options.IndexOf(moveDownOneRow))
+                    {
+                        // incrementing by 2 to account for index shifting after removal
+                        onWaypointReorder(waypoint, index + 2);
+                    }
+
+                    if (value == options.IndexOf(moveToBottomRow))
+                    {
+                        onWaypointReorder(waypoint, totalWaypoints);
                     }
 
                     if (value == options.IndexOf(removeWaitRow))
