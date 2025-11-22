@@ -567,8 +567,8 @@ namespace WaypointQueue
 
 
             End physicalEnd = waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Aft
-                ? End.R   
-                : End.F;  
+                ? End.R
+                : End.F;
 
             LogicalEnd fromEnd = loco.EndToLogical(physicalEnd);
 
@@ -625,7 +625,7 @@ namespace WaypointQueue
 
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
-            
+
             switch (waypoint.UncoupleByMode)
             {
                 case ManagedWaypoint.UncoupleMode.ByDestination:
@@ -677,7 +677,7 @@ namespace WaypointQueue
             Car seamFrontCarAll = null;
             Car seamBackCarAll = null;
 
-            
+
             if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
             {
                 LogicalEnd directionToCountCars =
@@ -689,7 +689,7 @@ namespace WaypointQueue
                 allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
                 carsToCut = allCarsFromEnd.Take(waypoint.NumberOfCarsToCut).ToList();
 
-                
+
                 if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
                 {
                     Car maybeLocoOrTenderA = allCarsFromEnd.ElementAtOrDefault(0);
@@ -712,16 +712,16 @@ namespace WaypointQueue
                     }
                 }
             }
-            else 
+            else
             {
                 if (!TryResolveUncoupleAll(
                         waypoint,
-                        out allCarsFromEnd,  
-                        out carsToCut,       
-                        out seamFrontCarAll, 
-                        out seamBackCarAll)) 
+                        out allCarsFromEnd,
+                        out carsToCut,
+                        out seamFrontCarAll,
+                        out seamBackCarAll))
                 {
-                    
+
                     return;
                 }
             }
@@ -756,7 +756,7 @@ namespace WaypointQueue
 
             string carsToCutFormatted = String.Join("-", inactiveCut2.Select(c => $"[{c.Ident}]"));
 
-            
+
             var fullTrain = waypoint.Locomotive
                 .EnumerateCoupled()
                 .Prepend(waypoint.Locomotive)
@@ -1088,7 +1088,7 @@ namespace WaypointQueue
                 return false;
             }
 
-            string destKey = waypoint.UncoupleDestinationId;   
+            string destKey = waypoint.UncoupleDestinationId;
 
             List<Car> sideA = EnumerateCoupledToEnd(waypoint.Locomotive, LogicalEnd.A);
             List<Car> sideB = EnumerateCoupledToEnd(waypoint.Locomotive, LogicalEnd.B);
@@ -1125,12 +1125,12 @@ namespace WaypointQueue
 
 
             var dropList = new List<Car>();
-            Car seamFrontCar = null; 
-            Car seamBackCar = null; 
+            Car seamFrontCar = null;
+            Car seamBackCar = null;
 
             if (!waypoint.KeepDestinationString)
             {
-                
+
                 int dropStart = startIndex;
                 seamBackCar = carsOnSide[dropStart];
                 seamFrontCar = dropStart == 0 ? null : carsOnSide[dropStart - 1];
@@ -1140,7 +1140,7 @@ namespace WaypointQueue
             }
             else
             {
-                
+
                 if (endIndex >= carsOnSide.Count - 1)
                 {
                     Loader.Log("ResolveUncoupleByDestination: destination block is at the end; nothing to cut after it.");
@@ -1167,7 +1167,7 @@ namespace WaypointQueue
                 return false;
             }
 
-            
+
             if (seamFrontCar != null)
             {
                 if (!TryFindEndConnectingTo(seamBackCar, seamFrontCar, out endToUncouple))
@@ -1197,10 +1197,18 @@ namespace WaypointQueue
             if (string.IsNullOrWhiteSpace(raw))
                 return null;
 
-            int slashIndex = raw.IndexOf('/');
-            string basePart = (slashIndex >= 0 ? raw.Substring(0, slashIndex) : raw).Trim();
-            return string.IsNullOrWhiteSpace(basePart) ? null : basePart;
-        }
+            raw = raw.Trim();
 
+
+            int idxInterchange = raw.IndexOf("Interchange", StringComparison.OrdinalIgnoreCase);
+            if (idxInterchange >= 0)
+            {
+                // Keep only the "_____ Interchange" part
+                string cooked = raw.Substring(0, idxInterchange + "Interchange".Length).TrimEnd();
+                return cooked; //its cooked XD
+            }
+
+            return raw;
+        }
     }
 }

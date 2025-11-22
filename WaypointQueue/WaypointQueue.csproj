@@ -132,7 +132,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FreighManager.cs" />
+    <Compile Include="FreightManager.cs" />
     <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="PatchPopulateOperationsPanel.cs" />
@@ -145,6 +145,7 @@
     <Compile Include="PatchAutoEngineerOrdersHelper.cs" />
     <Compile Include="PatchSteamLocomotive.cs" />
     <Compile Include="RouteRegistry.cs" />
+    <Compile Include="RouteWaypointPlacementController .cs" />
     <Compile Include="WaypointQueueController.cs" />
     <Compile Include="ModSaveManager.cs" />
     <Compile Include="WaypointResolver.cs" />

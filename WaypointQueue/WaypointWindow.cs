@@ -284,6 +284,12 @@ namespace WaypointQueue
                 field.AddLabel(waypoint.AreaName?.Length > 0 ? waypoint.AreaName : "Unknown").Width(160f);
             }));
 
+            if (waypoint.StopAtWaypoint && waypoint.CurrentlyWaiting)
+            {
+                AddWaitingSection(waypoint, builder, onWaypointChange);
+                return;
+            }
+
             if (isRouteWindow || waypoint.Locomotive.TryGetTimetableTrainCrewId(out string trainCrewId))
             {
                 var (labels, values, selectedIndex) = BuildTimetableSymbolChoices(waypoint.TimetableSymbol);
@@ -425,12 +431,12 @@ namespace WaypointQueue
                     hBuilder.AddField("Uncouple", hBuilder.HStack(delegate (UIPanelBuilder field)
                     {
                         var modeLabels = new System.Collections.Generic.List<string>
-            {
-                "All",
-                "By Count",
-                "By Destination",
-                "None"
-            };
+                        {
+                            "All",
+                            "By Count",
+                            "By Destination",
+                            "None"
+                        };
 
                         int selectedModeIndex = (int)waypoint.UncoupleByMode;
                         selectedModeIndex = Mathf.Clamp(selectedModeIndex, 0, modeLabels.Count - 1);
@@ -501,44 +507,47 @@ namespace WaypointQueue
                 {
                     var (destLabels, destIds, destSelectedIndex) = BuildDestinationChoices(waypoint);
 
-                    builder.AddField("Destination",
-                        builder.HStack(field =>
-                        {
-                            field.VStack(vb =>
+                    builder.AddField(
+                        "", 
+                        builder.AddInputField(
+                            _destinationFilter ?? string.Empty,
+                            (string value) =>
                             {
-                                // Filter textbox
-                                vb.AddInputField(_destinationFilter ?? string.Empty, (string value) =>
-                                {
-                                    _destinationFilter = value ?? string.Empty;
-                                    // Rebuild UI so the dropdown options reflect the new filter
-                                    RebuildWithScroll();
-                                }, placeholder: "Filter destinations...")
-                                  .Width(200f);
+                                _destinationFilter = value ?? string.Empty;
+                                RebuildWithScroll();
+                            },
+                            placeholder: "Filter destinations..."
+                        ).Width(200f)
+                    );
 
-                                vb.Spacer(4f);
+                    builder.AddField(
+                        "Destination",
+                        builder.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
+                        {
+                            waypoint.UncoupleDestinationId = destIds[idx];
 
-                                // Dropdown of filtered destinations
-                                vb.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
-                                {
-                                    waypoint.UncoupleDestinationId = destIds[idx];
-                                    onWaypointChange(waypoint);
-                                }).Width(200f);
-                            });
-                        }));
+                            if (idx > 0 && !string.IsNullOrEmpty(_destinationFilter))
+                            {
+                                _destinationFilter = string.Empty;
+                                RebuildWithScroll();
+                            }
 
-                    builder.AddField("Keep String",
+                            onWaypointChange(waypoint);
+                        }).Width(200f)
+                    );
+
+                    builder.AddField(
+                        "Keep String",
                         builder.AddToggle(
                             () => waypoint.KeepDestinationString,
                             (bool value) =>
                             {
                                 waypoint.KeepDestinationString = value;
                                 onWaypointChange(waypoint);
-                            }));
+                            })
+                    );
                 }
 
-                //
-                // Common flags that only matter if we’ll actually uncouple something
-                //
                 if (waypoint.IsUncoupling)
                 {
                     if (Loader.Settings.UseCompactLayout)
@@ -867,7 +876,7 @@ namespace WaypointQueue
                     foreach (var t in sortedTrains)
                     {
                         labels.Add(Loader.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong);
-                        values.Add(t.Name);   // value = symbol
+                        values.Add(t.Name);   
                     }
 
                     Loader.LogDebug($"[TimetableSymbolDropdown] Loaded {sortedTrains.Count} symbols from TimetableController.Current.");
@@ -919,7 +928,6 @@ namespace WaypointQueue
             var destIds = new System.Collections.Generic.List<string>();
             int selectedIndex = 0;
 
-            // Index 0: "no selection"
             labels.Add("Select destination");
             destIds.Add(null);
 
@@ -929,7 +937,6 @@ namespace WaypointQueue
                 return (labels, destIds, selectedIndex);
             }
 
-            // One-time debug dump: label -> all underlying Ops IDs that map to it.
             if (!_loggedDestinationMapOnce)
             {
                 try
@@ -942,7 +949,6 @@ namespace WaypointQueue
                         if (string.IsNullOrWhiteSpace(idRaw))
                             continue;
 
-                        // Use the already-built label from FreightManager
                         string labelForDropdown = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
 
                         if (!debugMap.TryGetValue(labelForDropdown, out var set))
@@ -971,9 +977,7 @@ namespace WaypointQueue
             string filter = _destinationFilter ?? string.Empty;
             bool hasFilter = !string.IsNullOrWhiteSpace(filter);
 
-            // Deduplicate by *label* (case-insensitive), keep a single label string as the stored key.
-            var byLabel = new Dictionary<string, string>(
-                StringComparer.InvariantCultureIgnoreCase); // label -> labelToStore
+            var byKey = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
             foreach (var d in all)
             {
@@ -981,11 +985,11 @@ namespace WaypointQueue
                 if (string.IsNullOrWhiteSpace(idRaw))
                     continue;
 
-                string label = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
+                string labelRaw = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
 
                 if (hasFilter)
                 {
-                    bool labelMatch = label.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
+                    bool labelMatch = labelRaw.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
                     bool idMatch = idRaw.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
 
                     if (!labelMatch && !idMatch)
@@ -994,25 +998,37 @@ namespace WaypointQueue
                     }
                 }
 
-                // First entry for this label "wins" and provides the text we store as UncoupleDestinationId
-                if (!byLabel.ContainsKey(label))
+                //Normalize key & display label for any "Interchange" label
+                string key = labelRaw;
+                string displayLabel = labelRaw;
+
+                int idxInterchange = labelRaw.IndexOf("Interchange", StringComparison.OrdinalIgnoreCase);
+                if (idxInterchange >= 0)
                 {
-                    byLabel[label] = label;
+                    // Base becomes "____ Interchange"
+                    string baseInterchange = labelRaw.Substring(0, idxInterchange + "Interchange".Length).TrimEnd();
+
+                    key = baseInterchange;          // stored in UncoupleDestinationId
+                    displayLabel = baseInterchange; // ALWAYS show just "____ Interchange"
+                }
+
+                if (!byKey.ContainsKey(key))
+                {
+                    byKey[key] = displayLabel;
                 }
             }
 
-            // Sort by label for display
-            foreach (var entry in byLabel.Keys
-                                         .OrderBy(e => e, StringComparer.InvariantCultureIgnoreCase))
+            // Sort by display label
+            foreach (var kvp in byKey.OrderBy(e => e.Value, StringComparer.InvariantCultureIgnoreCase))
             {
-                string label = entry;
-                string valueToStore = byLabel[entry]; // this is the label string
+                string key = kvp.Key;           // e.g. "Sylva Interchange"
+                string displayLabel = kvp.Value;
 
-                labels.Add(label);
-                destIds.Add(valueToStore);
+                labels.Add(displayLabel);
+                destIds.Add(key);               // stored on waypoint.UncoupleDestinationId
 
                 if (!string.IsNullOrEmpty(waypoint.UncoupleDestinationId) &&
-                    string.Equals(waypoint.UncoupleDestinationId, valueToStore, StringComparison.InvariantCultureIgnoreCase))
+                    string.Equals(waypoint.UncoupleDestinationId, key, StringComparison.InvariantCultureIgnoreCase))
                 {
                     selectedIndex = labels.Count - 1;
                 }
