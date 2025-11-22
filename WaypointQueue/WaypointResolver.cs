@@ -566,50 +566,124 @@ namespace WaypointQueue
         {
             if (!waypoint.IsUncoupling) return;
             if (waypoint.Locomotive == null) return;
-
+            Car explicitSeamFrontCar = null;
+            Car explicitSeamBackCar = null;
+            bool hasExplicitSeam = false;
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
-            // Default direction behaviour (used for ByCount and ByDestination)
-            LogicalEnd directionToCountCars =
-                GetEndRelativeToWapoint(
-                    waypoint.Locomotive,
-                    waypoint.Location,
-                    useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
+            switch (waypoint.UncoupleByMode)
+            {
+                case ManagedWaypoint.UncoupleMode.ByDestination:
+                    {
+                        if (TryResolveUncoupleByDestination(
+                                waypoint,
+                                out Car carToUncouple,
+                                out LogicalEnd endToUncouple,
+                                out List<Car> inactiveCut))
+                        {
+                            Loader.Log(
+                                $"UncoupleByDestination: Will uncouple {carToUncouple.Ident} on end {endToUncouple} " +
+                                $"for destination '{waypoint.UncoupleDestinationId}' with {inactiveCut.Count} cars in the dropped cut");
+
+                            if (waypoint.ApplyHandbrakesOnUncouple)
+                            {
+                                SetHandbrakes(inactiveCut);
+                            }
+
+                            Loader.Log($"Uncoupling {carToUncouple.Ident} on end {endToUncouple} for cut of {inactiveCut.Count} cars");
+                            UncoupleCar(carToUncouple, endToUncouple);
+
+                            if (waypoint.BleedAirOnUncouple)
+                            {
+                                Loader.LogDebug($"Bleeding air on {inactiveCut.Count} cars");
+                                foreach (Car car in inactiveCut)
+                                {
+                                    car.air.BleedBrakeCylinder();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Loader.Log("UncoupleByDestination: nothing to uncouple (no valid block / safe seam).");
+                        }
+
+                        return; 
+                    }
+
+                case ManagedWaypoint.UncoupleMode.All:
+                case ManagedWaypoint.UncoupleMode.ByCount:
+                default:
+                    break;
+            }
 
             List<Car> allCarsFromEnd;
             List<Car> carsToCut = null;
 
-            switch (waypoint.UncoupleByMode)
+            if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
             {
-                case ManagedWaypoint.UncoupleMode.ByCount:
+                LogicalEnd directionToCountCars =
+                    GetEndRelativeToWapoint(
+                        waypoint.Locomotive,
+                        waypoint.Location,
+                        useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
+
+                allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
+                carsToCut = allCarsFromEnd.Take(waypoint.NumberOfCarsToCut).ToList();
+
+                // Edge case: ~0 cars due to loco/tender pair at the front; treat them as 1 "car".
+                if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
+                {
+                    Car maybeLocoOrTenderA = allCarsFromEnd.ElementAtOrDefault(0);
+                    Car maybeLocoOrTenderB = allCarsFromEnd.ElementAtOrDefault(1);
+                    Car tender;
+
+                    if (maybeLocoOrTenderA.Archetype == Model.Definition.CarArchetype.LocomotiveSteam &&
+                        PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderA, out tender) &&
+                        tender.id == maybeLocoOrTenderB.id)
                     {
-                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
-
-                        // Handling the direction ensures cars to cut are at the front of the list
-                        carsToCut = allCarsFromEnd.Take(waypoint.NumberOfCarsToCut).ToList();
-                        break;
+                        carsToCut.Add(maybeLocoOrTenderA);
+                        carsToCut.Add(maybeLocoOrTenderB);
                     }
-
-                case ManagedWaypoint.UncoupleMode.ByDestination:
+                    else if (maybeLocoOrTenderB.Archetype == Model.Definition.CarArchetype.LocomotiveSteam &&
+                             PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderB, out tender) &&
+                             tender.id == maybeLocoOrTenderA.id)
                     {
-                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
-                        carsToCut = ResolveUncoupleByDestination(waypoint, allCarsFromEnd);
-                        break;
+                        carsToCut.Add(maybeLocoOrTenderA);
+                        carsToCut.Add(maybeLocoOrTenderB);
                     }
-
-                case ManagedWaypoint.UncoupleMode.All:
-                default:
-                    {
-                        // For "All" we ignore CountUncoupledFromNearestToWaypoint and use a fixed side
-                        LogicalEnd side = waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Behind
-                            ? LogicalEnd.B
-                            : LogicalEnd.A;
-
-                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(side).ToList();
-                        carsToCut = ResolveUncoupleAll(waypoint, allCarsFromEnd);
-                        break;
-                    }
+                }
             }
+            else // UncoupleMode.All
+            {
+                var loco = waypoint.Locomotive;
+
+                End physicalEnd = waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Aft
+                    ? End.R   // "Aft" = rear coupler
+                    : End.F;  // "Fore" = front coupler
+
+                LogicalEnd fromEnd = loco.EndToLogical(physicalEnd);
+
+                // Build a consist list that *includes* the loco at index 0,
+                // then walks outward from the chosen end.
+                var consistFromSide = new List<Car> { loco };
+                consistFromSide.AddRange(loco.EnumerateCoupled(fromEnd));
+
+                allCarsFromEnd = consistFromSide;
+
+                // NEW: get both the cut and the seam cars.
+                carsToCut = ResolveUncoupleAll(
+                    waypoint,
+                    consistFromSide,
+                    out Car seamFrontCarAll,
+                    out Car seamBackCarAll
+                );
+
+                // Cache the explicit seam for later.
+                explicitSeamFrontCar = seamFrontCarAll;
+                explicitSeamBackCar = seamBackCarAll;
+                hasExplicitSeam = (explicitSeamFrontCar != null && explicitSeamBackCar != null);
+            }
+
 
             if (carsToCut == null)
             {
@@ -617,81 +691,95 @@ namespace WaypointQueue
                 return;
             }
 
-            // This can happen if the user selected counting from nearest to waypoint and the locomotive backed up to the waypoint
-            if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
-            {
-                // If the tender and locomotive are the "front" two cars that would be cut, we can treat that as 1 car to cut instead.
-                Car maybeLocoOrTenderA = allCarsFromEnd.ElementAtOrDefault(0);
-                Car maybeLocoOrTenderB = allCarsFromEnd.ElementAtOrDefault(1);
-                Car tender;
-
-                if (maybeLocoOrTenderA.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderA, out tender) && tender.id == maybeLocoOrTenderB.id)
-                {
-                    carsToCut.Add(maybeLocoOrTenderA);
-                    carsToCut.Add(maybeLocoOrTenderB);
-                }
-                if (maybeLocoOrTenderB.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderB, out tender) && tender.id == maybeLocoOrTenderA.id)
-                {
-                    carsToCut.Add(maybeLocoOrTenderA);
-                    carsToCut.Add(maybeLocoOrTenderB);
-                }
-            }
-
             List<Car> carsRemaining = allCarsFromEnd.Where(c => !carsToCut.Contains(c)).ToList();
-
-            List<Car> activeCut = carsRemaining;
-            List<Car> inactiveCut = carsToCut;
-
-            Loader.Log($"Seeking to uncouple {carsToCut.Count} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
-
-            Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
-            if (waypoint.TakeUncoupledCarsAsActiveCut)
-            {
-                activeCut = carsToCut;
-                inactiveCut = carsRemaining;
-            }
 
             if (carsToCut.Count == 0)
             {
-                Loader.Log($"No valid cars to cut found for uncoupling");
-                // Should probably send an alert to the player
+                Loader.Log("No valid cars to cut found for uncoupling");
                 return;
+            }
+
+            bool allowActiveCutSwap = waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount;
+
+            List<Car> activeCut = carsRemaining;
+            List<Car> inactiveCut2 = carsToCut;
+
+            // If equality semantics nuked everything, make sure we at least keep the seamFrontCar for "All" mode.
+            if (activeCut.Count == 0 && hasExplicitSeam && explicitSeamFrontCar != null)
+            {
+                activeCut = new List<Car> { explicitSeamFrontCar };
+            }
+
+            Loader.Log($"Seeking to uncouple {carsToCut.Count} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
+            Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
+
+            if (allowActiveCutSwap && waypoint.TakeUncoupledCarsAsActiveCut)
+            {
+                activeCut = carsToCut;
+                inactiveCut2 = carsRemaining;
             }
 
             string carsToCutFormatted = String.Join("-", carsToCut.Select(c => $"[{c.Ident}]"));
             string allCarsFromEndFormatted = String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]"));
-            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(allowActiveCutSwap && waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+
+            // Boundary between keep-side and drop-side.
+            Car carToUncouple2 = null;
+            LogicalEnd endToUncouple2 = LogicalEnd.A;
+
+            // If we already know the seam (All mode), just use it.
+            if (hasExplicitSeam && explicitSeamBackCar != null)
+            {
+                Car seamFront = explicitSeamFrontCar ?? waypoint.Locomotive;
+
+                if (!TryFindEndConnectingTo(explicitSeamBackCar, seamFront, out endToUncouple2))
+                {
+                    Loader.Log("ResolveUncouplingOrders: [All] couldn't find adjacency between seam cars; aborting.");
+                    return;
+                }
+
+                carToUncouple2 = explicitSeamBackCar;
+            }
+            else
+            {
+                // Generic boundary search (ByCount & other modes).
+                var activeSet = new HashSet<Car>(activeCut);
+
+                foreach (Car candidate in inactiveCut2)
+                {
+                    foreach (LogicalEnd end in new[] { LogicalEnd.A, LogicalEnd.B })
+                    {
+                        if (candidate.TryGetAdjacentCar(end, out Car adjacent) && activeSet.Contains(adjacent))
+                        {
+                            carToUncouple2 = candidate;
+                            endToUncouple2 = end;
+                            break;
+                        }
+                    }
+
+                    if (carToUncouple2 != null)
+                        break;
+                }
+            }
+
+            if (carToUncouple2 == null)
+            {
+                Loader.Log("Failed to find a boundary between cars to cut and cars to keep; aborting uncouple.");
+                return;
+            }
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
-                SetHandbrakes(inactiveCut);
+                SetHandbrakes(inactiveCut2);
             }
 
-            // The car from the cut that is adjacent to the rest of the uncut train
-            Car carToUncouple = carsToCut.Last();
-
-            /**
-             * Uncouple 2 cars closest to the waypoint.
-             * x is where we uncouple
-             * v is the waypoint
-             * A and B are the car logical ends
-             * (AB) is the reference car to uncouple
-             * [loco]-[AB]-[AB]-[AB]x(AB)-[AB] v
-             * (AB)'s B end is closest to v, so uncouple on (AB)'s A end which is further from waypoint than B
-             * 
-             * Uncouple 2 cars furthest from the waypoint
-             * [AB]-(AB)x[AB]-[AB]-[AB]-[loco] v
-             * (AB)'s A end is closest to v, so uncouple on (AB)'s B end which is closer to waypoint than A
-             */
-            LogicalEnd endToUncouple = GetEndRelativeToWapoint(carToUncouple, waypoint.Location, useFurthestEnd: waypoint.CountUncoupledFromNearestToWaypoint);
-
-            Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {carsToCut.Count} cars");
-            UncoupleCar(carToUncouple, endToUncouple);
+            Loader.Log($"Uncoupling {carToUncouple2.Ident} on end {endToUncouple2} for cut of {inactiveCut2.Count} cars");
+            UncoupleCar(carToUncouple2, endToUncouple2);
 
             if (waypoint.BleedAirOnUncouple)
             {
-                Loader.LogDebug($"Bleeding air on {inactiveCut.Count} cars");
-                foreach (Car car in inactiveCut)
+                Loader.LogDebug($"Bleeding air on {inactiveCut2.Count} cars");
+                foreach (Car car in inactiveCut2)
                 {
                     car.air.BleedBrakeCylinder();
                 }
@@ -813,14 +901,28 @@ namespace WaypointQueue
             Loader.Log($"[Timetable] {(valueToSet ?? "None")} for {waypoint.Locomotive.Ident}");
         }
 
-        private static List<Car> ResolveUncoupleAll(ManagedWaypoint waypoint, List<Car> consistFromSide)
+        private static List<Car> ResolveUncoupleAll(
+            ManagedWaypoint waypoint,
+            List<Car> consistFromSide,
+            out Car seamFrontCar,
+            out Car seamBackCar)
         {
             // "All" mode semantics:
-            // Start at the loco (index 0 in consistFromSide), walk in the chosen direction
-            // until we find the first car that is NOT a loco or tender. Cut there.
+            // - consistFromSide[0] is the locomotive.
+            // - We keep all loco/tender units starting from index 0.
+            // - We cut starting at the first non-loco/tender car in this direction.
+            // - seamFrontCar = last kept loco/tender.
+            // - seamBackCar  = first dropped non-loco/tender.
 
-            if (consistFromSide == null || consistFromSide.Count == 0)
+            seamFrontCar = null;
+            seamBackCar = null;
+
+            if (consistFromSide == null || consistFromSide.Count <= 1)
+            {
+                // Only the loco (and maybe nothing else) in this direction.
+                Loader.Log("ResolveUncoupleAll: consist has no cars beyond loco, aborting.");
                 return new List<Car>();
+            }
 
             int firstNonLocoIndex = -1;
 
@@ -835,84 +937,29 @@ namespace WaypointQueue
                 }
             }
 
-            if (firstNonLocoIndex <= 0)
+            if (firstNonLocoIndex == -1 || firstNonLocoIndex >= consistFromSide.Count)
             {
-                // Either everything is loco/tender, or the very first car
-                // is already non-loco (we don't really want to cut immediately
-                // at the loco if it's the only one).
+                // Everything is loco/tender; nothing "real" to drop.
                 Loader.Log("ResolveUncoupleAll: No suitable non-loco/tender car found to cut, aborting.");
                 return new List<Car>();
             }
 
-            // From that first non-loco/tender car outward is the "cut" side.
-            // The loco + any tenders stay on the other side.
+            // From the first non-loco/tender to the end is the dropped cut.
             var carsToCut = consistFromSide.GetRange(firstNonLocoIndex, consistFromSide.Count - firstNonLocoIndex);
+
+            // Seam is between the last kept car (index-1) and the first cut car (index).
+            // Index > 0 is guaranteed here because consistFromSide[0] is the loco (loco/tender).
+            seamBackCar = consistFromSide[firstNonLocoIndex];
+            seamFrontCar = consistFromSide[firstNonLocoIndex - 1];
+
+            // Safety: don't allow the seam to split a loco/tender pair.
+            if (WouldSplitLocoTenderPair(seamFrontCar, seamBackCar))
+            {
+                Loader.Log("ResolveUncoupleAll: seam would split a loco/tender pair; aborting.");
+                return new List<Car>();
+            }
+
             Loader.Log($"ResolveUncoupleAll: first non-loco/tender index={firstNonLocoIndex}, carsToCut={carsToCut.Count}");
-
-            return carsToCut;
-        }
-        private static List<Car> ResolveUncoupleByDestination(ManagedWaypoint waypoint, System.Collections.Generic.List<Car> allCarsFromEnd)
-        {
-            if (string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                Loader.Log("ResolveUncoupleByDestination: no destination selected.");
-                return new System.Collections.Generic.List<Car>();
-            }
-
-            string destId = waypoint.UncoupleDestinationId;
-
-            // Find the first contiguous "string" of cars with this destination
-            int start = -1;
-            int end = -1;
-
-            for (int i = 0; i < allCarsFromEnd.Count; i++)
-            {
-                Car car = allCarsFromEnd[i];
-                if (car.Waybill.HasValue && car.Waybill.Value.Destination.Identifier == destId)
-                {
-                    if (start == -1)
-                        start = i;
-
-                    end = i;
-                }
-                else
-                {
-                    // If we've already started a block and it ended, stop
-                    if (start != -1)
-                        break;
-                }
-            }
-
-            if (start == -1 || end == -1)
-            {
-                Loader.Log($"ResolveUncoupleByDestination: no cars found for destination {destId}.");
-                return new System.Collections.Generic.List<Car>();
-            }
-
-            Loader.Log($"ResolveUncoupleByDestination: destId={destId}, block indices [{start}, {end}]");
-
-            System.Collections.Generic.List<Car> carsToCut;
-
-            if (waypoint.KeepDestinationString)
-            {
-                // Keep the loco + this string; cut everything AFTER the string.
-                int tailStart = end + 1;
-                if (tailStart >= allCarsFromEnd.Count)
-                {
-                    Loader.Log("ResolveUncoupleByDestination: destination block is at the end; nothing to cut after it.");
-                    return new System.Collections.Generic.List<Car>();
-                }
-
-                carsToCut = allCarsFromEnd.GetRange(tailStart, allCarsFromEnd.Count - tailStart);
-                Loader.Log($"ResolveUncoupleByDestination: KeepString=true, tailStart={tailStart}, carsToCut={carsToCut.Count}");
-            }
-            else
-            {
-                // Cut the string (and anything behind it). Loco + any cars before 'start' remain.
-                carsToCut = allCarsFromEnd.GetRange(start, allCarsFromEnd.Count - start);
-                Loader.Log($"ResolveUncoupleByDestination: KeepString=false, cut from index {start}, carsToCut={carsToCut.Count}");
-            }
-
             return carsToCut;
         }
 
@@ -929,5 +976,233 @@ namespace WaypointQueue
                     return false;
             }
         }
+
+        private static bool TryFindDestinationBlockOnSide(
+            List<Car> sideCars,
+            string destinationKey,
+            out int startIndex,
+            out int endIndex)
+        {
+            startIndex = -1;
+            endIndex = -1;
+
+            if (sideCars == null || sideCars.Count == 0 || string.IsNullOrEmpty(destinationKey))
+                return false;
+
+            for (int i = 0; i < sideCars.Count; i++)
+            {
+                Car car = sideCars[i];
+                if (!car.Waybill.HasValue)
+                {
+                    if (startIndex != -1)
+                        break;
+                    continue;
+                }
+
+                var wb = car.Waybill.Value;
+                string baseKey = GetDestinationBaseKeyFromWaybill(wb);
+
+                if (!string.Equals(baseKey, destinationKey, StringComparison.Ordinal))
+                {
+                    if (startIndex != -1)
+                        break; // contiguous block ended
+                    continue;
+                }
+
+                if (startIndex == -1)
+                    startIndex = i;
+
+                endIndex = i;
+            }
+
+            return startIndex != -1 && endIndex >= startIndex;
+        }
+
+
+        private static bool TryFindEndConnectingTo(Car car, Car adjacent, out LogicalEnd end)
+        {
+            foreach (LogicalEnd candidate in new[] { LogicalEnd.A, LogicalEnd.B })
+            {
+                if (car.TryGetAdjacentCar(candidate, out Car test) && test == adjacent)
+                {
+                    end = candidate;
+                    return true;
+                }
+            }
+
+            end = LogicalEnd.A;
+            return false;
+        }
+
+        private static bool WouldSplitLocoTenderPair(Car carA, Car carB)
+        {
+            if (carA == null || carB == null)
+                return false;
+
+            bool adjacent = false;
+            if (carA.TryGetAdjacentCar(LogicalEnd.A, out var adjA) && adjA == carB)
+                adjacent = true;
+            else if (carA.TryGetAdjacentCar(LogicalEnd.B, out adjA) && adjA == carB)
+                adjacent = true;
+
+            if (!adjacent)
+                return false;
+
+            // Check for loco → tender adjacency
+            if (carA.Archetype == Model.Definition.CarArchetype.LocomotiveSteam &&
+                PatchSteamLocomotive.TryGetTender(carA, out Car tender) &&
+                tender == carB)
+                return true;
+
+            if (carB.Archetype == Model.Definition.CarArchetype.LocomotiveSteam &&
+                PatchSteamLocomotive.TryGetTender(carB, out tender) &&
+                tender == carA)
+                return true;
+
+            // Check tender → loco adjacency via "F" end
+            if (carA.Archetype == Model.Definition.CarArchetype.Tender &&
+                carA.TryGetAdjacentCar(carA.EndToLogical(End.F), out Car parentLoco) &&
+                parentLoco == carB)
+                return true;
+
+            if (carB.Archetype == Model.Definition.CarArchetype.Tender &&
+                carB.TryGetAdjacentCar(carB.EndToLogical(End.F), out parentLoco) &&
+                parentLoco == carA)
+                return true;
+
+            return false;
+        }
+
+        private static bool TryResolveUncoupleByDestination(
+            ManagedWaypoint waypoint,
+            out Car carToUncouple,
+            out LogicalEnd endToUncouple,
+            out List<Car> inactiveCut)
+        {
+            carToUncouple = null;
+            endToUncouple = LogicalEnd.A;
+            inactiveCut = null;
+
+            if (string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                Loader.Log("ResolveUncoupleByDestination: no destination selected.");
+                return false;
+            }
+
+            string destKey = waypoint.UncoupleDestinationId;   // e.g. "Stenzel Mfg MM2"
+
+            // Build consist on both sides *from the loco*
+            List<Car> sideA = EnumerateCoupledToEnd(waypoint.Locomotive, LogicalEnd.A);
+            List<Car> sideB = EnumerateCoupledToEnd(waypoint.Locomotive, LogicalEnd.B);
+
+            (List<Car> list, LogicalEnd side, int start, int end)? best = null;
+
+            void ConsiderSide(List<Car> list, LogicalEnd side)
+            {
+                if (list == null || list.Count == 0) return;
+
+                if (TryFindDestinationBlockOnSide(list, destKey, out int startIndex, out int endIndex))
+                {
+                    if (best == null || startIndex < best.Value.start)
+                    {
+                        best = (list, side, startIndex, endIndex);
+                    }
+                }
+            }
+
+            ConsiderSide(sideA, LogicalEnd.A);
+            ConsiderSide(sideB, LogicalEnd.B);
+
+            if (best == null)
+            {
+                Loader.Log($"ResolveUncoupleByDestination: no cars found for destination key='{destKey}'.");
+                return false;
+            }
+
+            var (carsOnSide, workingSide, startIndex, endIndex) = best.Value;
+
+            Loader.Log(
+                $"ResolveUncoupleByDestination: key='{destKey}', side={workingSide}, " +
+                $"block indices [{startIndex}, {endIndex}]");
+
+            // CUT/KEEP semantics
+            var dropList = new List<Car>();
+            Car seamFrontCar = null; // closer to loco
+            Car seamBackCar = null; // first car in dropped cut
+
+            if (!waypoint.KeepDestinationString)
+            {
+                // CUT STRING: drop the block (and anything beyond) from the coupler closest to the loco.
+                int dropStart = startIndex;
+                seamBackCar = carsOnSide[dropStart];
+                seamFrontCar = dropStart == 0 ? null : carsOnSide[dropStart - 1];
+
+                for (int i = dropStart; i < carsOnSide.Count; i++)
+                    dropList.Add(carsOnSide[i]);
+            }
+            else
+            {
+                // KEEP STRING: keep loco + block and anything between; drop everything after the block.
+                if (endIndex >= carsOnSide.Count - 1)
+                {
+                    Loader.Log("ResolveUncoupleByDestination: destination block is at the end; nothing to cut after it.");
+                    return false;
+                }
+
+                int dropStart = endIndex + 1;
+                seamFrontCar = carsOnSide[endIndex];
+                seamBackCar = carsOnSide[dropStart];
+
+                for (int i = dropStart; i < carsOnSide.Count; i++)
+                    dropList.Add(carsOnSide[i]);
+            }
+
+            if (dropList.Count == 0)
+            {
+                Loader.Log("ResolveUncoupleByDestination: dropList is empty; nothing to uncouple.");
+                return false;
+            }
+
+            if (WouldSplitLocoTenderPair(seamFrontCar, seamBackCar))
+            {
+                Loader.Log("ResolveUncoupleByDestination: seam would split a loco/tender pair; aborting.");
+                return false;
+            }
+
+            
+            if (seamFrontCar != null)
+            {
+                if (!TryFindEndConnectingTo(seamBackCar, seamFrontCar, out endToUncouple))
+                {
+                    Loader.Log("ResolveUncoupleByDestination: couldn't find adjacency between seam cars; aborting.");
+                    return false;
+                }
+                carToUncouple = seamBackCar;
+            }
+            else
+            {
+                if (!TryFindEndConnectingTo(seamBackCar, waypoint.Locomotive, out endToUncouple))
+                {
+                    Loader.Log("ResolveUncoupleByDestination: couldn't find adjacency between first drop car and loco; aborting.");
+                    return false;
+                }
+                carToUncouple = seamBackCar;
+            }
+
+            inactiveCut = dropList;
+            return true;
+        }
+
+        private static string GetDestinationBaseKeyFromWaybill(Waybill wb)
+        {
+            string raw = wb.Destination.ToString();
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            int slashIndex = raw.IndexOf('/');
+            string basePart = (slashIndex >= 0 ? raw.Substring(0, slashIndex) : raw).Trim();
+            return string.IsNullOrWhiteSpace(basePart) ? null : basePart;
+        }
+
     }
 }

@@ -47,13 +47,14 @@ namespace WaypointQueue
         {
             All = 0,
             ByCount = 1,
-            ByDestination = 2
+            ByDestination = 2,
+            None = 3
         }
 
         public enum UncoupleAllDirection
         {
-            Behind = 0,
-            Front = 1
+            Aft = 0,
+            Fore = 1
         }
         [JsonProperty]
         public string Id { get; private set; } = Guid.NewGuid().ToString();
@@ -92,7 +93,7 @@ namespace WaypointQueue
                 switch (UncoupleByMode)
                 {
                     case UncoupleMode.ByCount:
-                        // Legacy behavior: only uncouple if count > 0
+                        // only uncouple if count > 0
                         return NumberOfCarsToCut > 0;
 
                     case UncoupleMode.ByDestination:
@@ -100,11 +101,11 @@ namespace WaypointQueue
                         return !string.IsNullOrEmpty(UncoupleDestinationId);
 
                     case UncoupleMode.All:
-                        // All mode is “armed” when the user has interacted with uncoupling at all.
-                        // To avoid changing existing behavior too much, require NumberOfCarsToCut > 0
-                        // (we’ll automatically set this from the UI when they pick All).
-                        return NumberOfCarsToCut > 0;
+                        // "All" mode does not depend on a car count; selecting this mode
+                        // means we intend to uncouple at this waypoint.
+                        return true;
 
+                    case UncoupleMode.None:
                     default:
                         return false;
                 }
@@ -121,11 +122,11 @@ namespace WaypointQueue
         public PostCoupleCutType TakeOrLeaveCut { get; set; } = PostCoupleCutType.Leave;
         public bool TakeUncoupledCarsAsActiveCut { get; set; }
         public bool ShowPostCouplingCut { get; set; }
-        public UncoupleMode UncoupleByMode { get; set; } = UncoupleMode.All;
-        public UncoupleAllDirection UncoupleAllDirectionSide { get; set; } = UncoupleAllDirection.Behind;
+        public UncoupleMode UncoupleByMode { get; set; } = UncoupleMode.None;
+        public UncoupleAllDirection UncoupleAllDirectionSide { get; set; } = UncoupleAllDirection.Aft;
 
         public string UncoupleDestinationId { get; set; }
-        public bool KeepDestinationString { get; set; } = true;
+        public bool KeepDestinationString { get; set; } = false;
 
         [JsonIgnore]
         public bool CanRefuelNearby
