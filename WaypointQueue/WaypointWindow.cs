@@ -892,8 +892,8 @@ namespace WaypointQueue
         private (
         System.Collections.Generic.List<string> labels,
         System.Collections.Generic.List<string> destIds,
-        int selectedIndex
-    ) BuildDestinationChoices(ManagedWaypoint waypoint)
+        int selectedIndex) 
+        BuildDestinationChoices(ManagedWaypoint waypoint)
         {
             var labels = new System.Collections.Generic.List<string>();
             var destIds = new System.Collections.Generic.List<string>();

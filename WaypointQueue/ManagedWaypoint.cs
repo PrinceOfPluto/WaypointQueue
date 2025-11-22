@@ -190,7 +190,7 @@ namespace WaypointQueue
 
         public bool TryResolveLocomotive(out Car loco)
         {
-            // loco is null if false
+            
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
                 Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
