@@ -565,16 +565,57 @@ namespace WaypointQueue
         private static void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsUncoupling) return;
+            if (waypoint.Locomotive == null) return;
+
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
-            LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
+            // Default direction behaviour (used for ByCount and ByDestination)
+            LogicalEnd directionToCountCars =
+                GetEndRelativeToWapoint(
+                    waypoint.Locomotive,
+                    waypoint.Location,
+                    useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
 
-            List<Car> allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
+            List<Car> allCarsFromEnd;
+            List<Car> carsToCut = null;
 
-            // Handling the direction ensures cars to cut are at the front of the list
-            List<Car> carsToCut = allCarsFromEnd.Take(waypoint.NumberOfCarsToCut).ToList();
+            switch (waypoint.UncoupleByMode)
+            {
+                case ManagedWaypoint.UncoupleMode.ByCount:
+                    {
+                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
 
-            carsToCut = FilterAnySplitLocoTenderPairs(carsToCut);
+                        // Handling the direction ensures cars to cut are at the front of the list
+                        carsToCut = allCarsFromEnd.Take(waypoint.NumberOfCarsToCut).ToList();
+                        break;
+                    }
+
+                case ManagedWaypoint.UncoupleMode.ByDestination:
+                    {
+                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
+                        carsToCut = ResolveUncoupleByDestination(waypoint, allCarsFromEnd);
+                        break;
+                    }
+
+                case ManagedWaypoint.UncoupleMode.All:
+                default:
+                    {
+                        // For "All" we ignore CountUncoupledFromNearestToWaypoint and use a fixed side
+                        LogicalEnd side = waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Behind
+                            ? LogicalEnd.B
+                            : LogicalEnd.A;
+
+                        allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(side).ToList();
+                        carsToCut = ResolveUncoupleAll(waypoint, allCarsFromEnd);
+                        break;
+                    }
+            }
+
+            if (carsToCut == null)
+            {
+                Loader.Log("ResolveUncouplingOrders: carsToCut is null, aborting.");
+                return;
+            }
 
             // This can happen if the user selected counting from nearest to waypoint and the locomotive backed up to the waypoint
             if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
@@ -601,7 +642,7 @@ namespace WaypointQueue
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
-            Loader.Log($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
+            Loader.Log($"Seeking to uncouple {carsToCut.Count} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
 
             Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
             if (waypoint.TakeUncoupledCarsAsActiveCut)
@@ -770,6 +811,123 @@ namespace WaypointQueue
 
             StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, valueToSet));
             Loader.Log($"[Timetable] {(valueToSet ?? "None")} for {waypoint.Locomotive.Ident}");
+        }
+
+        private static List<Car> ResolveUncoupleAll(ManagedWaypoint waypoint, List<Car> consistFromSide)
+        {
+            // "All" mode semantics:
+            // Start at the loco (index 0 in consistFromSide), walk in the chosen direction
+            // until we find the first car that is NOT a loco or tender. Cut there.
+
+            if (consistFromSide == null || consistFromSide.Count == 0)
+                return new List<Car>();
+
+            int firstNonLocoIndex = -1;
+
+            for (int i = 0; i < consistFromSide.Count; i++)
+            {
+                Car car = consistFromSide[i];
+
+                if (!IsLocoOrTender(car))
+                {
+                    firstNonLocoIndex = i;
+                    break;
+                }
+            }
+
+            if (firstNonLocoIndex <= 0)
+            {
+                // Either everything is loco/tender, or the very first car
+                // is already non-loco (we don't really want to cut immediately
+                // at the loco if it's the only one).
+                Loader.Log("ResolveUncoupleAll: No suitable non-loco/tender car found to cut, aborting.");
+                return new List<Car>();
+            }
+
+            // From that first non-loco/tender car outward is the "cut" side.
+            // The loco + any tenders stay on the other side.
+            var carsToCut = consistFromSide.GetRange(firstNonLocoIndex, consistFromSide.Count - firstNonLocoIndex);
+            Loader.Log($"ResolveUncoupleAll: first non-loco/tender index={firstNonLocoIndex}, carsToCut={carsToCut.Count}");
+
+            return carsToCut;
+        }
+        private static List<Car> ResolveUncoupleByDestination(ManagedWaypoint waypoint, System.Collections.Generic.List<Car> allCarsFromEnd)
+        {
+            if (string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                Loader.Log("ResolveUncoupleByDestination: no destination selected.");
+                return new System.Collections.Generic.List<Car>();
+            }
+
+            string destId = waypoint.UncoupleDestinationId;
+
+            // Find the first contiguous "string" of cars with this destination
+            int start = -1;
+            int end = -1;
+
+            for (int i = 0; i < allCarsFromEnd.Count; i++)
+            {
+                Car car = allCarsFromEnd[i];
+                if (car.Waybill.HasValue && car.Waybill.Value.Destination.Identifier == destId)
+                {
+                    if (start == -1)
+                        start = i;
+
+                    end = i;
+                }
+                else
+                {
+                    // If we've already started a block and it ended, stop
+                    if (start != -1)
+                        break;
+                }
+            }
+
+            if (start == -1 || end == -1)
+            {
+                Loader.Log($"ResolveUncoupleByDestination: no cars found for destination {destId}.");
+                return new System.Collections.Generic.List<Car>();
+            }
+
+            Loader.Log($"ResolveUncoupleByDestination: destId={destId}, block indices [{start}, {end}]");
+
+            System.Collections.Generic.List<Car> carsToCut;
+
+            if (waypoint.KeepDestinationString)
+            {
+                // Keep the loco + this string; cut everything AFTER the string.
+                int tailStart = end + 1;
+                if (tailStart >= allCarsFromEnd.Count)
+                {
+                    Loader.Log("ResolveUncoupleByDestination: destination block is at the end; nothing to cut after it.");
+                    return new System.Collections.Generic.List<Car>();
+                }
+
+                carsToCut = allCarsFromEnd.GetRange(tailStart, allCarsFromEnd.Count - tailStart);
+                Loader.Log($"ResolveUncoupleByDestination: KeepString=true, tailStart={tailStart}, carsToCut={carsToCut.Count}");
+            }
+            else
+            {
+                // Cut the string (and anything behind it). Loco + any cars before 'start' remain.
+                carsToCut = allCarsFromEnd.GetRange(start, allCarsFromEnd.Count - start);
+                Loader.Log($"ResolveUncoupleByDestination: KeepString=false, cut from index {start}, carsToCut={carsToCut.Count}");
+            }
+
+            return carsToCut;
+        }
+
+        private static bool IsLocoOrTender(Car car)
+        {
+            switch (car.Archetype)
+            {
+                case Model.Definition.CarArchetype.LocomotiveDiesel:
+                case Model.Definition.CarArchetype.LocomotiveSteam:
+                case Model.Definition.CarArchetype.Tender:
+                    return true;
+
+                default:
+                    return false;
+            }
         }
     }
 }

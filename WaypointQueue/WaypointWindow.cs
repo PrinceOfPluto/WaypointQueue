@@ -14,6 +14,7 @@ using UI.Common;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.UUM;
+using static UnityEngine.InputSystem.Layouts.InputControlLayout;
 
 namespace WaypointQueue
 {
@@ -359,28 +360,110 @@ namespace WaypointQueue
             }
             else if (!waypoint.CurrentlyWaiting)
             {
-                builder.HStack(delegate (UIPanelBuilder builder)
+                // Main "Uncouple" row
+                builder.HStack(delegate (UIPanelBuilder hBuilder)
                 {
-                    builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
+                    hBuilder.AddField($"Uncouple", hBuilder.HStack(delegate (UIPanelBuilder field)
                     {
-                        AddCarCutButtons(waypoint, field, onWaypointChange, null);
+                        var modeLabels = new System.Collections.Generic.List<string>
+            {
+                "All",
+                "By count",
+                "By destination"
+            };
+
+                        int selectedModeIndex = (int)waypoint.UncoupleByMode;
+                        selectedModeIndex = Mathf.Clamp(selectedModeIndex, 0, modeLabels.Count - 1);
+
+                        field.AddDropdown(modeLabels, selectedModeIndex, (int idx) =>
+                        {
+                            waypoint.UncoupleByMode = (ManagedWaypoint.UncoupleMode)idx;
+
+                            // Arm uncoupling for All / Destination if not already armed
+                            if (waypoint.UncoupleByMode != ManagedWaypoint.UncoupleMode.ByCount &&
+                                waypoint.NumberOfCarsToCut == 0)
+                            {
+                                waypoint.NumberOfCarsToCut = 1;
+                            }
+
+                            onWaypointChange(waypoint);
+                        }).Width(140f);
+
+                        // For "By count", show the old +/- controls to pick the number
+                        if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
+                        {
+                            AddCarCutButtons(waypoint, field, onWaypointChange, null);
+                        }
                     }));
                 });
 
                 if (waypoint.IsUncoupling)
                 {
-                    builder.AddField($"Count cars from",
-                    builder.AddDropdown(new List<string> { "Closest to waypoint", "Furthest from waypoint" }, waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
-                    {
-                        waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
-                        onWaypointChange(waypoint);
-                    }));
+                    // Per-mode extra controls
 
+                    if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.All)
+                    {
+                        // Direction for "All" mode: Behind / Front relative to the loco
+                        builder.AddField("Direction",
+                            builder.AddDropdown(
+                                new System.Collections.Generic.List<string> { "Behind", "Front" },
+                                waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Behind ? 0 : 1,
+                                (int idx) =>
+                                {
+                                    waypoint.UncoupleAllDirectionSide =
+                                        (idx == 0)
+                                            ? ManagedWaypoint.UncoupleAllDirection.Behind
+                                            : ManagedWaypoint.UncoupleAllDirection.Front;
+                                    onWaypointChange(waypoint);
+                                }));
+                    }
+                    else
+                    {
+                        // For ByCount and ByDestination, we still keep the "closest/furthest from waypoint" option
+                        builder.AddField($"Count cars from",
+                        builder.AddDropdown(new System.Collections.Generic.List<string> { "Closest to waypoint", "Furthest from waypoint" },
+                            waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+                            {
+                                waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
+                                onWaypointChange(waypoint);
+                            }));
+                    }
+
+                    if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByDestination)
+                    {
+                        // Second dropdown: unique destinations in consist
+                        var (destLabels, destIds, destSelectedIndex) = BuildDestinationChoices(waypoint);
+                        builder.AddField("Destination",
+                            builder.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
+                            {
+                                waypoint.UncoupleDestinationId = destIds[idx];
+
+                                // Arm uncoupling if a destination is chosen
+                                if (idx > 0 && waypoint.NumberOfCarsToCut == 0)
+                                {
+                                    waypoint.NumberOfCarsToCut = 1;
+                                }
+
+                                onWaypointChange(waypoint);
+                            }));
+
+                        // "Keep String" checkbox under that line
+                        builder.AddField("Keep String",
+                            builder.AddToggle(
+                                () => waypoint.KeepDestinationString,
+                                (bool value) =>
+                                {
+                                    waypoint.KeepDestinationString = value;
+                                    onWaypointChange(waypoint);
+                                }));
+                    }
+
+                    // Bleed air / set brake toggles (unchanged)
                     if (Loader.Settings.UseCompactLayout)
                     {
-                        builder.HStack(delegate (UIPanelBuilder builder)
+                        builder.HStack(delegate (UIPanelBuilder compactBuilder)
                         {
-                            AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+                            AddBleedAirAndSetBrakeToggles(waypoint, compactBuilder, onWaypointChange);
                         });
                     }
                     else
@@ -388,19 +471,20 @@ namespace WaypointQueue
                         AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
                     }
 
-                    var takeActiveCutField = builder.AddField($"Take active cut", builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
-                    {
-                        waypoint.TakeUncoupledCarsAsActiveCut = value;
-                        onWaypointChange(waypoint);
-                    }));
+                    var takeActiveCutField = builder.AddField($"Make uncoupled cars active",
+                        builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
+                        {
+                            waypoint.TakeUncoupledCarsAsActiveCut = value;
+                            onWaypointChange(waypoint);
+                        }));
 
                     if (Loader.Settings.EnableTooltips)
                     {
-                        takeActiveCutField.Tooltip("Take active cut", "If this is active, the number of cars to uncouple will still be part of the active train. " +
+                        takeActiveCutField.Tooltip("Make uncoupled cars active", "If this is active, the number of cars (or block) to uncouple will still be part of the active train. " +
                             "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
                             "This is particularly useful for local freight switching." +
                             "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
-                            "By checking \"Take active cut\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                            "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple a block including the locomotive and tender, and travel to another waypoint to the industry track to deliver the cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
                     }
                 }
             }
@@ -692,6 +776,64 @@ namespace WaypointQueue
                 if (idx >= 0) selected = idx;
             }
             return (labels, values, selected);
+        }
+
+        private static (System.Collections.Generic.List<string> labels,
+                System.Collections.Generic.List<string> destIds,
+                int selectedIndex)
+        BuildDestinationChoices(ManagedWaypoint waypoint)
+        {
+            var labels = new System.Collections.Generic.List<string>();
+            var destIds = new System.Collections.Generic.List<string>();
+            int selectedIndex = 0;
+
+            // Index 0: "no selection"
+            labels.Add("Select destination");
+            destIds.Add(null);
+
+            if (waypoint.Locomotive == null)
+            {
+                return (labels, destIds, selectedIndex);
+            }
+
+            var grouped = new System.Collections.Generic.Dictionary<string, (string display, int count)>();
+
+            foreach (var car in waypoint.Locomotive.EnumerateCoupled())
+            {
+                if (!car.Waybill.HasValue) continue;
+
+                var wb = car.Waybill.Value;
+                var destId = wb.Destination.Identifier;
+                if (string.IsNullOrEmpty(destId)) continue;
+
+                if (!grouped.TryGetValue(destId, out var tuple))
+                {
+                    string display = wb.Destination.ToString(); // This should be a reasonable label
+                    grouped[destId] = (display, 1);
+                }
+                else
+                {
+                    grouped[destId] = (tuple.display, tuple.count + 1);
+                }
+            }
+
+            foreach (var kvp in grouped)
+            {
+                string destId = kvp.Key;
+                var (display, count) = kvp.Value;
+                string label = count > 1 ? $"{display} ({count} cars)" : display;
+
+                labels.Add(label);
+                destIds.Add(destId);
+
+                if (!string.IsNullOrEmpty(waypoint.UncoupleDestinationId) &&
+                    waypoint.UncoupleDestinationId == destId)
+                {
+                    selectedIndex = labels.Count - 1;
+                }
+            }
+
+            return (labels, destIds, selectedIndex);
         }
     }
 }
