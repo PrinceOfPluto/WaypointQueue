@@ -109,7 +109,7 @@ namespace WaypointQueue
              * Unless explicitly not stopping, loco needs a complete stop before resolving coupling or uncoupling orders.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && Math.Abs(wp.Locomotive.velocity) > 0)
+            if (wp.StopAtWaypoint && Math.Abs(wp.Locomotive.velocity) > 0.05f)
             {
                 Loader.LogDebug($"Locomotive not stopped, continuing");
                 return false;
