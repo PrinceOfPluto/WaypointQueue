@@ -72,5 +72,22 @@ namespace WaypointQueue
 
             Loader.LogDebug($"[FreightManager] Built {_destinations.Count} destinations.");
         }
+
+        public static IReadOnlyCollection<string> GetOpsIdsForLabel(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label))
+                return Array.Empty<string>();
+
+            string norm = label.Trim();
+
+            // There may be multiple entries with the same label but different Ids.
+            var ids = _destinations
+                .Where(d => string.Equals(d.Label, norm, StringComparison.InvariantCultureIgnoreCase))
+                .Select(d => d.Id)
+                .Distinct(StringComparer.InvariantCultureIgnoreCase)
+                .ToList();
+
+            return ids;
+        }
     }
 }

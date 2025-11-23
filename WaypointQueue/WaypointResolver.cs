@@ -1121,6 +1121,19 @@ namespace WaypointQueue
             if (keyNorm.Length == 0)
                 return false;
 
+            // All Ops Ids that back this label in FreightManager
+            var opsIdsForLabel = FreightManager
+                .GetOpsIdsForLabel(keyNorm)
+                .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+
+            static bool ContainsIgnoreCase(string haystack, string needle)
+            {
+                if (string.IsNullOrEmpty(haystack) || string.IsNullOrEmpty(needle))
+                    return false;
+
+                return haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase) >= 0;
+            }
+
             for (int i = 0; i < sideCars.Count; i++)
             {
                 Car car = sideCars[i];
@@ -1135,18 +1148,27 @@ namespace WaypointQueue
                 string raw = wb.Destination.ToString() ?? string.Empty;
                 string rawNorm = raw.Trim();
 
-                // Old behavior: base key from the waybill (e.g. stripping any "/..." suffix)
                 string baseKey = GetDestinationBaseKeyFromWaybill(wb);
 
-                bool matches =
+                // Existing label-based behavior (exact matches)
+                bool labelMatch =
                     string.Equals(rawNorm, keyNorm, StringComparison.InvariantCultureIgnoreCase) ||
                     (!string.IsNullOrEmpty(baseKey) &&
                      string.Equals(baseKey, keyNorm, StringComparison.InvariantCultureIgnoreCase));
 
+                // NEW: substring check against any Ops Id backing this label
+                bool opsIdMatch =
+                    opsIdsForLabel.Count > 0 &&
+                    opsIdsForLabel.Any(id =>
+                        ContainsIgnoreCase(rawNorm, id) ||
+                        (!string.IsNullOrEmpty(baseKey) && ContainsIgnoreCase(baseKey, id)));
+
+                bool matches = labelMatch || opsIdMatch;
+
                 if (!matches)
                 {
                     if (startIndex != -1)
-                        break; // we already started a contiguous block, and this car breaks it
+                        break; // already in a contiguous block, this breaks it
                     continue;
                 }
 
@@ -1158,6 +1180,9 @@ namespace WaypointQueue
 
             return startIndex != -1 && endIndex >= startIndex;
         }
+
+
+
 
 
         private static bool TryFindEndConnectingTo(Car car, Car adjacent, out LogicalEnd end)
