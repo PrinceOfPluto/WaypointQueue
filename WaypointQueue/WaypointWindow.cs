@@ -459,7 +459,7 @@ namespace WaypointQueue
                             onWaypointChange(waypoint);
                         }).Width(140f);
 
-                        // "By count" still uses the +/- controls
+                        
                         if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
                         {
                             AddCarCutButtons(waypoint, field, onWaypointChange, null);
