@@ -14,6 +14,9 @@ namespace WaypointQueue
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
 
+        [Header("Coupling settings")]
+        [Draw("Nearby coupling search radius", DrawType.Slider, Precision = 0, Min = 1, Max = 100, Tooltip = "Radius to search for nearby coupling")] public float NearbyCouplingSearchRadius = 50;
+
         [Header("Uncoupling settings")]
         [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
         [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;

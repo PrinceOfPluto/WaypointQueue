@@ -83,6 +83,7 @@ namespace WaypointQueue
                 // or skip if not in waypoint mode
                 if (HasActiveWaypoint(ordersHelper) || ordersHelper.Orders.Mode != Game.Messages.AutoEngineerMode.Waypoint)
                 {
+                    //Loader.LogDebug($"Loco {entry.Locomotive.Ident} has ACTIVE waypoint during tick update");
                     continue;
                 }
 
@@ -353,6 +354,36 @@ namespace WaypointQueue
             }
         }
 
+        public void ReorderWaypoint(ManagedWaypoint waypoint, int newIndex)
+        {
+            LocoWaypointState state = GetLocoWaypointState(waypoint.Locomotive);
+
+            if (state != null && state.Waypoints != null)
+            {
+                int oldIndex = state.Waypoints.IndexOf(waypoint);
+                if (oldIndex < 0) return;
+
+                state.Waypoints.RemoveAt(oldIndex);
+
+                if (newIndex > oldIndex)
+                {
+                    newIndex--; // the actual index could have shifted due to the removal
+                }
+
+                state.Waypoints.Insert(newIndex, waypoint);
+
+                if (state.Waypoints[0].Id != state.UnresolvedWaypoint.Id)
+                {
+                    Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
+                    state.UnresolvedWaypoint = waypoint;
+                    SendToWaypointFromQueue(waypoint, GetOrdersHelper(waypoint.Locomotive));
+                }
+
+                Loader.LogDebug($"Invoking OnWaypointsUpdated in ReorderWaypoint");
+                OnWaypointsUpdated.Invoke();
+            }
+        }
+
         public void RerouteCurrentWaypoint(Car locomotive)
         {
             AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(locomotive);
@@ -431,15 +462,13 @@ namespace WaypointQueue
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
-            (Location, string)? maybeWaypoint = (waypoint.Location, waypoint.CoupleToCarId);
             WaypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
-            ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
+            SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
         }
 
-        internal void SendToWaypointForRefuel(ManagedWaypoint waypoint, Location refuelLocation, AutoEngineerOrdersHelper ordersHelper)
+        internal void SendToWaypoint(AutoEngineerOrdersHelper ordersHelper, Location location, string coupleToCarId = null)
         {
-            Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {refuelLocation}");
-            (Location, string)? maybeWaypoint = (refuelLocation, null);
+            (Location, string)? maybeWaypoint = (location, coupleToCarId);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 

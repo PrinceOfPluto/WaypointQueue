@@ -71,5 +71,22 @@ namespace WaypointQueue
 
             RaiseChanged();
         }
+
+        public static void ReorderWaypointInRoute(RouteDefinition route, ManagedWaypoint waypoint, int newIndex)
+        {
+            if (route != null && route.Waypoints != null)
+            {
+                int oldIndex = route.Waypoints.IndexOf(waypoint);
+                if (oldIndex < 0) return;
+
+                route.Waypoints.RemoveAt(oldIndex);
+                if (newIndex > oldIndex)
+                {
+                    newIndex--; // the actual index could have shifted due to the removal
+                }
+
+                route.Waypoints.Insert(newIndex, waypoint);
+            }
+        }
     }
 }
