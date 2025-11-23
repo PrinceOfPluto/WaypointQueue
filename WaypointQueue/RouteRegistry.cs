@@ -87,6 +87,8 @@ namespace WaypointQueue
 
                 route.Waypoints.Insert(newIndex, waypoint);
             }
+            Loader.LogDebug($"Invoking RaiseChanged in RouteRegistry.ReorderWaypointInRoute");
+            RaiseChanged();
         }
     }
 }

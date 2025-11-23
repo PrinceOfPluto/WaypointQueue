@@ -251,27 +251,41 @@ namespace WaypointQueue
             {
                 builder.AddLabel($"Waypoint {index + 1}");
                 builder.Spacer();
+                builder.AddButtonCompact("▲", () =>
+                {
+                    if (GameInput.IsControlDown || GameInput.IsShiftDown)
+                    {
+                        // move to top
+                        onWaypointReorder(waypoint, 0);
+                    }
+                    else
+                    {
+                        // move up one
+                        onWaypointReorder(waypoint, index - 1);
+                    }
+                }).Width(30f).Disable(index == 0);
+
+                builder.AddButtonCompact("▼", () =>
+                {
+                    if (GameInput.IsControlDown || GameInput.IsShiftDown)
+                    {
+                        // move to bottom
+                        onWaypointReorder(waypoint, totalWaypoints);
+                    }
+                    else
+                    {
+                        // move down one
+                        // incrementing by 2 to account for index shifting after removal
+                        onWaypointReorder(waypoint, index + 2);
+                    }
+                }).Width(30f).Disable(index == totalWaypoints - 1);
+
                 List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
                 var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
-                var moveToTopRow = new DropdownMenu.RowData("Move to top", "");
-                var moveUpOneRow = new DropdownMenu.RowData("Move up", "");
-                var moveDownOneRow = new DropdownMenu.RowData("Move down", "");
-                var moveToBottomRow = new DropdownMenu.RowData("Move to bottom", "");
                 var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
                 var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
                 options.Add(jumpToWaypointRow);
-
-                if (index > 0)
-                {
-                    options.Add(moveUpOneRow);
-                    options.Add(moveToTopRow);
-                }
-                if (index < totalWaypoints - 1)
-                {
-                    options.Add(moveDownOneRow);
-                    options.Add(moveToBottomRow);
-                }
 
                 if (waypoint.WillWait)
                 {
@@ -284,27 +298,6 @@ namespace WaypointQueue
                     if (value == options.IndexOf(jumpToWaypointRow))
                     {
                         JumpCameraToWaypoint(waypoint);
-                    }
-
-                    if (value == options.IndexOf(moveToTopRow))
-                    {
-                        onWaypointReorder(waypoint, 0);
-                    }
-
-                    if (value == options.IndexOf(moveUpOneRow))
-                    {
-                        onWaypointReorder(waypoint, index - 1);
-                    }
-
-                    if (value == options.IndexOf(moveDownOneRow))
-                    {
-                        // incrementing by 2 to account for index shifting after removal
-                        onWaypointReorder(waypoint, index + 2);
-                    }
-
-                    if (value == options.IndexOf(moveToBottomRow))
-                    {
-                        onWaypointReorder(waypoint, totalWaypoints);
                     }
 
                     if (value == options.IndexOf(removeWaitRow))
