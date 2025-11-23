@@ -165,7 +165,7 @@ namespace WaypointQueue
                         for (int i = 0; i < route.Waypoints.Count; i++)
                         {
                             var mw = route.Waypoints[i];
-                            BuildRouteWaypointSection(route, mw, i + 1, scroll);
+                            BuildRouteWaypointSection(route, mw, i, route.Waypoints.Count, scroll);
                             scroll.Spacer(20f);
                         }
                     });
@@ -208,7 +208,7 @@ namespace WaypointQueue
                 });
         }
 
-        private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int number, UIPanelBuilder builder)
+        private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int index, int totalWaypoints, UIPanelBuilder builder)
         {
             if (!mw.IsValid())
             {
@@ -217,7 +217,8 @@ namespace WaypointQueue
 
             WaypointWindow.Shared.BuildWaypointSection(
              mw,
-             number,
+             index,
+             totalWaypoints,
              builder,
              onWaypointChange: (ManagedWaypoint waypoint) =>
              {
@@ -227,6 +228,10 @@ namespace WaypointQueue
              {
                  route.Waypoints.Remove(waypoint);
                  RebuildWithScrolls();
+             },
+             onWaypointReorder: (ManagedWaypoint waypoint, int newIndex) =>
+             {
+                 RouteRegistry.ReorderWaypointInRoute(route, waypoint, newIndex);
              },
              isRouteWindow: true);
         }
