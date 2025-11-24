@@ -27,9 +27,21 @@ namespace WaypointQueue
 
         private void OnEnable()
         {
+            RouteRegistry.OnChanged += OnRoutesChanged;
+
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
                 _selectedRouteId.Value = RouteRegistry.Routes[0].Id;
         }
+        private void OnDisable()
+        {
+            RouteRegistry.OnChanged -= OnRoutesChanged;
+        }
+
+        private void OnRoutesChanged()
+        {
+            RebuildWithScrolls();
+        }
+
         public void Show()
         {
             Loader.LogDebug("Showing RouteManager window");
