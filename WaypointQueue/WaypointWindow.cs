@@ -379,17 +379,7 @@ namespace WaypointQueue
 
             AddLabelOnlyTooltip(sendPastWaypointField, "Send past waypoint", "The engineer will attempt to move the train's length past the waypoint so that the end of the train is at the waypoint.");
 
-            if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
-            {
-                var coupleNearbyField = builder.AddField($"Couple nearest", builder.AddToggle(() => waypoint.SeekNearbyCoupling, delegate (bool value)
-                {
-                    waypoint.SeekNearbyCoupling = value;
-                    waypoint.StopAtWaypoint = true;
-                    onWaypointChange(waypoint);
-                }));
-
-                AddLabelOnlyTooltip(coupleNearbyField, "Couple nearest", "Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius.\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. You can configure the search radius in the mod settings.");
-            }
+            
 
             if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
             {
@@ -524,6 +514,18 @@ namespace WaypointQueue
                         "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
                         "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
                 }
+            }
+
+            if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
+            {
+                var coupleNearbyField = builder.AddField($"Couple nearest", builder.AddToggle(() => waypoint.SeekNearbyCoupling, delegate (bool value)
+                {
+                    waypoint.SeekNearbyCoupling = value;
+                    waypoint.StopAtWaypoint = true;
+                    onWaypointChange(waypoint);
+                }));
+
+                AddLabelOnlyTooltip(coupleNearbyField, "Couple nearest", "Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius.\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. You can configure the search radius in the mod settings.");
             }
 
             if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
