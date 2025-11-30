@@ -100,6 +100,11 @@ namespace WaypointQueue
                 }
                 else
                 {
+                    if (!wp.StatusLabel.Equals($"Refueling {wp.RefuelLoadName}"))
+                    {
+                        wp.StatusLabel = $"Refueling {wp.RefuelLoadName}";
+                        WaypointQueueController.Shared.UpdateWaypoint(wp);
+                    }
                     //Loader.LogDebug($"Still refueling");
                     return false;
                 }
@@ -121,6 +126,7 @@ namespace WaypointQueue
                 {
                     Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
                     wp.CurrentlyWaitingBeforeCutting = true;
+                    wp.StatusLabel = "Waiting until train is fully at rest before cutting cars";
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
                 }
                 return false;
@@ -138,8 +144,13 @@ namespace WaypointQueue
 
             if (TryBeginWaiting(wp, onWaypointsUpdated))
             {
+                wp.StatusLabel = "Waiting before continuing";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
+
+            wp.StatusLabel = "Completed";
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
 
             return true;
         }
@@ -159,7 +170,9 @@ namespace WaypointQueue
             if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
             {
                 Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
+                wp.StatusLabel = "Done waiting";
                 wp.ClearWaiting();
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
             }
             //Loader.LogDebug($"Loco {wp.Locomotive.Ident} still waiting");
@@ -209,6 +222,9 @@ namespace WaypointQueue
 
         public static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
+            wp.StatusLabel = "Searching for nearby coupling";
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
+
             Loader.LogDebug($"Starting search for nearby coupling");
             float searchRadius = Loader.Settings.NearbyCouplingSearchRadius;
             List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
@@ -247,6 +263,7 @@ namespace WaypointQueue
                 Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(bestMatchLocation, wp.Location);
                 Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
                 wp.OverwriteLocation(adjustedLocation);
+                wp.StatusLabel = "Moving to couple nearby";
 
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
 
@@ -261,6 +278,7 @@ namespace WaypointQueue
 
         public static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
+            waypoint.StatusLabel = "Sending train past waypoint";
             waypoint.StopAtWaypoint = true;
             waypoint.MoveTrainPastWaypoint = false;
 
@@ -319,6 +337,8 @@ namespace WaypointQueue
             Location locationToMove = GetRefuelLocation(waypoint, ordersHelper);
             SetCarLoadTargetLoaderCanLoad(waypoint, true);
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
+            waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
         }
 
@@ -327,7 +347,9 @@ namespace WaypointQueue
             Loader.Log($"Done refueling {wp.Locomotive.Ident}");
             wp.WillRefuel = false;
             wp.CurrentlyRefueling = false;
+            wp.StatusLabel = $"Done refueling {wp.RefuelLoadName}";
             SetCarLoadTargetLoaderCanLoad(wp, false);
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
 
             int maxSpeed = wp.MaxSpeedAfterRefueling;
             if (maxSpeed == 0) maxSpeed = 35;
@@ -511,12 +533,6 @@ namespace WaypointQueue
             }
         }
 
-        private static void ResolveWaypointOrders(ManagedWaypoint waypoint)
-        {
-            Loader.LogDebug($"Resolving loco {waypoint.Locomotive.Ident} waypoint to {waypoint.Location}");
-
-        }
-
         private static Car GetFuelCar(BaseLocomotive locomotive)
         {
             Car fuelCar = locomotive;
@@ -583,6 +599,8 @@ namespace WaypointQueue
 
         private static void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
+            waypoint.StatusLabel = "Resolving air and handbrakes";
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             if (!waypoint.IsCoupling) return;
             Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
@@ -603,6 +621,8 @@ namespace WaypointQueue
 
         private static void ResolvePostCouplingCut(ManagedWaypoint waypoint)
         {
+            waypoint.StatusLabel = "Resolving post coupling cut";
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
                 bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
@@ -720,6 +740,8 @@ namespace WaypointQueue
 
         private static void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
+            waypoint.StatusLabel = "Resolving uncoupling";
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             if (!waypoint.IsUncoupling) return;
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
