@@ -251,6 +251,11 @@ namespace WaypointQueue
                 BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, builder);
             });
 
+            if (index == 0 && !isRouteWindow)
+            {
+                BuildStatusLabelField(waypoint, builder);
+            }
+
             BuildDestinationField(waypoint, builder);
 
             if (isRouteWindow || waypoint.Locomotive.TryGetTimetableTrainCrewId(out string trainCrewId))
@@ -357,6 +362,15 @@ namespace WaypointQueue
                 }
             });
             builder.Spacer(8f);
+        }
+
+        private UIPanelBuilder BuildStatusLabelField(ManagedWaypoint waypoint, UIPanelBuilder builder)
+        {
+            builder.AddField("Status", builder.HStack(field =>
+            {
+                field.AddLabel(waypoint.StatusLabel);
+            }));
+            return builder;
         }
 
         private UIPanelBuilder BuildDestinationField(ManagedWaypoint waypoint, UIPanelBuilder builder)

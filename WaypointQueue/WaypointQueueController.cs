@@ -103,6 +103,7 @@ namespace WaypointQueue
                     }
                     else
                     {
+                        Loader.Log($"Finish resolving waypoint {entry.UnresolvedWaypoint.Id} {entry.UnresolvedWaypoint.Location} for {entry.UnresolvedWaypoint.Locomotive.Ident}");
                         RemoveWaypoint(entry.UnresolvedWaypoint);
                     }
                 }
@@ -463,6 +464,8 @@ namespace WaypointQueue
         {
             Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
             WaypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
+            waypoint.StatusLabel = "Running to waypoint";
+            UpdateWaypoint(waypoint);
             SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
         }
 
