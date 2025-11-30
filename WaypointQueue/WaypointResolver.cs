@@ -105,19 +105,37 @@ namespace WaypointQueue
                 }
             }
 
+            // Connecting air and releasing handbrakes may be done before being completely stopped
+            if (wp.IsCoupling)
+            {
+                ResolveBrakeSystemOnCouple(wp);
+            }
+
             /*
              * Unless explicitly not stopping, loco needs a complete stop before resolving coupling or uncoupling orders.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && Math.Abs(wp.Locomotive.velocity) > 0)
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp))
             {
-                Loader.LogDebug($"Locomotive not stopped, continuing");
+                if (!wp.CurrentlyWaitingBeforeCutting)
+                {
+                    Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
+                    wp.CurrentlyWaitingBeforeCutting = true;
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
+                }
                 return false;
             }
 
-            ResolveCouplingOrders(wp);
+            if (wp.IsCoupling)
+            {
+                ResolvePostCouplingCut(wp);
+            }
 
-            ResolveUncouplingOrders(wp);
+            if (wp.IsUncoupling)
+            {
+                ResolveUncouplingOrders(wp);
+            }
+
 
             if (TryBeginWaiting(wp, onWaypointsUpdated))
             {
@@ -125,6 +143,16 @@ namespace WaypointQueue
             }
 
             return true;
+        }
+
+        private static bool IsTrainStopped(ManagedWaypoint wp)
+        {
+            List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
+            Car firstCar = coupled.First();
+            Car lastCar = coupled.Last();
+            Loader.LogDebug($"First car {firstCar.Ident} is {(firstCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")} and last car {lastCar.Ident} is {(lastCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")}");
+
+            return firstCar.IsStopped(2) && lastCar.IsStopped(2);
         }
 
         private static bool TryEndWaiting(ManagedWaypoint wp)
@@ -554,7 +582,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static void ResolveCouplingOrders(ManagedWaypoint waypoint)
+        private static void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
             Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
@@ -572,7 +600,10 @@ namespace WaypointQueue
                     car.SetHandbrake(false);
                 }
             }
+        }
 
+        private static void ResolvePostCouplingCut(ManagedWaypoint waypoint)
+        {
             if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
                 bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
@@ -628,6 +659,7 @@ namespace WaypointQueue
                 {
                     Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
                     UncoupleCar(carToUncouple, closestEnd);
+                    UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
                     if (waypoint.BleedAirOnUncouple)
                     {
@@ -771,6 +803,7 @@ namespace WaypointQueue
 
             Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {carsToCut.Count} cars");
             UncoupleCar(carToUncouple, endToUncouple);
+            UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
             if (waypoint.BleedAirOnUncouple)
             {
@@ -780,6 +813,13 @@ namespace WaypointQueue
                     car.air.BleedBrakeCylinder();
                 }
             }
+        }
+
+        private static void UpdateCarsAfterUncoupling(BaseLocomotive locomotive)
+        {
+            MethodInfo updateCarsMI = AccessTools.Method(typeof(AutoEngineerPlanner), "UpdateCars");
+            object[] parameters = [null];
+            updateCarsMI.Invoke(locomotive.AutoEngineerPlanner, parameters);
         }
 
         private static List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut)
@@ -837,10 +877,12 @@ namespace WaypointQueue
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsCoupled, boolValue: false);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
+                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.CutLever, 1f);
 
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.Anglecock, f: 0f);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsCoupled, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
+                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);
                 }
             }
         }

@@ -131,6 +131,7 @@ namespace WaypointQueue
         public bool SeekNearbyCoupling { get; set; }
         public bool CurrentlyCouplingNearby { get; set; }
         public bool MoveTrainPastWaypoint { get; set; }
+        public bool CurrentlyWaitingBeforeCutting { get; set; }
 
         public bool IsValid()
         {
