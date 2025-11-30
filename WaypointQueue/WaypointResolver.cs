@@ -112,10 +112,10 @@ namespace WaypointQueue
             }
 
             /*
-             * Unless explicitly not stopping, loco needs a complete stop before resolving coupling or uncoupling orders.
+             * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp))
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.NumberOfCarsToCut > 0)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
@@ -135,7 +135,6 @@ namespace WaypointQueue
             {
                 ResolveUncouplingOrders(wp);
             }
-
 
             if (TryBeginWaiting(wp, onWaypointsUpdated))
             {
