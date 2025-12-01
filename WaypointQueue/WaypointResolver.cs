@@ -283,23 +283,31 @@ namespace WaypointQueue
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            LogicalEnd furthest = FurthestLogicalEndFrom(waypoint.Locomotive, waypoint.Location);
-            Car furthestCar = EnumerateCoupledToEnd(waypoint.Locomotive, furthest, inclusive: true).LastOrDefault();
-            if (furthestCar == null)
+            List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
+            List<Car> firstAndLastCars = [allCoupled.First(), allCoupled.Last()];
+
+            float furthestDistance = 0;
+            Location furthestCarLocation = new();
+            foreach (Car car in firstAndLastCars)
             {
-                Loader.Log($"Error while clearing beyond waypoint, furthest car was null");
-                return false;
+                LogicalEnd furthestEnd = FurthestLogicalEndFrom(car, waypoint.Location);
+                Location furthestEndLocation = car.LocationFor(furthestEnd);
+                float distance = Graph.Shared.GetDistanceBetweenClose(furthestEndLocation, waypoint.Location);
+
+                if (distance > furthestDistance)
+                {
+                    furthestDistance = distance;
+                    furthestCarLocation = furthestEndLocation;
+                }
             }
 
-            LogicalEnd furthestEndOnCar = FurthestLogicalEndFrom(furthestCar, waypoint.Location);
-            Location furthestLocation = furthestCar.LocationFor(furthestEndOnCar);
+            furthestCarLocation.AssertValid();
 
             BaseLocomotive loco = (BaseLocomotive)waypoint.Locomotive;
-
             MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
             float totalTrainLength = (float)calculateTotalLengthMI.Invoke(loco.AutoEngineerPlanner, []);
 
-            Location orientedLocation = Graph.Shared.LocationOrientedToward(waypoint.Location, furthestLocation);
+            Location orientedLocation = Graph.Shared.LocationOrientedToward(waypoint.Location, furthestCarLocation);
             Location locationToMove;
 
             try
