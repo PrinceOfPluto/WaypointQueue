@@ -443,6 +443,11 @@ namespace WaypointQueue
                     waypoint.WaypointTargetSpeed += GetOffsetAmount();
                     onWaypointChange(waypoint);
                 }).Width(24f);
+                field.AddButtonCompact("Kick", delegate
+                {
+                    waypoint.WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
+                    onWaypointChange(waypoint);
+                });
             }));
 
             AddLabelOnlyTooltip(passingSpeedField, "Passing speed limit", "When passing this waypoint, the engineer will aim to be traveling at or below this speed.\n\nIf there is a track speed restriction, the engineer will not exceed that speed restriction to ensure safety.");

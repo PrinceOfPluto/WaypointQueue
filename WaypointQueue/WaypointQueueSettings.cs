@@ -29,6 +29,7 @@ namespace WaypointQueue
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
         [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
+        [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)
