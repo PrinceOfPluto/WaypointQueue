@@ -6,8 +6,9 @@ namespace WaypointQueue
     public class WaypointQueueSettings : UnityModManager.ModSettings, IDrawable
     {
         [Header("Keybindings")]
-        [Draw("Activate queue waypoint mode")] public KeyBinding queuedWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftControl };
-        [Draw("Activate replace waypoint mode")] public KeyBinding replaceWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftAlt };
+        [Draw("Activate append waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will add it to the end of the locomotive's waypoint queue.")] public KeyBinding queuedWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftControl };
+        [Draw("Activate replace waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will replace the current waypoint but keep the rest of the existing waypoint queue.")] public KeyBinding replaceWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftAlt };
+        [Draw("Activate insert next waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will insert it in the queue directly after the current waypoint.")] public KeyBinding insertNextWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftShift };
         [Draw("Toggle Waypoints window")] public KeyBinding toggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
         [Draw("Toggle Route Manager window")] public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
 

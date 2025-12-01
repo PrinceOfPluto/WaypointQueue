@@ -148,11 +148,14 @@ namespace WaypointQueue
             WaypointStateList = WaypointStateList.FindAll(x => !listForRemoval.Contains(x));
         }
 
-        public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing)
+        public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing, bool isInsertingNext)
         {
             bool isCoupling = coupleToCarId != null && coupleToCarId.Length > 0;
             string couplingLogSegment = isCoupling ? $"coupling to ${coupleToCarId}" : "no coupling";
-            Loader.Log($"Trying to add waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
+            string actionName = "add";
+            if (isReplacing) actionName = "replace";
+            if (isInsertingNext) actionName = "insert next";
+            Loader.Log($"Trying to {actionName} waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
 
             LocoWaypointState entry = GetOrAddLocoWaypointState(loco);
 
@@ -167,6 +170,10 @@ namespace WaypointQueue
                 }
                 entry.Waypoints[0] = waypoint;
                 RefreshCurrentWaypoint(loco, GetOrdersHelper(loco));
+            }
+            else if (isInsertingNext && entry.Waypoints.Count > 0)
+            {
+                entry.Waypoints.Insert(1, waypoint);
             }
             else
             {
