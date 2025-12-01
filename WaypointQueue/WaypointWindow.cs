@@ -332,10 +332,16 @@ namespace WaypointQueue
 
             List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
             var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
+            var makeNextWaypointRow = new DropdownMenu.RowData("Make next waypoint", "Moves this waypoint to after current waypoint");
             var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
             var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
             options.Add(jumpToWaypointRow);
+
+            if (index != 0)
+            {
+                options.Add(makeNextWaypointRow);
+            }
 
             if (waypoint.WillWait)
             {
@@ -348,6 +354,11 @@ namespace WaypointQueue
                 if (value == options.IndexOf(jumpToWaypointRow))
                 {
                     JumpCameraToWaypoint(waypoint);
+                }
+
+                if (value == options.IndexOf(makeNextWaypointRow))
+                {
+                    onWaypointReorder(waypoint, 1);
                 }
 
                 if (value == options.IndexOf(removeWaitRow))
