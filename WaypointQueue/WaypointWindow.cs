@@ -273,7 +273,10 @@ namespace WaypointQueue
                 BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
             }
 
-            BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
+            if (!waypoint.WillRefuel)
+            {
+                BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
+            }
 
             if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
             {

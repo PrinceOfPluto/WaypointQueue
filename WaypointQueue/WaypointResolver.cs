@@ -58,7 +58,7 @@ namespace WaypointQueue
                 return TryEndWaiting(wp);
             }
 
-            if (wp.MoveTrainPastWaypoint)
+            if (wp.MoveTrainPastWaypoint && !wp.WillRefuel)
             {
                 if (OrderClearBeyondWaypoint(wp, ordersHelper))
                 {
