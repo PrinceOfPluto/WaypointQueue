@@ -273,10 +273,7 @@ namespace WaypointQueue
                 BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
             }
 
-            if (!waypoint.WillRefuel)
-            {
-                BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
-            }
+            BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
 
             if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
             {
@@ -292,7 +289,7 @@ namespace WaypointQueue
                 BuildCoupleNearestField(waypoint, builder, onWaypointChange);
             }
 
-            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
+            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.MoveTrainPastWaypoint)
             {
                 BuildRefuelField(waypoint, builder, onWaypointChange);
             }

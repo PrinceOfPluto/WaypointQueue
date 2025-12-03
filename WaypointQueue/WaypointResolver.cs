@@ -58,7 +58,7 @@ namespace WaypointQueue
                 return TryEndWaiting(wp);
             }
 
-            if (wp.MoveTrainPastWaypoint && !wp.WillRefuel)
+            if (wp.MoveTrainPastWaypoint)
             {
                 if (OrderClearBeyondWaypoint(wp, ordersHelper))
                 {
@@ -137,7 +137,7 @@ namespace WaypointQueue
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Begin refueling
-            if (wp.WillRefuel && !wp.CurrentlyRefueling)
+            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
                 return false;
