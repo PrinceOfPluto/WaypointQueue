@@ -289,7 +289,7 @@ namespace WaypointQueue
                 BuildCoupleNearestField(waypoint, builder, onWaypointChange);
             }
 
-            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.MoveTrainPastWaypoint)
+            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling && !waypoint.MoveTrainPastWaypoint)
             {
                 BuildRefuelField(waypoint, builder, onWaypointChange);
             }
