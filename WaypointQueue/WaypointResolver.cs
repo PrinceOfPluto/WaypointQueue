@@ -85,7 +85,7 @@ namespace WaypointQueue
             }
 
             // Connecting air and releasing handbrakes may be done before being completely stopped
-            if (wp.IsCoupling)
+            if (wp.IsCoupling && !wp.CurrentlyRefueling)
             {
                 ResolveBrakeSystemOnCouple(wp);
             }
@@ -137,7 +137,7 @@ namespace WaypointQueue
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Begin refueling
-            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.MoveTrainPastWaypoint)
+            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.SeekNearbyCoupling && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
                 return false;
@@ -331,8 +331,24 @@ namespace WaypointQueue
             // Set max speed of 5 to help prevent train from overrunning waypoint
             int speedWhileRefueling = 5;
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: speedWhileRefueling, null, null);
+            // Make sure AE knows how many cars in case we coupled just before this
+            UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
-            Location locationToMove = GetRefuelLocation(waypoint, ordersHelper);
+            Location locationToMove = new();
+            try
+            {
+                locationToMove = GetRefuelLocation(waypoint, ordersHelper);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Loader.Log(ex.Message);
+                Toast.Present($"Waypoint Queue encountered an error while refueling {waypoint.Locomotive.Ident}");
+                waypoint.WillRefuel = false;
+                waypoint.CurrentlyRefueling = false;
+                ordersHelper.SetOrdersValue(null, null, maxSpeedMph: waypoint.MaxSpeedAfterRefueling, null, null);
+                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+            }
+
             SetCarLoadTargetLoaderCanLoad(waypoint, true);
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
             waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
@@ -377,9 +393,9 @@ namespace WaypointQueue
 
         private static Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Finding refuel location");
-
             Car fuelCar = GetFuelCar((BaseLocomotive)waypoint.Locomotive);
+
+            Loader.LogDebug($"Finding {waypoint.RefuelLoadName} refuel location for {fuelCar.Ident}");
 
             Vector3 loadTargetPosition = GetFuelCarLoadTargetPosition(fuelCar, waypoint.RefuelLoadName, out float slotMaxCapacity);
             waypoint.RefuelMaxCapacity = slotMaxCapacity;
@@ -387,11 +403,6 @@ namespace WaypointQueue
             if (!Graph.Shared.TryGetLocationFromGamePoint(waypoint.RefuelPoint, 10f, out Location targetLoaderLocation))
             {
                 throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
-            }
-
-            if (!Graph.Shared.TryGetLocationFromGamePoint(loadTargetPosition, 5f, out Location loadTargetLocation))
-            {
-                throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from load target position for {waypoint.RefuelLoadName} slot on fuel car {fuelCar.Ident}");
             }
 
             (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint);
@@ -406,14 +417,32 @@ namespace WaypointQueue
 
             float totalTrainLength = CalculateTotalLength([.. waypoint.Locomotive.EnumerateCoupled()]);
 
-            float distanceToMove = totalTrainLength - distanceFromFurthestEndOfTrainToFuelCarInclusive + distanceFromClosestFuelCarEndToSlot;
+            Loader.LogDebug($"Total train length is {totalTrainLength}");
+            Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
+            Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
 
-            if (IsLocationBetween(loadTargetLocation, targetLoaderLocation, closestTrainEndLocation))
+            Location locationToMoveToward = new();
+            float distanceToMove = 0;
+
+            if (IsTargetBetween(loadTargetPosition, targetLoaderLocation, closestTrainEndLocation))
             {
+                // need to move toward the far end
+                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
                 distanceToMove = distanceFromFurthestEndOfTrainToFuelCarInclusive - distanceFromClosestFuelCarEndToSlot;
+                locationToMoveToward = furthestTrainEndLocation;
             }
 
-            Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, furthestTrainEndLocation);
+            if (IsTargetBetween(loadTargetPosition, targetLoaderLocation, furthestTrainEndLocation))
+            {
+                // need to move toward the near end
+                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
+                distanceToMove = totalTrainLength - distanceFromFurthestEndOfTrainToFuelCarInclusive + distanceFromClosestFuelCarEndToSlot;
+                locationToMoveToward = closestTrainEndLocation;
+            }
+
+            Loader.LogDebug($"distanceToMove is {distanceToMove}");
+
+            Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
 
             Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, true, true);
 
@@ -442,9 +471,16 @@ namespace WaypointQueue
             {
                 closestLocation = lastLocation;
                 furthestLocation = firstLocation;
+                Loader.LogDebug($"Closest car is {lastCar.Ident}");
+                Loader.LogDebug($"Furthest car is {firstCar.Ident}");
+            }
+            else
+            {
+                Loader.LogDebug($"Closest car is {firstCar.Ident}");
+                Loader.LogDebug($"Furthest car is {lastCar.Ident}");
             }
 
-            return (closestLocation, furthestLocation);
+                return (closestLocation, furthestLocation);
         }
 
         private static float GetTrainLength(BaseLocomotive locomotive)
@@ -482,12 +518,12 @@ namespace WaypointQueue
             return loadTargetPosition;
         }
 
-        private static bool IsLocationBetween(Location target, Location locationA, Location locationB)
+        private static bool IsTargetBetween(Vector3 target, Location locationA, Location locationB)
         {
             // If target is in the middle, the distance between either end to the target will always be less than the length from one end to the other
-            float distanceCloseToTarget = Vector3.Distance(locationA.GetPosition().ZeroY(), target.GetPosition().ZeroY());
+            float distanceCloseToTarget = Vector3.Distance(locationA.GetPosition().ZeroY(), target.ZeroY());
 
-            float distanceFarToTarget = Vector3.Distance(locationB.GetPosition().ZeroY(), target.GetPosition().ZeroY());
+            float distanceFarToTarget = Vector3.Distance(locationB.GetPosition().ZeroY(), target.ZeroY());
 
             float distanceEndToEnd = Vector3.Distance(locationA.GetPosition().ZeroY(), locationB.GetPosition().ZeroY());
 
