@@ -25,6 +25,8 @@ namespace WaypointQueue
 
         public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; private set; } = new List<CarLoadTargetLoader>();
 
+        public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = new List<CarLoaderSequencer>();
+
         private static WaypointQueueController _shared;
 
         public static WaypointQueueController Shared
@@ -62,6 +64,10 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"Initializing list of car load target loaders");
                 CarLoadTargetLoaders = FindObjectsOfType<CarLoadTargetLoader>().ToList();
+            }
+            if (reload || CarLoaderSequencers == null || CarLoaderSequencers.Count <= 0)
+            {
+                CarLoaderSequencers = FindObjectsOfType<CarLoaderSequencer>().ToList();
             }
         }
 

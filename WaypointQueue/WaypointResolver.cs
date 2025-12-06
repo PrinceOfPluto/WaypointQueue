@@ -151,10 +151,20 @@ namespace WaypointQueue
 
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
-            // Begin refueling
+            // Reposition to refuel
             if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.SeekNearbyCoupling && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
+                return false;
+            }
+
+            // Begin refueling with animations
+            if (wp.CurrentlyRefueling && !wp.RefuelLoaderAnimated && Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
+            {
+                SetCarLoaderSequencerWantsLoading(wp, true);
+                wp.RefuelLoaderAnimated = true;
+                wp.StatusLabel = $"Refueling {wp.RefuelLoadName}";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
 
@@ -364,7 +374,6 @@ namespace WaypointQueue
                 WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             }
 
-            SetCarLoadTargetLoaderCanLoad(waypoint, true);
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
             waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
             waypoint.OverwriteLocation(locationToMove);
@@ -379,7 +388,7 @@ namespace WaypointQueue
             wp.WillRefuel = false;
             wp.CurrentlyRefueling = false;
             wp.StatusLabel = $"Done refueling {wp.RefuelLoadName}";
-            SetCarLoadTargetLoaderCanLoad(wp, false);
+            SetCarLoaderSequencerWantsLoading(wp, false);
             WaypointQueueController.Shared.UpdateWaypoint(wp);
 
             int maxSpeed = wp.MaxSpeedAfterRefueling;
@@ -387,12 +396,13 @@ namespace WaypointQueue
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
         }
 
-        private static void SetCarLoadTargetLoaderCanLoad(ManagedWaypoint waypoint, bool value)
+        private static void SetCarLoaderSequencerWantsLoading(ManagedWaypoint waypoint, bool value)
         {
             CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
-            if (loaderTarget != null)
+            CarLoaderSequencer sequencer = WaypointQueueController.Shared.CarLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
+            if (sequencer != null)
             {
-                loaderTarget.keyValueObject[loaderTarget.canLoadBoolKey] = value;
+                sequencer.keyValueObject[sequencer.readWantsLoadingKey] = value;
             }
         }
 
