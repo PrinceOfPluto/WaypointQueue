@@ -117,6 +117,7 @@ namespace WaypointQueue
         public bool CurrentlyRefueling { get; set; }
         public int RefuelingSpeedLimit { get; set; } = 5;
         public int MaxSpeedAfterRefueling { get; set; }
+        public bool RefuelLoaderAnimated { get; set; }
         public string AreaName { get; set; }
         public string TimetableSymbol { get; set; }
 
