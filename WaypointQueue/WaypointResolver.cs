@@ -440,6 +440,11 @@ namespace WaypointQueue
                 locationToMoveToward = closestTrainEndLocation;
             }
 
+            if (IsTargetBetween(targetLoaderLocation.GetPosition(), closestTrainEndLocation, furthestTrainEndLocation))
+            {
+                distanceToMove = -distanceToMove;
+            }
+
             Loader.LogDebug($"distanceToMove is {distanceToMove}");
 
             Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
