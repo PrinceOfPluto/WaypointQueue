@@ -658,13 +658,39 @@ namespace WaypointQueue
             return builder;
         }
 
-        private static UIPanelBuilder BuildRefuelField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildRefuelField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             builder.AddField($"Refuel {waypoint.RefuelLoadName}", builder.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
             {
                 waypoint.WillRefuel = value;
                 onWaypointChange(waypoint);
             }));
+
+            if (waypoint.WillRefuel)
+            {
+                var refuelSpeedLimitField = builder.AddField($"Refuel speed limit", builder.HStack((UIPanelBuilder field) =>
+                {
+                    field.AddLabel($"{waypoint.RefuelingSpeedLimit} mph")
+                            .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
+                            .Width(100f);
+                    field.AddButtonCompact("-", delegate
+                    {
+                        int result = Mathf.Max(waypoint.RefuelingSpeedLimit - GetOffsetAmount(), 1);
+                        waypoint.RefuelingSpeedLimit = result;
+                        onWaypointChange(waypoint);
+                    }).Disable(waypoint.RefuelingSpeedLimit <= 1).Width(24f);
+                    field.AddButtonCompact("+", delegate
+                    {
+                        waypoint.RefuelingSpeedLimit += GetOffsetAmount();
+                        onWaypointChange(waypoint);
+                    }).Width(24f).Disable(waypoint.RefuelingSpeedLimit >= 45);
+                }));
+
+                AddLabelOnlyTooltip(refuelSpeedLimitField, "Refuel speed limit", "The engineer will temporarily be restricted to this speed limit while repositioning the locomotive to refuel." +
+                    "\n\nThe default 5 mph is generally okay, but some locomotives tend to overshoot the repositioning waypoint when coupled to multiple cars. " +
+                    "The lower the speed, the more likely the engineer will accurately align the locomotive when refuel.");
+            }
+
             return builder;
         }
 
@@ -715,6 +741,7 @@ namespace WaypointQueue
                 onWaypointChange(waypoint);
             }).Width(24f);
         }
+
         private int GetOffsetAmount()
         {
             int offsetAmount = 1;
