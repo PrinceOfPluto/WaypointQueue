@@ -26,6 +26,8 @@ namespace WaypointQueue
 {
     internal static class WaypointResolver
     {
+        private static readonly float WaitBeforeCuttingTimeout = 5f;
+
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
@@ -99,7 +101,7 @@ namespace WaypointQueue
              * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.NumberOfCarsToCut > 0)
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.NumberOfCarsToCut > 0 && wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
@@ -108,7 +110,20 @@ namespace WaypointQueue
                     wp.StatusLabel = "Waiting until train is fully at rest";
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
                 }
-                return false;
+
+                if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
+                {
+                    wp.SecondsSpentWaitingBeforeCut += WaypointQueueController.WaypointTickInterval;
+                }
+
+                if (wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+                {
+                    return false;
+                }
+                else
+                {
+                    Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
+                }
             }
 
             if (wp.IsCoupling)
@@ -485,7 +500,7 @@ namespace WaypointQueue
                 Loader.LogDebug($"Furthest car is {lastCar.Ident}");
             }
 
-                return (closestLocation, furthestLocation);
+            return (closestLocation, furthestLocation);
         }
 
         private static float GetTrainLength(BaseLocomotive locomotive)

@@ -39,9 +39,11 @@ namespace WaypointQueue
             }
         }
 
+        public static float WaypointTickInterval = 0.5f;
+
         private IEnumerator Ticker()
         {
-            WaitForSeconds t = new WaitForSeconds(0.5f);
+            WaitForSeconds t = new WaitForSeconds(WaypointTickInterval);
             while (true)
             {
                 yield return t;
