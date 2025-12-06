@@ -328,8 +328,8 @@ namespace WaypointQueue
             // maybe in the future, support refueling multiple locomotives if they are MU'd
 
             waypoint.MaxSpeedAfterRefueling = ordersHelper.Orders.MaxSpeedMph;
-            // Set max speed of 5 to help prevent train from overrunning waypoint
-            int speedWhileRefueling = 5;
+            // Set max speed of 1 to help prevent train from overrunning waypoint
+            int speedWhileRefueling = 1;
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: speedWhileRefueling, null, null);
             // Make sure AE knows how many cars in case we coupled just before this
             UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
