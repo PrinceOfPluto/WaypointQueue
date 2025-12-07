@@ -149,6 +149,15 @@ namespace WaypointQueue
             return true;
         }
 
+        public static bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
+        {
+            if (wp.RefuelLoaderAnimated)
+            {
+                SetCarLoaderSequencerWantsLoading(wp, false);
+            }
+            return true;
+        }
+
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Reposition to refuel

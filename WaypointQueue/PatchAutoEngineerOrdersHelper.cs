@@ -76,5 +76,15 @@ namespace WaypointQueue
                 WaypointQueueController.Shared.AddWaypoint(loco, location, coupleToCarId, isReplacingWaypoint, isInsertingNext);
             }
         }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
+        static bool ClearWaypointPrefix(ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
+        {
+            if (WaypointQueueController.Shared.TryGetActiveWaypointFor(____locomotive, out ManagedWaypoint waypoint)) {
+                WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
+            }
+            return true;
+        }
     }
 }

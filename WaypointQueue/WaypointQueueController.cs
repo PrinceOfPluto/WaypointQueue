@@ -174,6 +174,7 @@ namespace WaypointQueue
             {
                 if (entry.Waypoints[0].Id == entry.UnresolvedWaypoint.Id)
                 {
+                    WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
@@ -289,6 +290,12 @@ namespace WaypointQueue
         {
             Loader.Log($"Trying to clear waypoint state for {loco.Ident}");
             LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
+
+            if (entry != null && entry.UnresolvedWaypoint != null)
+            {
+                WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
+            }
+
             if (entry != null)
             {
                 WaypointStateList = WaypointStateList.FindAll(x => x.Locomotive.id != loco.id);
@@ -317,6 +324,8 @@ namespace WaypointQueue
             LocoWaypointState entry = GetLocoWaypointState(waypoint.Locomotive);
 
             string waypointId = waypoint.Id;
+
+            WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
 
             if (entry.Waypoints.Remove(waypoint))
             {
@@ -390,6 +399,7 @@ namespace WaypointQueue
 
                 if (state.Waypoints[0].Id != state.UnresolvedWaypoint.Id)
                 {
+                    WaypointResolver.CleanupBeforeRemovingWaypoint(state.UnresolvedWaypoint);
                     Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
                     state.UnresolvedWaypoint = waypoint;
                     SendToWaypointFromQueue(waypoint, GetOrdersHelper(waypoint.Locomotive));
