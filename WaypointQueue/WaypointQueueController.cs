@@ -111,7 +111,6 @@ namespace WaypointQueue
 
             List<LocoWaypointState> listForRemoval = new List<LocoWaypointState>();
 
-            bool waypointsUpdated = false;
             foreach (LocoWaypointState entry in WaypointStateList)
             {
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
@@ -174,12 +173,6 @@ namespace WaypointQueue
                     Loader.Log($"Marking {entry.Locomotive.Ident} waypoint queue for removal");
                     listForRemoval.Add(entry);
                 }
-            }
-
-            if (waypointsUpdated)
-            {
-                Loader.LogDebug($"Invoking OnWaypointsUpdated at end of tick loop");
-                OnWaypointsUpdated?.Invoke();
             }
 
             // Update list of states
