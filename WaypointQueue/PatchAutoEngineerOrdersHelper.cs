@@ -17,7 +17,7 @@ namespace WaypointQueue
         [HarmonyPatch(nameof(AutoEngineerOrdersHelper.SetWaypoint))]
         static bool SetWaypointPrefix(Location location, string coupleToCarId, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
-            Loader.LogDebug($"SetWaypoint prefix");
+            //Loader.LogDebug($"SetWaypoint prefix");
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
             bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeKey.keyCode);
@@ -25,7 +25,7 @@ namespace WaypointQueue
             bool isInsertingNext = Input.GetKey(Loader.Settings.insertNextWaypointModeKey.keyCode);
 
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
-            Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
+            //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
 
             Car loco = ____locomotive;
 
@@ -67,7 +67,7 @@ namespace WaypointQueue
         {
             if (existingWaypoint != null)
             {
-                Loader.LogDebug($"Current waypoint for {loco.Ident} is {existingWaypoint.Value.LocationString}");
+                //Loader.LogDebug($"Current waypoint for {loco.Ident} is {existingWaypoint.Value.LocationString}");
             }
 
             // Always add the waypoint to the queue
