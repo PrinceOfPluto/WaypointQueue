@@ -531,6 +531,8 @@ namespace WaypointQueue
 
         internal void LoadWaypointSaveState(WaypointSaveState saveState)
         {
+            WaypointStateList.Clear();
+
             Loader.LogDebug($"Starting LoadWaypointSaveState");
             foreach (var entry in saveState.WaypointStates)
             {
