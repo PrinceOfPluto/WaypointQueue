@@ -1,4 +1,6 @@
-﻿using Game.Messages;
+﻿using GalaSoft.MvvmLight.Messaging;
+using Game.Events;
+using Game.Messages;
 using Game.State;
 using Model;
 using Model.AI;
@@ -42,6 +44,21 @@ namespace WaypointQueue
         }
 
         public static float WaypointTickInterval = 0.5f;
+
+        private void Awake()
+        {
+            Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
+        }
+
+        private void OnMapWillUnload(MapWillUnloadEvent @event)
+        {
+            if (_coroutine != null)
+            {
+                Loader.LogDebug($"OnMapWillUnload stopping coroutine in WaypointQueueController OnMapWillUnload");
+                StopCoroutine(_coroutine);
+                WaypointStateList.Clear();
+            }
+        }
 
         private IEnumerator Ticker()
         {
