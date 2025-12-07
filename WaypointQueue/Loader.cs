@@ -142,13 +142,22 @@ namespace WaypointQueue.UUM
 
         public static void ShowErrorModal(string title, string message)
         {
-            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach your Player.log file to help this bug get resolved faster. Thank you!";
-            ModalAlertController.Present(title, message, [(0, "Open Player.log file"), (1, "Close")], (int value) =>
+            bool railloaderIsActive = IsRailloaderActive();
+            string openLogFilePrompt = railloaderIsActive ? "Open Railloader.log file" : "Open Player.log file";
+            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach your log file to help this bug get resolved faster. Thank you!";
+            ModalAlertController.Present(title, message, [(0, openLogFilePrompt), (1, "Close")], (int value) =>
             {
                 switch (value)
                 {
                     case 0:
-                        OpenPlayerLogFile();
+                        if (railloaderIsActive)
+                        {
+                            OpenRailloaderLogFile();
+                        }
+                        else
+                        {
+                            OpenPlayerLogFile();
+                        }
                         break;
                     case 1:
                         break;
@@ -158,9 +167,39 @@ namespace WaypointQueue.UUM
             });
         }
 
+        private static bool IsRailloaderActive()
+        {
+            string assemblyName = "Railloader";
+            Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+            foreach (Assembly assembly in loadedAssemblies)
+            {
+                if (assembly.GetName().Name == assemblyName)
+                {
+                    Loader.LogDebug($"Assembly {assemblyName} is loaded");
+                    return true;
+                }
+            }
+            Loader.LogDebug($"Assembly {assemblyName} is NOT loaded");
+            return false;
+        }
+
         private static void OpenPlayerLogFile()
         {
-            Application.OpenURL(Path.Combine(Application.persistentDataPath, "Player.log"));
+            string filePath = Path.Combine(Application.persistentDataPath, "Player.log");
+            if (File.Exists(filePath))
+            {
+                Application.OpenURL(filePath);
+            }
+        }
+
+        private static void OpenRailloaderLogFile()
+        {
+            string filePath = Path.Combine(AppContext.BaseDirectory, "Railloader.log");
+            if (File.Exists(filePath))
+            {
+                Application.OpenURL(filePath);
+            }
         }
     }
 }
