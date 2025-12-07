@@ -135,6 +135,11 @@ namespace WaypointQueue.UUM
 #endif
         }
 
+        public static void LogError(string str)
+        {
+            ModEntry?.Logger.Error(str);
+        }
+
         public static void ShowErrorModal(string title, string message)
         {
             message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach your Player.log file to help this bug get resolved faster. Thank you!";

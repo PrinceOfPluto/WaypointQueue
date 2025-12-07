@@ -99,8 +99,9 @@ namespace WaypointQueue
                     return false;
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Loader.LogError(e.Message);
                 string errorModalTitle = "Refueling Error";
                 string errorModalMessage = $"Waypoint Queue encountered an unexpected error and cannot refuel locomotive {wp.Locomotive.Ident}.";
                 Loader.ShowErrorModal(errorModalTitle, errorModalMessage);

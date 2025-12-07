@@ -76,8 +76,9 @@ namespace WaypointQueue
             {
                 DoQueueTickUpdate();
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Loader.LogError(e.Message);
                 string errorModalTitle = "Waypoint Queue Error";
                 string errorModalMessage = $"Waypoint Queue encountered an unexpected error while handling game tick updates.";
                 Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
@@ -545,7 +546,7 @@ namespace WaypointQueue
                     }
                     else
                     {
-                        Loader.Log($"Failed to hydrate waypoint {waypoint?.Id}");
+                        Loader.LogError($"Failed to hydrate waypoint {waypoint?.Id}");
                     }
                 }
                 entry.Waypoints = validWaypoints;
@@ -554,7 +555,7 @@ namespace WaypointQueue
                     Loader.LogDebug($"Loading unresolved waypoint {entry.UnresolvedWaypoint.Id}");
                     if (!entry.UnresolvedWaypoint.IsValidWithLoco())
                     {
-                        Loader.Log($"Failed to hydrate unresolved waypoint {entry.UnresolvedWaypoint?.Id}");
+                        Loader.LogError($"Failed to hydrate unresolved waypoint {entry.UnresolvedWaypoint?.Id}");
                     }
                 }
             }

@@ -170,7 +170,7 @@ namespace WaypointQueue
             }
             else
             {
-                Loader.LogDebug($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
+                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
             }
             return loco != null;
         }
@@ -187,7 +187,7 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.LogDebug($"Failed to resolve location string {LocationString}: {e}");
+                Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
                 loc = default;
                 return false;
             }
