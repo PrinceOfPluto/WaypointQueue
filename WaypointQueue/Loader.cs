@@ -2,6 +2,7 @@
 using Game.Events;
 using HarmonyLib;
 using System;
+using System.IO;
 using System.Reflection;
 using UI.Common;
 using UnityEngine;
@@ -132,6 +133,29 @@ namespace WaypointQueue.UUM
 #if DEBUG
             ModEntry?.Logger.Log(str);
 #endif
+        }
+
+        public static void ShowErrorModal(string title, string message)
+        {
+            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach your Player.log file to help this bug get resolved faster. Thank you!";
+            ModalAlertController.Present(title, message, [(0, "Open Player.log file"), (1, "Close")], (int value) =>
+            {
+                switch (value)
+                {
+                    case 0:
+                        OpenPlayerLogFile();
+                        break;
+                    case 1:
+                        break;
+                    default:
+                        break;
+                }
+            });
+        }
+
+        private static void OpenPlayerLogFile()
+        {
+            Application.OpenURL(Path.Combine(Application.persistentDataPath, "Player.log"));
         }
     }
 }

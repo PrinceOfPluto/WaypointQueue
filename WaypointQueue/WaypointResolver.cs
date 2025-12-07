@@ -92,9 +92,22 @@ namespace WaypointQueue
                 ResolveBrakeSystemOnCouple(wp);
             }
 
-            if (!TryResolveFuelingOrders(wp, ordersHelper))
+            try
             {
-                return false;
+                if (!TryResolveFuelingOrders(wp, ordersHelper))
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                string errorModalTitle = "Refueling Error";
+                string errorModalMessage = $"Waypoint Queue encountered an unexpected error and cannot refuel locomotive {wp.Locomotive.Ident}.";
+                Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
+                wp.WillRefuel = false;
+                wp.CurrentlyRefueling = false;
+                wp.StatusLabel = "Handling refueling error";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
             }
 
             /*

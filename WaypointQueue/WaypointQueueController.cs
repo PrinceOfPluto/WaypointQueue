@@ -55,7 +55,18 @@ namespace WaypointQueue
 
         private void Tick()
         {
-            DoQueueTickUpdate();
+            try
+            {
+                DoQueueTickUpdate();
+            }
+            catch (Exception)
+            {
+                string errorModalTitle = "Waypoint Queue Error";
+                string errorModalMessage = $"Waypoint Queue encountered an unexpected error while handling game tick updates.";
+                Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
+                StopCoroutine(_coroutine);
+                throw;
+            }
         }
 
         public void InitCarLoaders(bool reload = false)
