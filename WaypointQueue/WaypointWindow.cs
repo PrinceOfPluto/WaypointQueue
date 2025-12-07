@@ -251,10 +251,10 @@ namespace WaypointQueue
                 BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, builder);
             });
 
-            if (index == 0 && !isRouteWindow)
-            {
-                BuildStatusLabelField(waypoint, builder);
-            }
+            //if (index == 0 && !isRouteWindow)
+            //{
+            //    BuildStatusLabelField(waypoint, builder);
+            //}
 
             BuildDestinationField(waypoint, builder);
 
