@@ -480,18 +480,44 @@ namespace WaypointQueue
             return locationToMove;
         }
 
+        private static bool TryGetOpenEndForCar(Car car, out LogicalEnd logicalEnd)
+        {
+            if (!car.TryGetAdjacentCar(LogicalEnd.A, out _))
+            {
+                logicalEnd = LogicalEnd.A;
+                return true;
+            }
+            if (!car.TryGetAdjacentCar(LogicalEnd.B, out _))
+            {
+                logicalEnd = LogicalEnd.B;
+                return true;
+            }
+            logicalEnd = LogicalEnd.A;
+            return false;
+        }
+
         private static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint)
         {
             List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
 
             Car firstCar = allCoupled.First();
-            LogicalEnd furthestEndOnFirst = FurthestLogicalEndFrom(firstCar, waypoint.Location);
-            Location firstLocation = firstCar.LocationFor(furthestEndOnFirst);
+            Car lastCar = allCoupled.Last();
+
+            if (!TryGetOpenEndForCar(firstCar, out LogicalEnd firstEnd))
+            {
+                throw new InvalidOperationException($"{firstCar.Ident} has no open end");
+            }
+            if (!TryGetOpenEndForCar(lastCar, out LogicalEnd lastEnd))
+            {
+                throw new InvalidOperationException($"{lastCar.Ident} has no open end");
+            }
+            
+            Loader.LogDebug($"Furthest end on first is {(firstCar.LogicalToEnd(firstEnd) == End.R ? "R" : "F")}");
+            Location firstLocation = firstCar.LocationFor(firstEnd);
             float firstDistance = Graph.Shared.GetDistanceBetweenClose(firstLocation, waypoint.Location);
 
-            Car lastCar = allCoupled.Last();
-            LogicalEnd furthestEndOnLast = FurthestLogicalEndFrom(lastCar, waypoint.Location);
-            Location lastLocation = lastCar.LocationFor(furthestEndOnLast);
+            Loader.LogDebug($"Furthest end on last is {(lastCar.LogicalToEnd(lastEnd) == End.R ? "R" : "F")}");
+            Location lastLocation = lastCar.LocationFor(lastEnd);
             float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, waypoint.Location);
 
             Location closestLocation = firstLocation;
