@@ -31,7 +31,7 @@ namespace WaypointQueue
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
-        public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
+        public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action<ManagedWaypoint> onWaypointDidUpdate)
         {
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
@@ -120,6 +120,8 @@ namespace WaypointQueue
                 {
                     Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
                     wp.CurrentlyWaitingBeforeCutting = true;
+                    wp.StatusLabel = $"Waiting until train is at rest before cutting cars";
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
                 }
 
                 if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
@@ -147,8 +149,10 @@ namespace WaypointQueue
                 ResolveUncouplingOrders(wp);
             }
 
-            if (TryBeginWaiting(wp, onWaypointsUpdated))
+            if (TryBeginWaiting(wp, onWaypointDidUpdate))
             {
+                wp.StatusLabel = "Waiting before continuing";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
 
@@ -178,6 +182,7 @@ namespace WaypointQueue
             {
                 SetCarLoaderSequencerWantsLoading(wp, true);
                 wp.RefuelLoaderAnimated = true;
+                wp.StatusLabel = $"Refueling {wp.RefuelLoadName}";
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
@@ -221,12 +226,12 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool TryBeginWaiting(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaiting(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             return wp.WillWait && (TryBeginWaitingDuration(wp, onWaypointsUpdated) || TryBeginWaitingUntilTime(wp, onWaypointsUpdated));
         }
 
-        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
@@ -234,13 +239,13 @@ namespace WaypointQueue
                 wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
                 wp.CurrentlyWaiting = true;
                 Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
-                onWaypointsUpdated?.Invoke();
+                onWaypointsUpdated.Invoke(wp);
                 return true;
             }
             return false;
         }
 
-        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
             {
@@ -249,7 +254,7 @@ namespace WaypointQueue
                     wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
                     wp.CurrentlyWaiting = true;
                     Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
-                    onWaypointsUpdated?.Invoke();
+                    onWaypointsUpdated.Invoke(wp);
                     return true;
                 }
                 else
@@ -298,6 +303,7 @@ namespace WaypointQueue
             {
                 wp.CoupleToCarId = bestMatchCar.id;
                 wp.CurrentlyCouplingNearby = true;
+                wp.StatusLabel = "Moving to couple nearby";
 
                 Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(bestMatchLocation, wp.Location);
                 Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
@@ -340,6 +346,7 @@ namespace WaypointQueue
                 return false;
             }
 
+            waypoint.StatusLabel = "Sending train past waypoint";
             waypoint.OverwriteLocation(locationToMove);
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
 
@@ -377,6 +384,7 @@ namespace WaypointQueue
             }
 
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
+            waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
             waypoint.OverwriteLocation(locationToMove);
             waypoint.StopAtWaypoint = true;
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);

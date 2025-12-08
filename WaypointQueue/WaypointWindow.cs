@@ -34,6 +34,8 @@ namespace WaypointQueue
 
         public static WaypointWindow Shared => WindowManager.Shared.GetWindow<WaypointWindow>();
 
+        private static Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
+
         private static CrewsPanelBuilder _crewsPanelBuilder => new();
 
         private string _selectedLocomotiveId;
@@ -42,18 +44,32 @@ namespace WaypointQueue
 
         private void OnEnable()
         {
-            WaypointQueueController.OnWaypointsUpdated += OnWaypointsUpdated;
+            WaypointQueueController.LocoWaypointStateDidUpdate += OnLocoWaypointStateDidUpdate;
+            WaypointQueueController.WaypointDidUpdate += OnWaypointDidUpdate;
         }
 
         private void OnDisable()
         {
-            WaypointQueueController.OnWaypointsUpdated -= OnWaypointsUpdated;
+            WaypointQueueController.LocoWaypointStateDidUpdate -= OnLocoWaypointStateDidUpdate;
+            WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;
         }
 
-        private void OnWaypointsUpdated()
+        private void OnLocoWaypointStateDidUpdate(string id)
         {
-            //Loader.LogDebug($"WaypointWindow OnWaypointsUpdated");
-            RebuildWithScroll();
+            if (id == TrainController.Shared.SelectedLocomotive?.id)
+            {
+                Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
+                RebuildWithScroll();
+            }
+        }
+
+        private void OnWaypointDidUpdate(ManagedWaypoint waypoint)
+        {
+            if (waypoint.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypoint.Id, out UIPanelBuilder panelBuilder))
+            {
+                Loader.LogDebug($"Rebuilding single waypoint {waypoint.Id} for {TrainController.Shared.SelectedLocomotive.Ident}");
+                panelBuilder.Rebuild();
+            }
         }
 
         private void RebuildWithScroll()
@@ -151,6 +167,8 @@ namespace WaypointQueue
         {
             Loader.LogDebug($"Populating WaypointWindow");
 
+            panelsByWaypointId.Clear();
+
             builder.Spacing = 12f;
 
             builder.VScrollView(delegate (UIPanelBuilder builder)
@@ -242,59 +260,65 @@ namespace WaypointQueue
                 });
         }
 
-        internal void BuildWaypointSection(ManagedWaypoint waypoint, int index, int totalWaypoints, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, bool isRouteWindow = false)
+        internal void BuildWaypointSection(ManagedWaypoint waypoint, int index, int totalWaypoints, UIPanelBuilder parentBuilder, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, bool isRouteWindow = false)
         {
-            builder.AddHRule();
-            builder.Spacer(16f);
-            builder.HStack(delegate (UIPanelBuilder builder)
+            parentBuilder.VStack(builder =>
             {
-                BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, builder);
+                panelsByWaypointId[waypoint.Id] = builder;
+
+                Loader.Log($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
+                builder.AddHRule();
+                builder.Spacer(16f);
+                builder.HStack(delegate (UIPanelBuilder builder)
+                {
+                    BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, builder);
+                });
+
+                if (index == 0 && !isRouteWindow)
+                {
+                    BuildStatusLabelField(waypoint, builder);
+                }
+
+                BuildDestinationField(waypoint, builder);
+
+                if (isRouteWindow || waypoint.Locomotive.TryGetTimetableTrainCrewId(out string trainCrewId))
+                {
+                    BuildTrainSymbolField(waypoint, builder, onWaypointChange);
+                }
+
+                if (!waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
+                {
+                    BuildStopAtWaypointField(waypoint, builder, onWaypointChange);
+                }
+
+                if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
+                {
+                    BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
+                }
+
+                BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
+
+                if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
+                {
+                    BuildCouplingFieldSection(waypoint, builder, onWaypointChange);
+                }
+                else if (!waypoint.CurrentlyWaiting)
+                {
+                    BuildUncouplingField(waypoint, builder, onWaypointChange);
+                }
+
+                if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
+                {
+                    BuildCoupleNearestField(waypoint, builder, onWaypointChange);
+                }
+
+                if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling && !waypoint.MoveTrainPastWaypoint)
+                {
+                    BuildRefuelField(waypoint, builder, onWaypointChange);
+                }
+
+                BuildWaitingSection(waypoint, builder, onWaypointChange);
             });
-
-            //if (index == 0 && !isRouteWindow)
-            //{
-            //    BuildStatusLabelField(waypoint, builder);
-            //}
-
-            BuildDestinationField(waypoint, builder);
-
-            if (isRouteWindow || waypoint.Locomotive.TryGetTimetableTrainCrewId(out string trainCrewId))
-            {
-                BuildTrainSymbolField(waypoint, builder, onWaypointChange);
-            }
-
-            if (!waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
-            {
-                BuildStopAtWaypointField(waypoint, builder, onWaypointChange);
-            }
-
-            if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
-            {
-                BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
-            }
-
-            BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
-
-            if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
-            {
-                BuildCouplingFieldSection(waypoint, builder, onWaypointChange);
-            }
-            else if (!waypoint.CurrentlyWaiting)
-            {
-                BuildUncouplingField(waypoint, builder, onWaypointChange);
-            }
-
-            if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
-            {
-                BuildCoupleNearestField(waypoint, builder, onWaypointChange);
-            }
-
-            if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling && !waypoint.MoveTrainPastWaypoint)
-            {
-                BuildRefuelField(waypoint, builder, onWaypointChange);
-            }
-
-            BuildWaitingSection(waypoint, builder, onWaypointChange);
         }
 
         private void BuildWaypointItemHeader(ManagedWaypoint waypoint, int index, int totalWaypoints, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, UIPanelBuilder builder)
