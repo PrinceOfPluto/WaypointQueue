@@ -557,7 +557,7 @@ namespace WaypointQueue
                         break;
                     }
 
-                    if (!waypoint.TryResolveCoupleToCar(out Car coupleToCar))
+                    if (!String.IsNullOrEmpty(waypoint.CoupleToCarId) &&!waypoint.TryResolveCoupleToCar(out Car coupleToCar))
                     {
                         if (unresolvedCoupleToCarIdsByLocoId.TryGetValue(loco.id, out List<ManagedWaypoint> waypoints))
                         {
