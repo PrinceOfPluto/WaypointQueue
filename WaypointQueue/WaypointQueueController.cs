@@ -26,7 +26,7 @@ namespace WaypointQueue
 
         private Coroutine _coroutine;
 
-        public List<LocoWaypointState> WaypointStateList { get; private set; } = new List<LocoWaypointState>();
+        public Dictionary<string, LocoWaypointState> WaypointStateMap { get; private set; } = new();
 
         public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; private set; } = new List<CarLoadTargetLoader>();
 
@@ -59,7 +59,7 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"OnMapWillUnload stopping coroutine in WaypointQueueController OnMapWillUnload");
                 StopCoroutine(_coroutine);
-                WaypointStateList.Clear();
+                WaypointStateMap.Clear();
             }
         }
 
@@ -105,15 +105,15 @@ namespace WaypointQueue
 
         private void DoQueueTickUpdate()
         {
-            if (WaypointStateList == null)
+            if (WaypointStateMap == null)
             {
-                WaypointStateList = new List<LocoWaypointState>();
+                WaypointStateMap = [];
             }
             HandleLoopingRoutes();
 
             List<LocoWaypointState> listForRemoval = new List<LocoWaypointState>();
 
-            foreach (LocoWaypointState entry in WaypointStateList)
+            foreach (LocoWaypointState entry in WaypointStateMap.Values)
             {
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
                 AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(entry.Locomotive);
@@ -178,7 +178,10 @@ namespace WaypointQueue
             }
 
             // Update list of states
-            WaypointStateList = WaypointStateList.FindAll(x => !listForRemoval.Contains(x));
+            foreach (var entry in listForRemoval)
+            {
+                WaypointStateMap.Remove(entry.LocomotiveId);
+            }
         }
 
         public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing, bool isInsertingNext)
@@ -220,24 +223,16 @@ namespace WaypointQueue
 
         public LocoWaypointState GetOrAddLocoWaypointState(Car loco)
         {
-            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
-
-            if (entry == null)
-            {
-                Loader.LogDebug($"No existing waypoint list found for {loco.Ident}");
-                entry = new LocoWaypointState(loco);
-                WaypointStateList.Add(entry);
-            }
-            else
+            if (WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState entry))
             {
                 Loader.LogDebug($"Found existing waypoint list for {loco.Ident}");
             }
-            return entry;
-        }
-
-        public LocoWaypointState GetLocoWaypointState(Car loco)
-        {
-            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
+            else
+            {
+                Loader.LogDebug($"No existing waypoint list found for {loco.Ident}");
+                entry = new LocoWaypointState(loco);
+                WaypointStateMap.Add(loco.id, entry);
+            }
             return entry;
         }
 
@@ -277,7 +272,7 @@ namespace WaypointQueue
         {
             List<RouteAssignment> assignmentList = RouteAssignmentRegistry
                 .All()
-                .Where(ra => ra.Loop && !WaypointStateList.Exists(entry => entry.LocomotiveId == ra.LocoId))
+                .Where(ra => ra.Loop && !WaypointStateMap.ContainsKey(ra.LocoId))
                 .ToList();
 
             foreach (var ra in assignmentList)
@@ -314,16 +309,15 @@ namespace WaypointQueue
         public void ClearWaypointState(Car loco)
         {
             Loader.Log($"Trying to clear waypoint state for {loco.Ident}");
-            LocoWaypointState entry = WaypointStateList.Find(x => x.Locomotive.id == loco.id);
 
-            if (entry != null && entry.UnresolvedWaypoint != null)
+            if (WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState entry))
             {
-                WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
-            }
+                if (entry.UnresolvedWaypoint != null)
+                {
+                    WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
+                }
 
-            if (entry != null)
-            {
-                WaypointStateList = WaypointStateList.FindAll(x => x.Locomotive.id != loco.id);
+                WaypointStateMap.Remove(loco.id);
                 Loader.Log($"Removed waypoint state entry for {loco.Ident}");
             }
             CancelActiveOrders(loco);
@@ -346,36 +340,36 @@ namespace WaypointQueue
         {
             Loader.Log($"Removing waypoint {waypoint.Id} {waypoint.Location} for {waypoint.Locomotive.Ident}");
 
-            LocoWaypointState entry = GetLocoWaypointState(waypoint.Locomotive);
-
-            string waypointId = waypoint.Id;
-
-            WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
-
-            if (entry.Waypoints.Remove(waypoint))
+            if (WaypointStateMap.TryGetValue(waypoint.Locomotive.id, out LocoWaypointState entry))
             {
-                Loader.Log($"Removed waypoint {waypointId}");
-            }
-            else
-            {
-                Loader.Log($"Failed to remove waypoint {waypointId}");
-            }
+                string waypointId = waypoint.Id;
 
-            if (entry.UnresolvedWaypoint.Id == waypointId)
-            {
-                Loader.LogDebug($"Removed waypoint was unresolved. Resetting unresolved to null");
-                entry.UnresolvedWaypoint = null;
-                CancelActiveOrders(entry.Locomotive);
-            }
+                WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
 
-            Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in RemoveWaypoint");
-            LocoWaypointStateDidUpdate.Invoke(entry.LocomotiveId);
+                if (entry.Waypoints.Remove(waypoint))
+                {
+                    Loader.Log($"Removed waypoint {waypointId}");
+                }
+                else
+                {
+                    Loader.Log($"Failed to remove waypoint {waypointId}");
+                }
+
+                if (entry.UnresolvedWaypoint.Id == waypointId)
+                {
+                    Loader.LogDebug($"Removed waypoint was unresolved. Resetting unresolved to null");
+                    entry.UnresolvedWaypoint = null;
+                    CancelActiveOrders(entry.Locomotive);
+                }
+
+                Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in RemoveWaypoint");
+                LocoWaypointStateDidUpdate.Invoke(entry.LocomotiveId);
+            }
         }
 
         public void RemoveCurrentWaypoint(Car locomotive)
         {
-            LocoWaypointState state = WaypointStateList.Find(x => x.Locomotive.id == locomotive.id);
-            if (state != null && state.Waypoints.Count > 0)
+            if (WaypointStateMap.TryGetValue(locomotive.id, out LocoWaypointState state) && state.Waypoints.Count > 0)
             {
                 RemoveWaypoint(state.Waypoints[0]);
             }
@@ -383,9 +377,8 @@ namespace WaypointQueue
 
         public void UpdateWaypoint(ManagedWaypoint updatedWaypoint)
         {
-            LocoWaypointState state = GetLocoWaypointState(updatedWaypoint.Locomotive);
-
-            if (state != null && state.Waypoints != null)
+            Loader.LogDebug($"Updating waypoint");
+            if (WaypointStateMap.TryGetValue(updatedWaypoint.Locomotive.id, out LocoWaypointState state) && state.Waypoints != null)
             {
                 int index = state.Waypoints.FindIndex(w => w.Id == updatedWaypoint.Id);
                 if (index >= 0)
@@ -406,9 +399,7 @@ namespace WaypointQueue
 
         public void ReorderWaypoint(ManagedWaypoint waypoint, int newIndex)
         {
-            LocoWaypointState state = GetLocoWaypointState(waypoint.Locomotive);
-
-            if (state != null && state.Waypoints != null)
+            if (WaypointStateMap.TryGetValue(waypoint.Locomotive.id, out LocoWaypointState state) && state.Waypoints != null)
             {
                 int oldIndex = state.Waypoints.IndexOf(waypoint);
                 if (oldIndex < 0) return;
@@ -450,8 +441,7 @@ namespace WaypointQueue
 
         public void RefreshCurrentWaypoint(Car locomotive, AutoEngineerOrdersHelper ordersHelper)
         {
-            LocoWaypointState state = WaypointStateList.Find(x => x.Locomotive.id == locomotive.id);
-            if (state != null && state.Waypoints.Count > 0)
+            if (WaypointStateMap.TryGetValue(locomotive.id, out LocoWaypointState state) && state.Waypoints.Count > 0)
             {
                 Loader.Log($"Resetting current waypoint as active");
                 ManagedWaypoint nextWaypoint = state.Waypoints.First();
@@ -464,7 +454,8 @@ namespace WaypointQueue
 
         public List<ManagedWaypoint> GetWaypointList(Car loco)
         {
-            return WaypointStateList.Find(x => x.Locomotive.id == loco.id)?.Waypoints;
+            WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState state);
+            return state?.Waypoints ?? [];
         }
 
         public bool HasAnyWaypoints(Car loco)
@@ -481,9 +472,7 @@ namespace WaypointQueue
                 return false;
 
             // Find the LocoWaypointState for this locomotive
-            var state = WaypointStateList.FirstOrDefault(x => x.Locomotive != null && x.Locomotive.id == loco.id);
-
-            if (state == null)
+            if (!WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState state))
                 return false;
 
             // The "active" waypoint is the unresolved one if present, otherwise the first in the list
@@ -527,15 +516,14 @@ namespace WaypointQueue
 
         internal void LoadWaypointSaveState(WaypointSaveState saveState)
         {
-            WaypointStateList.Clear();
+            WaypointStateMap.Clear();
 
             List<string> unresolvedLocomotiveIds = [];
             Dictionary<string, List<ManagedWaypoint>> unresolvedLocationsByLocoId = [];
             Dictionary<string, List<ManagedWaypoint>> unresolvedCoupleToCarIdsByLocoId = [];
 
-            List<LocoWaypointState> validWaypointStates = [];
-
             Loader.LogDebug($"Starting LoadWaypointSaveState");
+            WaypointStateMap.Clear();
             foreach (var entry in saveState.WaypointStates)
             {
                 Loader.LogDebug($"Loading waypoint state for {entry.LocomotiveId}");
@@ -595,7 +583,7 @@ namespace WaypointQueue
                     }
                 }
 
-                validWaypointStates.Add(entry);
+                WaypointStateMap.Add(entry.LocomotiveId, entry);
             }
 
             string unresolvedLocoIdsLogLine = "";
@@ -636,8 +624,6 @@ namespace WaypointQueue
                     $"\nSometimes this may happen if any rolling stock or track mods were modified or removed in this save, or if you are loading an earlier version of a save with a mismatched waypoints.json file." +
                     $"\n\nWaypoint Queue should still work normally with this save game, though some waypoints may be missing.");
             }
-
-            WaypointStateList = validWaypointStates;
 
             if (TrainController.Shared.SelectedLocomotive)
             {

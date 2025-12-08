@@ -1,5 +1,6 @@
 ﻿using Game;
 using HarmonyLib;
+using MessagePack.Resolvers;
 using Model;
 using Model.Ops;
 using Model.Ops.Timetable;
@@ -38,6 +39,8 @@ namespace WaypointQueue
 
         private static CrewsPanelBuilder _crewsPanelBuilder => new();
 
+        private Dictionary<string, UIPanelBuilder> panelKeyValuePairs = [];
+
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
         private float _scrollPosition;
@@ -52,6 +55,11 @@ namespace WaypointQueue
         {
             WaypointQueueController.LocoWaypointStateDidUpdate -= OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;
+        }
+        private void OnLocoWaypointStateUpdated()
+        {
+            Loader.LogDebug($"Rebuidling WaypointWindow in OnLocoWaypointStateUpdated");
+            RebuildWithScroll();
         }
 
         private void OnLocoWaypointStateDidUpdate(string id)
@@ -221,10 +229,17 @@ namespace WaypointQueue
                 });
 
                 builder.Spacer(20f);
+
+                panelKeyValuePairs.Clear();
+
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
+                    builder.VStack((UIPanelBuilder waypointSectionBuilder) =>
+                    {
+                        BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
+                        panelKeyValuePairs.Add(waypoint.Id, waypointSectionBuilder);
+                    });
                     builder.Spacer(20f);
                 }
             });
