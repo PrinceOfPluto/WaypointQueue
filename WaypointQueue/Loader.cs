@@ -143,26 +143,16 @@ namespace WaypointQueue.UUM
         public static void ShowErrorModal(string title, string message)
         {
             bool railloaderIsActive = IsRailloaderActive();
-            string openLogFilePrompt = railloaderIsActive ? "Open Railloader.log file" : "Open Player.log file";
-            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach your log file to help this bug get resolved faster. Thank you!";
-            ModalAlertController.Present(title, message, [(0, openLogFilePrompt), (1, "Close")], (int value) =>
+            string attachLogFilePrompt = railloaderIsActive ? "both your Player.log and Railloader.log files" : "your Player.log file";
+            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach {attachLogFilePrompt} to help this bug get resolved faster. Thank you!";
+
+            string playerLogFilePrompt = "Open Player.log file";
+
+            ModalAlertController.Present(title, message, [(0, playerLogFilePrompt), (1, "Close")], (int value) =>
             {
-                switch (value)
+                if (value == 0)
                 {
-                    case 0:
-                        if (railloaderIsActive)
-                        {
-                            OpenRailloaderLogFile();
-                        }
-                        else
-                        {
-                            OpenPlayerLogFile();
-                        }
-                        break;
-                    case 1:
-                        break;
-                    default:
-                        break;
+                    OpenPlayerLogFile();
                 }
             });
         }
