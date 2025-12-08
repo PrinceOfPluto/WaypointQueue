@@ -494,10 +494,16 @@ namespace WaypointQueue
         {
             if (waypoint.IsCoupling)
             {
-                TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car couplingToCar);
                 builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
                 {
-                    field.AddLabel(couplingToCar.Ident.ToString());
+                    if (waypoint.TryResolveCoupleToCar(out Car coupleToCar))
+                    {
+                        field.AddLabel(coupleToCar.Ident.ToString());
+                    }
+                    else
+                    {
+                        field.AddLabel("Failed to find car");
+                    }
                 }));
             }
             else if (waypoint.SeekNearbyCoupling)

@@ -530,7 +530,8 @@ namespace WaypointQueue
             WaypointStateList.Clear();
 
             List<string> unresolvedLocomotiveIds = [];
-            Dictionary<string, List<ManagedWaypoint>> unresolvedWaypointsByLocoId = [];
+            Dictionary<string, List<ManagedWaypoint>> unresolvedLocationsByLocoId = [];
+            Dictionary<string, List<ManagedWaypoint>> unresolvedCoupleToCarIdsByLocoId = [];
 
             List<LocoWaypointState> validWaypointStates = [];
 
@@ -557,13 +558,26 @@ namespace WaypointQueue
 
                     if (!waypoint.TryResolveLocation(out Location loc))
                     {
-                        if (unresolvedWaypointsByLocoId.TryGetValue(loco.id, out List<ManagedWaypoint> waypoints))
+                        if (unresolvedLocationsByLocoId.TryGetValue(loco.id, out List<ManagedWaypoint> waypoints))
                         {
                             waypoints.Add(waypoint);
                         }
                         else
                         {
-                            unresolvedWaypointsByLocoId.Add(waypoint.LocomotiveId, [waypoint]);
+                            unresolvedLocationsByLocoId.Add(waypoint.LocomotiveId, [waypoint]);
+                        }
+                        break;
+                    }
+
+                    if (!waypoint.TryResolveCoupleToCar(out Car coupleToCar))
+                    {
+                        if (unresolvedCoupleToCarIdsByLocoId.TryGetValue(loco.id, out List<ManagedWaypoint> waypoints))
+                        {
+                            waypoints.Add(waypoint);
+                        }
+                        else
+                        {
+                            unresolvedCoupleToCarIdsByLocoId.Add(waypoint.LocomotiveId, [waypoint]);
                         }
                         break;
                     }
@@ -591,22 +605,34 @@ namespace WaypointQueue
                 Loader.LogError($"Failed to resolve {unresolvedLocomotiveIds.Count} locomotive car ids. {String.Join(",", unresolvedLocomotiveIds.Select(s => s))}");
             }
 
-            string unresolvedWaypointByLocoLogLines = "";
-            if (unresolvedWaypointsByLocoId.Count > 0)
+            string unresolvedLocationsByLocoLogLines = "";
+            if (unresolvedLocationsByLocoId.Count > 0)
             {
-                foreach (var item in unresolvedWaypointsByLocoId.Values)
+                foreach (var item in unresolvedLocationsByLocoId.Values)
                 {
                     string locoId = item[0].LocomotiveId;
                     string locoIdent = item[0].Locomotive.Ident.ToString();
-                    unresolvedWaypointByLocoLogLines += $"{item.Count} waypoint locations failed to load for {locoIdent}.\n";
-                    Loader.LogError($"Failed to resolve {item.Count} waypoints for locomotive car id {locoId} with ident {locoIdent}. {String.Join(",", item.Select(w => $"[{w.Id}]"))}");
+                    unresolvedLocationsByLocoLogLines += $"{item.Count} waypoints for {locoIdent} failed to load track locations.\n";
+                    Loader.LogError($"Failed to resolve track locations on {item.Count} waypoints for locomotive car id {locoId} with ident {locoIdent}. {String.Join(",", item.Select(w => $"[{w.Id}]"))}");
                 }
             }
 
-            if (unresolvedLocomotiveIds.Count > 0 || unresolvedWaypointsByLocoId.Count > 0)
+            string unresolvedCoupleToCarsByLocoLogLines = "";
+            if (unresolvedCoupleToCarIdsByLocoId.Count > 0)
+            {
+                foreach (var item in unresolvedCoupleToCarIdsByLocoId.Values)
+                {
+                    string locoId = item[0].LocomotiveId;
+                    string locoIdent = item[0].Locomotive.Ident.ToString();
+                    unresolvedCoupleToCarsByLocoLogLines += $"{item.Count} waypoints for {locoIdent} failed to load couple to car ids.\n";
+                    Loader.LogError($"Failed to resolve couple to car ids on {item.Count} waypoints for locomotive car id {locoId} with ident {locoIdent}. {String.Join(",", item.Select(w => $"[{w.Id}]"))}");
+                }
+            }
+
+            if (unresolvedLocomotiveIds.Count > 0 || unresolvedLocationsByLocoId.Count > 0 || unresolvedCoupleToCarIdsByLocoId.Count > 0)
             {
                 ModalAlertController.PresentOkay("Failed to load waypoints", $"Waypoint Queue ran into an issue while trying to load waypoint data." +
-                    $"\n\n{unresolvedLocoIdsLogLine}{unresolvedWaypointByLocoLogLines}" +
+                    $"\n\n{unresolvedLocoIdsLogLine}{unresolvedLocationsByLocoLogLines}{unresolvedCoupleToCarsByLocoLogLines}" +
                     $"\nSometimes this may happen if any rolling stock or track mods were modified or removed in this save, or if you are loading an earlier version of a save with a mismatched waypoints.json file." +
                     $"\n\nWaypoint Queue should still work normally with this save game, though some waypoints may be missing.");
             }

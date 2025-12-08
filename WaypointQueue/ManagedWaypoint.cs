@@ -62,6 +62,8 @@ namespace WaypointQueue
 
         [JsonProperty]
         public string CoupleToCarId { get; internal set; }
+        [JsonIgnore]
+        public Car CoupleToCar { get; internal set; }
 
         [JsonIgnore]
         public bool IsCoupling
@@ -193,6 +195,26 @@ namespace WaypointQueue
             }
         }
 
+        public bool TryResolveCoupleToCar(out Car car)
+        {
+            if (String.IsNullOrEmpty(CoupleToCarId))
+            {
+                car = null;
+                return false;
+            }
+
+            try
+            {
+                TrainController.Shared.TryGetCarForId(CoupleToCarId, out car);
+                CoupleToCar = car;
+            }
+            catch (Exception e)
+            {
+                Loader.LogError($"Failed to resolve car id {CoupleToCarId}: {e}");
+            }
+            car = null;
+            return false;
+        }
         public void SetTargetSpeedToOrdersMax()
         {
             if (Locomotive != null)

@@ -87,7 +87,7 @@ namespace WaypointQueue
             }
 
             // Connecting air and releasing handbrakes may be done before being completely stopped
-            if (wp.IsCoupling && !wp.CurrentlyRefueling)
+            if (wp.IsCoupling && !wp.CurrentlyRefueling && wp.TryResolveCoupleToCar(out Car _))
             {
                 ResolveBrakeSystemOnCouple(wp);
             }
@@ -139,7 +139,7 @@ namespace WaypointQueue
                 }
             }
 
-            if (wp.IsCoupling)
+            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car _))
             {
                 ResolvePostCouplingCut(wp);
             }
