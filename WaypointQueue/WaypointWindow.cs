@@ -1,6 +1,5 @@
 ﻿using Game;
 using HarmonyLib;
-using MessagePack.Resolvers;
 using Model;
 using Model.Ops;
 using Model.Ops.Timetable;
@@ -38,8 +37,6 @@ namespace WaypointQueue
         private static Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
         private static CrewsPanelBuilder _crewsPanelBuilder => new();
-
-        private Dictionary<string, UIPanelBuilder> panelKeyValuePairs = [];
 
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
@@ -230,16 +227,10 @@ namespace WaypointQueue
 
                 builder.Spacer(20f);
 
-                panelKeyValuePairs.Clear();
-
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    builder.VStack((UIPanelBuilder waypointSectionBuilder) =>
-                    {
-                        BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
-                        panelKeyValuePairs.Add(waypoint.Id, waypointSectionBuilder);
-                    });
+                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
                     builder.Spacer(20f);
                 }
             });
