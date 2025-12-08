@@ -207,6 +207,7 @@ namespace WaypointQueue
             {
                 TrainController.Shared.TryGetCarForId(CoupleToCarId, out car);
                 CoupleToCar = car;
+                return true;
             }
             catch (Exception e)
             {
