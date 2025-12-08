@@ -512,6 +512,15 @@ namespace WaypointQueue
         {
             List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
 
+            if (allCoupled.Count == 1)
+            {
+                Car onlyCar = allCoupled[0];
+                LogicalEnd closestEnd = ClosestLogicalEndTo(onlyCar, waypoint.Location);
+                LogicalEnd furthestEnd = GetOppositeEnd(closestEnd);
+
+                return (onlyCar.LocationFor(closestEnd), onlyCar.LocationFor(furthestEnd));
+            }
+
             Car firstCar = allCoupled.First();
             Car lastCar = allCoupled.Last();
 
