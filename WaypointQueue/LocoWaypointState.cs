@@ -1,6 +1,5 @@
 ﻿using Model;
 using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using WaypointQueue.UUM;
 
@@ -21,17 +20,19 @@ namespace WaypointQueue
             return Waypoints != null && Waypoints.Count > 0;
         }
 
-        public void Load()
+        public bool TryResolveLocomotive(out Car loco)
         {
-            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out Car locomotive))
+            // loco is null if false
+            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
-                Loader.LogDebug($"Loaded locomotive {locomotive.Ident} for LocoWaypointState");
-                Locomotive = locomotive;
+                Loader.LogDebug($"Loaded locomotive {loco.Ident} for LocoWaypointState");
+                Locomotive = loco;
             }
             else
             {
-                throw new InvalidOperationException($"Could not find car for {LocomotiveId}");
+                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
             }
+            return loco != null;
         }
 
         public LocoWaypointState(Car loco)
