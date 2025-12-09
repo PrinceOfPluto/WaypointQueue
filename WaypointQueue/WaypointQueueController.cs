@@ -118,11 +118,16 @@ namespace WaypointQueue
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
                 AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(entry.Locomotive);
 
+                bool readyToResolve = !HasActiveWaypoint(ordersHelper) && IsInWaypointMode(ordersHelper);
+
                 // Let loco continue if it has active waypoint orders
                 // or skip if not in waypoint mode
-                if (HasActiveWaypoint(ordersHelper) || ordersHelper.Orders.Mode != Game.Messages.AutoEngineerMode.Waypoint)
+                if (readyToResolve || NeedsForceResolve(entry))
                 {
-                    //Loader.LogDebug($"Loco {entry.Locomotive.Ident} has ACTIVE waypoint during tick update");
+                    //Loader.LogDebug($"Ready to resolve waypoint for {entry.Locomotive.Ident}");
+                }
+                else
+                {
                     continue;
                 }
 
@@ -182,6 +187,11 @@ namespace WaypointQueue
             {
                 WaypointStateMap.Remove(entry.LocomotiveId);
             }
+        }
+
+        private bool NeedsForceResolve(LocoWaypointState entry)
+        {
+            return entry.UnresolvedWaypoint != null && AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint);
         }
 
         public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing, bool isInsertingNext)
@@ -490,6 +500,11 @@ namespace WaypointQueue
             return ordersHelper.Orders.Waypoint.HasValue;
         }
 
+        private bool IsInWaypointMode(AutoEngineerOrdersHelper ordersHelper)
+        {
+            return ordersHelper.Orders.Mode == Game.Messages.AutoEngineerMode.Waypoint;
+        }
+
         internal AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
         {
             Type plannerType = typeof(AutoEngineerPlanner);
@@ -497,6 +512,34 @@ namespace WaypointQueue
             AutoEngineerPersistence persistence = (AutoEngineerPersistence)fieldInfo.GetValue((locomotive as BaseLocomotive).AutoEngineerPlanner);
             AutoEngineerOrdersHelper ordersHelper = new AutoEngineerOrdersHelper(locomotive, persistence);
             return ordersHelper;
+        }
+
+        internal string GetPlannerStatus(BaseLocomotive locomotive)
+        {
+            Type plannerType = typeof(AutoEngineerPlanner);
+            FieldInfo fieldInfo = plannerType.GetField("_persistence", BindingFlags.NonPublic | BindingFlags.Instance);
+            AutoEngineerPersistence persistence = (AutoEngineerPersistence)fieldInfo.GetValue((locomotive as BaseLocomotive).AutoEngineerPlanner);
+            return persistence.PlannerStatus;
+        }
+
+        private bool AtEndOfTrack(BaseLocomotive loco)
+        {
+            string plannerStatus = GetPlannerStatus(loco);
+            //Loader.LogDebug($"{loco.Ident} current AE planner status is {plannerStatus}");
+            return plannerStatus == "End of Track";
+        }
+
+        private bool IsNearWaypoint(ManagedWaypoint waypoint)
+        {
+            try
+            {
+                (Location closest, Location furthest) = WaypointResolver.GetTrainEndLocations(waypoint, out float closestDistance);
+                return closestDistance < 10;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
         }
 
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)

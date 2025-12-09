@@ -326,7 +326,7 @@ namespace WaypointQueue
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint);
+            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint, out _);
 
             float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
 
@@ -438,7 +438,7 @@ namespace WaypointQueue
                 throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
             }
 
-            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint);
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint, out _);
 
             LogicalEnd furthestFuelCarEnd = ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
             LogicalEnd closestFuelCarEnd = GetOppositeEnd(furthestFuelCarEnd);
@@ -508,9 +508,14 @@ namespace WaypointQueue
             return false;
         }
 
-        private static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint)
+        internal static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance)
         {
+            Location closestLocation;
+            Location furthestLocation;
+
             List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
+
+            //Loader.Log("GetTrainEndLocations " + String.Join("-", allCoupled.Select(c => $"[{c.Ident}]")));
 
             if (allCoupled.Count == 1)
             {
@@ -518,7 +523,12 @@ namespace WaypointQueue
                 LogicalEnd closestEnd = ClosestLogicalEndTo(onlyCar, waypoint.Location);
                 LogicalEnd furthestEnd = GetOppositeEnd(closestEnd);
 
-                return (onlyCar.LocationFor(closestEnd), onlyCar.LocationFor(furthestEnd));
+                closestLocation = onlyCar.LocationFor(closestEnd);
+                furthestLocation = onlyCar.LocationFor(furthestEnd);
+
+                closestDistance = Graph.Shared.GetDistanceBetweenClose(closestLocation, waypoint.Location);
+
+                return (closestLocation, furthestLocation);
             }
 
             Car firstCar = allCoupled.First();
@@ -541,11 +551,13 @@ namespace WaypointQueue
             Location lastLocation = lastCar.LocationFor(lastEnd);
             float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, waypoint.Location);
 
-            Location closestLocation = firstLocation;
-            Location furthestLocation = lastLocation;
+            closestDistance = firstDistance;
+            closestLocation = firstLocation;
+            furthestLocation = lastLocation;
 
             if (firstDistance > lastDistance)
             {
+                closestDistance = lastDistance;
                 closestLocation = lastLocation;
                 furthestLocation = firstLocation;
                 Loader.LogDebug($"Closest car is {lastCar.Ident}");
