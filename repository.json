@@ -1,0 +1,59 @@
+{
+    "Releases": [
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.3.4",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.3.4/WaypointQueue_1.3.4.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.3.3",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.3.3/WaypointQueue_1.3.3.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.3.2",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.3.2/WaypointQueue_1.3.2.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.3.1",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.3.1/WaypointQueue_1.3.1.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.3.0",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.3.0/WaypointQueue_1.3.0.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.2.3",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.2.3/WaypointQueue_1.2.3.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.2.2",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.2.2/WaypointQueue_1.2.2.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.2.1",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.2.1/WaypointQueue_1.2.1.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.2.0",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.2.0/WaypointQueue_1.2.0.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.1.1",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.1.1/WaypointQueue_1.1.1.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
+            "Version": "1.1.0",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.1.0/WaypointQueue_1.1.0.0.zip"
+        }
+    ]
+}

@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Info.json = Info.json
 		Paths.user.example = Paths.user.example
 		README.md = README.md
+		repository.json = repository.json
 		UpdateVersion.ps1 = UpdateVersion.ps1
 	EndProjectSection
 EndProject
