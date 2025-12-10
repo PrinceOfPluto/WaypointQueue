@@ -75,6 +75,8 @@ namespace WaypointQueue
 
         [JsonProperty]
         public string CoupleToCarId { get; internal set; }
+        [JsonIgnore]
+        public Car CoupleToCar { get; internal set; }
 
         [JsonIgnore]
         public bool IsCoupling
@@ -153,7 +155,9 @@ namespace WaypointQueue
         public float RefuelMaxCapacity { get; set; }
         public bool WillRefuel { get; set; }
         public bool CurrentlyRefueling { get; set; }
+        public int RefuelingSpeedLimit { get; set; } = 5;
         public int MaxSpeedAfterRefueling { get; set; }
+        public bool RefuelLoaderAnimated { get; set; }
         public string AreaName { get; set; }
         public string TimetableSymbol { get; set; }
 
@@ -169,6 +173,11 @@ namespace WaypointQueue
         public bool SeekNearbyCoupling { get; set; }
         public bool CurrentlyCouplingNearby { get; set; }
         public bool MoveTrainPastWaypoint { get; set; }
+        public bool CurrentlyWaitingBeforeCutting { get; set; }
+
+        [JsonIgnore]
+        public float SecondsSpentWaitingBeforeCut { get; set; }
+        public string StatusLabel { get; set; } = "Inactive";
 
         public bool IsValid()
         {
@@ -201,7 +210,7 @@ namespace WaypointQueue
             }
             else
             {
-                Loader.LogDebug($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
+                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
             }
             return loco != null;
         }
@@ -218,12 +227,33 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.LogDebug($"Failed to resolve location string {LocationString}: {e}");
+                Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
                 loc = default;
                 return false;
             }
         }
 
+        public bool TryResolveCoupleToCar(out Car car)
+        {
+            if (String.IsNullOrEmpty(CoupleToCarId))
+            {
+                car = null;
+                return false;
+            }
+
+            try
+            {
+                TrainController.Shared.TryGetCarForId(CoupleToCarId, out car);
+                CoupleToCar = car;
+                return true;
+            }
+            catch (Exception e)
+            {
+                Loader.LogError($"Failed to resolve car id {CoupleToCarId}: {e}");
+            }
+            car = null;
+            return false;
+        }
         public void SetTargetSpeedToOrdersMax()
         {
             if (Locomotive != null)

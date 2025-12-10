@@ -26,10 +26,12 @@ namespace WaypointQueue
 {
     internal static class WaypointResolver
     {
+        private static readonly float WaitBeforeCuttingTimeout = 5f;
+
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
-        public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action onWaypointsUpdated)
+        public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action<ManagedWaypoint> onWaypointDidUpdate)
         {
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
@@ -84,10 +86,104 @@ namespace WaypointQueue
                 }
             }
 
-            // Begin refueling
-            if (wp.WillRefuel && !wp.CurrentlyRefueling)
+            // Connecting air and releasing handbrakes may be done before being completely stopped
+            if (wp.IsCoupling && !wp.CurrentlyRefueling && wp.TryResolveCoupleToCar(out Car _))
+            {
+                ResolveBrakeSystemOnCouple(wp);
+            }
+
+            try
+            {
+                if (!TryResolveFuelingOrders(wp, ordersHelper))
+                {
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                Loader.LogError(e.Message);
+                string errorModalTitle = "Refueling Error";
+                string errorModalMessage = $"Waypoint Queue encountered an unexpected error and cannot refuel locomotive {wp.Locomotive.Ident}.";
+                Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
+                wp.WillRefuel = false;
+                wp.CurrentlyRefueling = false;
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
+            }
+
+            /*
+             * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
+             * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
+             */
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.NumberOfCarsToCut > 0 && wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+            {
+                if (!wp.CurrentlyWaitingBeforeCutting)
+                {
+                    Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
+                    wp.CurrentlyWaitingBeforeCutting = true;
+                    wp.StatusLabel = $"Waiting until train is at rest before cutting cars";
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
+                }
+
+                if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
+                {
+                    wp.SecondsSpentWaitingBeforeCut += WaypointQueueController.WaypointTickInterval;
+                }
+
+                if (wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+                {
+                    return false;
+                }
+                else
+                {
+                    Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
+                }
+            }
+
+            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car _))
+            {
+                ResolvePostCouplingCut(wp);
+            }
+
+            if (wp.IsUncoupling)
+            {
+                ResolveUncouplingOrders(wp);
+            }
+
+            if (TryBeginWaiting(wp, onWaypointDidUpdate))
+            {
+                wp.StatusLabel = "Waiting before continuing";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
+                return false;
+            }
+
+            return true;
+        }
+
+        public static bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
+        {
+            if (wp.RefuelLoaderAnimated)
+            {
+                SetCarLoaderSequencerWantsLoading(wp, false);
+            }
+            return true;
+        }
+
+        private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            // Reposition to refuel
+            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.SeekNearbyCoupling && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
+                return false;
+            }
+
+            // Begin refueling with animations
+            if (wp.CurrentlyRefueling && !wp.RefuelLoaderAnimated && Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
+            {
+                SetCarLoaderSequencerWantsLoading(wp, true);
+                wp.RefuelLoaderAnimated = true;
+                wp.StatusLabel = $"Refueling {wp.RefuelLoadName}";
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
 
@@ -105,26 +201,17 @@ namespace WaypointQueue
                 }
             }
 
-            /*
-             * Unless explicitly not stopping, loco needs a complete stop before resolving coupling or uncoupling orders.
-             * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
-             */
-            if (wp.StopAtWaypoint && Math.Abs(wp.Locomotive.velocity) > 0)
-            {
-                Loader.LogDebug($"Locomotive not stopped, continuing");
-                return false;
-            }
-
-            ResolveCouplingOrders(wp);
-
-            ResolveUncouplingOrders(wp);
-
-            if (TryBeginWaiting(wp, onWaypointsUpdated))
-            {
-                return false;
-            }
-
             return true;
+        }
+
+        private static bool IsTrainStopped(ManagedWaypoint wp)
+        {
+            List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
+            Car firstCar = coupled.First();
+            Car lastCar = coupled.Last();
+            Loader.LogDebug($"First car {firstCar.Ident} is {(firstCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")} and last car {lastCar.Ident} is {(lastCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")}");
+
+            return firstCar.IsStopped(2) && lastCar.IsStopped(2);
         }
 
         private static bool TryEndWaiting(ManagedWaypoint wp)
@@ -139,12 +226,12 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool TryBeginWaiting(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaiting(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             return wp.WillWait && (TryBeginWaitingDuration(wp, onWaypointsUpdated) || TryBeginWaitingUntilTime(wp, onWaypointsUpdated));
         }
 
-        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
@@ -152,13 +239,13 @@ namespace WaypointQueue
                 wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
                 wp.CurrentlyWaiting = true;
                 Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
-                onWaypointsUpdated?.Invoke();
+                onWaypointsUpdated.Invoke(wp);
                 return true;
             }
             return false;
         }
 
-        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action onWaypointsUpdated)
+        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
             {
@@ -167,7 +254,7 @@ namespace WaypointQueue
                     wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
                     wp.CurrentlyWaiting = true;
                     Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
-                    onWaypointsUpdated?.Invoke();
+                    onWaypointsUpdated.Invoke(wp);
                     return true;
                 }
                 else
@@ -180,7 +267,7 @@ namespace WaypointQueue
             return false;
         }
 
-        public static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.LogDebug($"Starting search for nearby coupling");
             float searchRadius = Loader.Settings.NearbyCouplingSearchRadius;
@@ -216,6 +303,7 @@ namespace WaypointQueue
             {
                 wp.CoupleToCarId = bestMatchCar.id;
                 wp.CurrentlyCouplingNearby = true;
+                wp.StatusLabel = "Moving to couple nearby";
 
                 Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(bestMatchLocation, wp.Location);
                 Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
@@ -232,29 +320,17 @@ namespace WaypointQueue
             return false;
         }
 
-        public static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             waypoint.StopAtWaypoint = true;
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            LogicalEnd furthest = FurthestLogicalEndFrom(waypoint.Locomotive, waypoint.Location);
-            Car furthestCar = EnumerateCoupledToEnd(waypoint.Locomotive, furthest, inclusive: true).LastOrDefault();
-            if (furthestCar == null)
-            {
-                Loader.Log($"Error while clearing beyond waypoint, furthest car was null");
-                return false;
-            }
+            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint);
 
-            LogicalEnd furthestEndOnCar = FurthestLogicalEndFrom(furthestCar, waypoint.Location);
-            Location furthestLocation = furthestCar.LocationFor(furthestEndOnCar);
+            float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
 
-            BaseLocomotive loco = (BaseLocomotive)waypoint.Locomotive;
-
-            MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
-            float totalTrainLength = (float)calculateTotalLengthMI.Invoke(loco.AutoEngineerPlanner, []);
-
-            Location orientedLocation = Graph.Shared.LocationOrientedToward(waypoint.Location, furthestLocation);
+            Location orientedLocation = Graph.Shared.LocationOrientedToward(waypoint.Location, furthestCarLocation);
             Location locationToMove;
 
             try
@@ -270,6 +346,7 @@ namespace WaypointQueue
                 return false;
             }
 
+            waypoint.StatusLabel = "Sending train past waypoint";
             waypoint.OverwriteLocation(locationToMove);
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
 
@@ -278,20 +355,39 @@ namespace WaypointQueue
             return true;
         }
 
-        public static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident}");
             waypoint.CurrentlyRefueling = true;
             // maybe in the future, support refueling multiple locomotives if they are MU'd
 
             waypoint.MaxSpeedAfterRefueling = ordersHelper.Orders.MaxSpeedMph;
-            // Set max speed of 5 to help prevent train from overrunning waypoint
-            int speedWhileRefueling = 5;
+            // Set speed limit to help prevent train from overrunning waypoint
+            int speedWhileRefueling = waypoint.RefuelingSpeedLimit;
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: speedWhileRefueling, null, null);
+            // Make sure AE knows how many cars in case we coupled just before this
+            UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
-            Location locationToMove = GetRefuelLocation(waypoint, ordersHelper);
-            SetCarLoadTargetLoaderCanLoad(waypoint, true);
+            Location locationToMove = new();
+            try
+            {
+                locationToMove = GetRefuelLocation(waypoint, ordersHelper);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Loader.Log(ex.Message);
+                Toast.Present($"Waypoint Queue encountered an error while refueling {waypoint.Locomotive.Ident}");
+                waypoint.WillRefuel = false;
+                waypoint.CurrentlyRefueling = false;
+                ordersHelper.SetOrdersValue(null, null, maxSpeedMph: waypoint.MaxSpeedAfterRefueling, null, null);
+                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+            }
+
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
+            waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
+            waypoint.OverwriteLocation(locationToMove);
+            waypoint.StopAtWaypoint = true;
+            WaypointQueueController.Shared.UpdateWaypoint(waypoint);
             WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
         }
 
@@ -300,19 +396,21 @@ namespace WaypointQueue
             Loader.Log($"Done refueling {wp.Locomotive.Ident}");
             wp.WillRefuel = false;
             wp.CurrentlyRefueling = false;
-            SetCarLoadTargetLoaderCanLoad(wp, false);
+            SetCarLoaderSequencerWantsLoading(wp, false);
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
 
             int maxSpeed = wp.MaxSpeedAfterRefueling;
             if (maxSpeed == 0) maxSpeed = 35;
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
         }
 
-        private static void SetCarLoadTargetLoaderCanLoad(ManagedWaypoint waypoint, bool value)
+        private static void SetCarLoaderSequencerWantsLoading(ManagedWaypoint waypoint, bool value)
         {
             CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
-            if (loaderTarget != null)
+            CarLoaderSequencer sequencer = WaypointQueueController.Shared.CarLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
+            if (sequencer != null)
             {
-                loaderTarget.keyValueObject[loaderTarget.canLoadBoolKey] = value;
+                sequencer.keyValueObject[sequencer.readWantsLoadingKey] = value;
             }
         }
 
@@ -328,73 +426,197 @@ namespace WaypointQueue
 
         private static Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Finding refuel location");
-
             Car fuelCar = GetFuelCar((BaseLocomotive)waypoint.Locomotive);
 
-            LoadSlot loadSlot = fuelCar.Definition.LoadSlots.Find(slot => slot.RequiredLoadIdentifier == waypoint.RefuelLoadName);
+            Loader.LogDebug($"Finding {waypoint.RefuelLoadName} refuel location for {fuelCar.Ident}");
 
-            waypoint.RefuelMaxCapacity = loadSlot.MaximumCapacity;
+            Vector3 loadSlotPosition = GetFuelCarLoadSlotPosition(fuelCar, waypoint.RefuelLoadName, out float slotMaxCapacity);
+            waypoint.RefuelMaxCapacity = slotMaxCapacity;
+
+            if (!Graph.Shared.TryGetLocationFromGamePoint(waypoint.RefuelPoint, 10f, out Location targetLoaderLocation))
+            {
+                throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
+            }
+
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint);
+
+            LogicalEnd furthestFuelCarEnd = ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
+            LogicalEnd closestFuelCarEnd = GetOppositeEnd(furthestFuelCarEnd);
+
+            List<Car> coupledCarsToEnd = EnumerateCoupledToEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
+            float distanceFromFurthestEndOfTrainToFuelCarInclusive = CalculateTotalLength(coupledCarsToEnd);
+
+            float distanceFromClosestFuelCarEndToSlot = Vector3.Distance(fuelCar.LocationFor(closestFuelCarEnd).GetPosition().ZeroY(), loadSlotPosition.ZeroY());
+
+            float totalTrainLength = CalculateTotalLength([.. waypoint.Locomotive.EnumerateCoupled()]);
+
+            Loader.LogDebug($"Total train length is {totalTrainLength}");
+            Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
+            Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
+
+            Location locationToMoveToward = new();
+            float distanceToMove = 0;
+
+            //Loader.LogDebug($"Checking if slot is in between loader and closest end");
+            if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition()))
+            {
+                // need to move toward the far end
+                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
+                distanceToMove = distanceFromFurthestEndOfTrainToFuelCarInclusive - distanceFromClosestFuelCarEndToSlot;
+                locationToMoveToward = furthestTrainEndLocation;
+            }
+
+            //Loader.LogDebug($"Checking if slot is in between loader and furthest end");
+            if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
+            {
+                // need to move toward the near end
+                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
+                distanceToMove = totalTrainLength - distanceFromFurthestEndOfTrainToFuelCarInclusive + distanceFromClosestFuelCarEndToSlot;
+                locationToMoveToward = closestTrainEndLocation;
+            }
+
+            //Loader.LogDebug($"Checking if loader is in closest end and furthest end");
+            if (IsTargetBetween(targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
+            {
+                Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
+                distanceToMove = -distanceToMove;
+            }
+
+            Loader.LogDebug($"distanceToMove is {distanceToMove}");
+
+            Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
+
+            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, true, true);
+
+            Loader.LogDebug($"Location to refuel {waypoint.RefuelLoadName} is {locationToMove}");
+            return locationToMove;
+        }
+
+        private static bool TryGetOpenEndForCar(Car car, out LogicalEnd logicalEnd)
+        {
+            if (!car.TryGetAdjacentCar(LogicalEnd.A, out _))
+            {
+                logicalEnd = LogicalEnd.A;
+                return true;
+            }
+            if (!car.TryGetAdjacentCar(LogicalEnd.B, out _))
+            {
+                logicalEnd = LogicalEnd.B;
+                return true;
+            }
+            logicalEnd = LogicalEnd.A;
+            return false;
+        }
+
+        private static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint)
+        {
+            List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
+
+            if (allCoupled.Count == 1)
+            {
+                Car onlyCar = allCoupled[0];
+                LogicalEnd closestEnd = ClosestLogicalEndTo(onlyCar, waypoint.Location);
+                LogicalEnd furthestEnd = GetOppositeEnd(closestEnd);
+
+                return (onlyCar.LocationFor(closestEnd), onlyCar.LocationFor(furthestEnd));
+            }
+
+            Car firstCar = allCoupled.First();
+            Car lastCar = allCoupled.Last();
+
+            if (!TryGetOpenEndForCar(firstCar, out LogicalEnd firstEnd))
+            {
+                throw new InvalidOperationException($"{firstCar.Ident} has no open end");
+            }
+            if (!TryGetOpenEndForCar(lastCar, out LogicalEnd lastEnd))
+            {
+                throw new InvalidOperationException($"{lastCar.Ident} has no open end");
+            }
+
+            Loader.LogDebug($"Furthest end on first is {(firstCar.LogicalToEnd(firstEnd) == End.R ? "R" : "F")}");
+            Location firstLocation = firstCar.LocationFor(firstEnd);
+            float firstDistance = Graph.Shared.GetDistanceBetweenClose(firstLocation, waypoint.Location);
+
+            Loader.LogDebug($"Furthest end on last is {(lastCar.LogicalToEnd(lastEnd) == End.R ? "R" : "F")}");
+            Location lastLocation = lastCar.LocationFor(lastEnd);
+            float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, waypoint.Location);
+
+            Location closestLocation = firstLocation;
+            Location furthestLocation = lastLocation;
+
+            if (firstDistance > lastDistance)
+            {
+                closestLocation = lastLocation;
+                furthestLocation = firstLocation;
+                Loader.LogDebug($"Closest car is {lastCar.Ident}");
+                Loader.LogDebug($"Furthest car is {firstCar.Ident}");
+            }
+            else
+            {
+                Loader.LogDebug($"Closest car is {firstCar.Ident}");
+                Loader.LogDebug($"Furthest car is {lastCar.Ident}");
+            }
+
+            return (closestLocation, furthestLocation);
+        }
+
+        private static float GetTrainLength(BaseLocomotive locomotive)
+        {
+            MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
+            float totalTrainLength = (float)calculateTotalLengthMI.Invoke(locomotive.AutoEngineerPlanner, []);
+            return totalTrainLength;
+        }
+
+        // Copied from AutoEngineerPlanner.CalculateTotalLength
+        private static float CalculateTotalLength(List<Car> cars)
+        {
+            float num = 0f;
+            foreach (Car item in cars)
+            {
+                num += item.carLength;
+            }
+
+            return num + 1.04f * (float)(cars.Count - 1);
+        }
+
+        private static Vector3 GetFuelCarLoadSlotPosition(Car fuelCar, string refuelLoadName, out float maxCapacity)
+        {
+            LoadSlot loadSlot = fuelCar.Definition.LoadSlots.Find(slot => slot.RequiredLoadIdentifier == refuelLoadName);
+
+            maxCapacity = loadSlot.MaximumCapacity;
 
             int loadSlotIndex = fuelCar.Definition.LoadSlots.IndexOf(loadSlot);
 
             List<CarLoadTarget> carLoadTargets = fuelCar.GetComponentsInChildren<CarLoadTarget>().ToList();
             CarLoadTarget loadTarget = carLoadTargets.Find(clt => clt.slotIndex == loadSlotIndex);
 
-            Vector3 loadTargetPosition = GetPositionFromLoadTarget(fuelCar, loadTarget);
+            Vector3 loadSlotPosition = CalculatePositionFromLoadTarget(fuelCar, loadTarget);
 
-            if (!Graph.Shared.TryGetLocationFromGamePoint(waypoint.RefuelPoint, 10f, out Location targetLoaderLocation))
-            {
-                throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
-            }
-            Loader.LogDebug($"Target {waypoint.RefuelLoadName} loader location is {targetLoaderLocation}");
-
-            LogicalEnd closestEnd = ClosestLogicalEndTo(fuelCar, targetLoaderLocation);
-            Car nearestCar = fuelCar.EnumerateCoupled(closestEnd).First();
-            Location closestTrainEndLocation = nearestCar.LocationFor(closestEnd);
-            Loader.LogDebug($"Nearest car to {waypoint.RefuelLoadName} loader is {nearestCar.Ident} at {closestTrainEndLocation} with logical end {(closestEnd == LogicalEnd.A ? "A" : "B")}");
-
-            LogicalEnd furthestEnd = closestEnd == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
-            Car furthestCar = fuelCar.EnumerateCoupled(furthestEnd).First();
-            Location furthestTrainEndLocation = nearestCar.LocationFor(furthestEnd);
-
-            // Unclear how accurate this is when the train is on segment of curved track since the distance
-            // would be a straight line between the points and wouldn't account for the curve.
-            // May have to calculate distances based on the track segments rather than Vector3 points
-            float distanceFromEndToSlot = Vector3.Distance(closestTrainEndLocation.GetPosition().ZeroY(), loadTargetPosition.ZeroY());
-            Loader.LogDebug($"Distance from end of train to locomotive's {waypoint.RefuelLoadName} slot is {distanceFromEndToSlot}");
-
-            Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, closestTrainEndLocation);
-
-            // If the end of the train is already past the waypoint, then it would incorrectly orient the distance
-            if (IsTargetInMiddle(targetLoaderLocation, closestTrainEndLocation, furthestTrainEndLocation))
-            {
-                distanceFromEndToSlot = -distanceFromEndToSlot;
-            }
-
-            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceFromEndToSlot, true, true);
-
-            Loader.LogDebug($"Location to refuel {waypoint.RefuelLoadName} is {locationToMove}");
-            return locationToMove;
+            return loadSlotPosition;
         }
 
-        private static bool IsTargetInMiddle(Location targetLoaderLocation, Location closestTrainEndLocation, Location furthestTrainEndLocation)
+        private static bool IsTargetBetween(Vector3 target, Vector3 positionA, Vector3 positionB)
         {
             // If target is in the middle, the distance between either end to the target will always be less than the length from one end to the other
-            float distanceCloseToTarget = Vector3.Distance(closestTrainEndLocation.GetPosition().ZeroY(), targetLoaderLocation.GetPosition().ZeroY());
+            float distanceAToTarget = Vector3.Distance(positionA.ZeroY(), target.ZeroY());
 
-            float distanceFarToTarget = Vector3.Distance(furthestTrainEndLocation.GetPosition().ZeroY(), targetLoaderLocation.GetPosition().ZeroY());
+            float distanceBToTarget = Vector3.Distance(positionB.ZeroY(), target.ZeroY());
 
-            float distanceEndToEnd = Vector3.Distance(closestTrainEndLocation.GetPosition().ZeroY(), furthestTrainEndLocation.GetPosition().ZeroY());
+            float distanceAtoB = Vector3.Distance(positionA.ZeroY(), positionB.ZeroY());
 
-            if (distanceCloseToTarget < distanceEndToEnd && distanceFarToTarget < distanceEndToEnd)
+            //Loader.LogDebug($"Distance A to Target {distanceAToTarget}");
+            //Loader.LogDebug($"Distance B to Target {distanceBToTarget}");
+            //Loader.LogDebug($"Distance A to B {distanceAtoB}");
+
+            if (distanceAToTarget < distanceAtoB && distanceBToTarget < distanceAtoB)
             {
                 return true;
             }
+            //Loader.LogDebug($"Target is NOT in between");
             return false;
         }
 
-        private static Vector3 GetPositionFromLoadTarget(Car fuelCar, CarLoadTarget loadTarget)
+        private static Vector3 CalculatePositionFromLoadTarget(Car fuelCar, CarLoadTarget loadTarget)
         {
             // This logic is based on CarLoadTargetLoader.LoadSlotFromCar
             Matrix4x4 transformMatrix = fuelCar.GetTransformMatrix(Graph.Shared);
@@ -484,12 +706,6 @@ namespace WaypointQueue
             }
         }
 
-        private static void ResolveWaypointOrders(ManagedWaypoint waypoint)
-        {
-            Loader.LogDebug($"Resolving loco {waypoint.Locomotive.Ident} waypoint to {waypoint.Location}");
-
-        }
-
         private static Car GetFuelCar(BaseLocomotive locomotive)
         {
             Car fuelCar = locomotive;
@@ -554,7 +770,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static void ResolveCouplingOrders(ManagedWaypoint waypoint)
+        private static void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
             Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
@@ -572,7 +788,10 @@ namespace WaypointQueue
                     car.SetHandbrake(false);
                 }
             }
+        }
 
+        private static void ResolvePostCouplingCut(ManagedWaypoint waypoint)
+        {
             if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
                 bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
@@ -628,6 +847,7 @@ namespace WaypointQueue
                 {
                     Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
                     UncoupleCar(carToUncouple, closestEnd);
+                    UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
                     if (waypoint.BleedAirOnUncouple)
                     {
@@ -965,6 +1185,7 @@ namespace WaypointQueue
 
             Loader.Log($"Uncoupling {carToUncouple2.Ident} on end {endToUncouple2} for cut of {inactiveCut2.Count} cars");
             UncoupleCar(carToUncouple2, endToUncouple2);
+            UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
 
             if (waypoint.BleedAirOnUncouple)
             {
@@ -974,6 +1195,13 @@ namespace WaypointQueue
                     car.air.BleedBrakeCylinder();
                 }
             }
+        }
+
+        private static void UpdateCarsAfterUncoupling(BaseLocomotive locomotive)
+        {
+            MethodInfo updateCarsMI = AccessTools.Method(typeof(AutoEngineerPlanner), "UpdateCars");
+            object[] parameters = [null];
+            updateCarsMI.Invoke(locomotive.AutoEngineerPlanner, parameters);
         }
 
         private static List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut)
@@ -1012,6 +1240,11 @@ namespace WaypointQueue
             return furthestEnd;
         }
 
+        private static LogicalEnd GetOppositeEnd(LogicalEnd logicalEnd)
+        {
+            return logicalEnd == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
+        }
+
         private static LogicalEnd GetEndRelativeToWapoint(Car car, Location waypointLocation, bool useFurthestEnd)
         {
             LogicalEnd closestEnd = car.ClosestLogicalEndTo(waypointLocation, Graph.Shared);
@@ -1031,10 +1264,12 @@ namespace WaypointQueue
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsCoupled, boolValue: false);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
+                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.CutLever, 1f);
 
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.Anglecock, f: 0f);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsCoupled, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
+                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);
                 }
             }
         }

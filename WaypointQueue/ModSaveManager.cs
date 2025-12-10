@@ -257,7 +257,7 @@ namespace WaypointQueue
         {
             WaypointSaveState saveState = new WaypointSaveState();
             saveState.Version = 1;
-            saveState.WaypointStates = WaypointQueueController.Shared.WaypointStateList;
+            saveState.WaypointStates = [.. WaypointQueueController.Shared.WaypointStateMap.Values];
             return saveState;
         }
 

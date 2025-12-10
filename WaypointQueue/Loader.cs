@@ -2,6 +2,7 @@
 using Game.Events;
 using HarmonyLib;
 using System;
+using System.IO;
 using System.Reflection;
 using UI.Common;
 using UnityEngine;
@@ -132,6 +133,63 @@ namespace WaypointQueue.UUM
 #if DEBUG
             ModEntry?.Logger.Log(str);
 #endif
+        }
+
+        public static void LogError(string str)
+        {
+            ModEntry?.Logger.Error(str);
+        }
+
+        public static void ShowErrorModal(string title, string message)
+        {
+            bool railloaderIsActive = IsRailloaderActive();
+            string attachLogFilePrompt = railloaderIsActive ? "both your Player.log and Railloader.log files" : "your Player.log file";
+            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach {attachLogFilePrompt} to help this bug get resolved faster. Thank you!";
+
+            string playerLogFilePrompt = "Open Player.log file";
+
+            ModalAlertController.Present(title, message, [(0, playerLogFilePrompt), (1, "Close")], (int value) =>
+            {
+                if (value == 0)
+                {
+                    OpenPlayerLogFile();
+                }
+            });
+        }
+
+        private static bool IsRailloaderActive()
+        {
+            string assemblyName = "Railloader";
+            Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+            foreach (Assembly assembly in loadedAssemblies)
+            {
+                if (assembly.GetName().Name == assemblyName)
+                {
+                    Loader.LogDebug($"Assembly {assemblyName} is loaded");
+                    return true;
+                }
+            }
+            Loader.LogDebug($"Assembly {assemblyName} is NOT loaded");
+            return false;
+        }
+
+        private static void OpenPlayerLogFile()
+        {
+            string filePath = Path.Combine(Application.persistentDataPath, "Player.log");
+            if (File.Exists(filePath))
+            {
+                Application.OpenURL(filePath);
+            }
+        }
+
+        private static void OpenRailloaderLogFile()
+        {
+            string filePath = Path.Combine(AppContext.BaseDirectory, "Railloader.log");
+            if (File.Exists(filePath))
+            {
+                Application.OpenURL(filePath);
+            }
         }
     }
 }
