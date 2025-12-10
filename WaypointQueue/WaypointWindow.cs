@@ -665,16 +665,17 @@ namespace WaypointQueue
 
             if (waypoint.IsUncoupling)
             {
+                bool interactMode = waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.All || waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByDestination;
                 if (Loader.Settings.UseCompactLayout)
                 {
                     builder.HStack(delegate (UIPanelBuilder compactBuilder)
                     {
-                        AddBleedAirAndSetBrakeToggles(waypoint, compactBuilder, onWaypointChange);
+                        AddBleedAirAndSetBrakeToggles(waypoint, compactBuilder, onWaypointChange, interactMode);
                     });
                 }
                 else
                 {
-                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange, interactMode);
                 }
 
                 if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
@@ -859,18 +860,18 @@ namespace WaypointQueue
             }));
         }
 
-        private void AddBleedAirAndSetBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private void AddBleedAirAndSetBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, bool alwaysInteract = false)
         {
             builder.AddField("Bleed air", builder.AddToggle(() => waypoint.BleedAirOnUncouple, delegate (bool value)
             {
                 waypoint.BleedAirOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }, interactable: waypoint.NumberOfCarsToCut > 0 || alwaysInteract));
             builder.AddField("Apply handbrakes", builder.AddToggle(() => waypoint.ApplyHandbrakesOnUncouple, delegate (bool value)
             {
                 waypoint.ApplyHandbrakesOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }, interactable: waypoint.NumberOfCarsToCut > 0 || alwaysInteract));
         }
 
         private void AddCarCutButtons(ManagedWaypoint waypoint, UIPanelBuilder field, Action<ManagedWaypoint> onWaypointChange, string prefix = null)
