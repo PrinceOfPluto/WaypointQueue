@@ -646,6 +646,8 @@ namespace WaypointQueue
                 _coroutine = StartCoroutine(Ticker());
             }
         }
+
+
     }
 
 }

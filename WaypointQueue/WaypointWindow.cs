@@ -17,6 +17,7 @@ using UI.CompanyWindow;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.UUM;
+using static UnityEngine.InputSystem.Layouts.InputControlLayout;
 
 namespace WaypointQueue
 {
@@ -41,6 +42,26 @@ namespace WaypointQueue
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
         private float _scrollPosition;
+
+        private readonly Dictionary<string, string> _destinationFilterByWaypointId = new();
+
+        private string GetDestinationFilter(ManagedWaypoint wp)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return string.Empty;
+            return _destinationFilterByWaypointId.TryGetValue(wp.Id, out var v) ? (v ?? string.Empty) : string.Empty;
+        }
+
+        private void SetDestinationFilter(ManagedWaypoint wp, string value)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return;
+            _destinationFilterByWaypointId[wp.Id] = value ?? string.Empty;
+        }
+
+        private void ClearDestinationFilter(ManagedWaypoint wp)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return;
+            _destinationFilterByWaypointId.Remove(wp.Id);
+        }
 
         private void OnEnable()
         {
@@ -243,6 +264,7 @@ namespace WaypointQueue
 
         private void OnWaypointDelete(ManagedWaypoint waypoint)
         {
+            ClearDestinationFilter(waypoint); // prevent stale UI state
             WaypointQueueController.Shared.RemoveWaypoint(waypoint);
         }
 
@@ -537,49 +559,243 @@ namespace WaypointQueue
             return builder;
         }
 
-        private UIPanelBuilder BuildUncouplingField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildUncouplingField(
+            ManagedWaypoint waypoint,
+            UIPanelBuilder builder,
+            Action<ManagedWaypoint> onWaypointChange,
+            bool isPostCoupleCut = false)
         {
             builder.HStack(delegate (UIPanelBuilder builder)
             {
-                builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
+                builder.AddField("Uncouple", builder.HStack(delegate (UIPanelBuilder field)
                 {
-                    AddCarCutButtons(waypoint, field, onWaypointChange, null);
+                    var modeLabels = new System.Collections.Generic.List<string>
+                    {
+                        "All",
+                        "By Count",
+                        "By Destination",
+                        "None"
+                    };
+
+                    int selectedModeIndex = (int)waypoint.UncoupleByMode;
+                    selectedModeIndex = Mathf.Clamp(selectedModeIndex, 0, modeLabels.Count - 1);
+
+                    field.AddDropdown(modeLabels, selectedModeIndex, (int idx) =>
+                    {
+                        waypoint.UncoupleByMode = (ManagedWaypoint.UncoupleMode)idx;
+
+                        if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
+                        {
+                            // Leave NumberOfCarsToCut as-is.
+                        }
+                        else
+                        {
+                            waypoint.NumberOfCarsToCut = 0;
+                            waypoint.TakeUncoupledCarsAsActiveCut = false;
+                        }
+
+                        onWaypointChange(waypoint);
+
+                    }).Width(140f);
+
+
+                    if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount && !isPostCoupleCut)
+                    {
+                        AddCarCutButtons(waypoint, field, onWaypointChange, null);
+                    }
+
                 }));
             });
 
-            if (waypoint.IsUncoupling)
+            if (isPostCoupleCut && waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
             {
-                builder.AddField($"Count cars from",
-                builder.AddDropdown(new List<string> { "Closest to waypoint", "Furthest from waypoint" }, waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+                builder.AddField("", builder.HStack(row =>
                 {
-                    waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
-                    onWaypointChange(waypoint);
+                    string prefix = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? "Pickup " : "Dropoff ";
+                    AddCarCutButtons(waypoint, row, onWaypointChange, prefix);
+
+                    row.AddButtonCompact("Swap", () =>
+                    {
+                        waypoint.TakeOrLeaveCut =
+                            waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take
+                                ? ManagedWaypoint.PostCoupleCutType.Leave
+                                : ManagedWaypoint.PostCoupleCutType.Take;
+                        onWaypointChange(waypoint);
+                    }).Width(60f);
+                    row.Spacer(8f);
                 }));
+            }
+
+            //
+            // Per-mode extra controls
+            //
+
+            // === UncoupleMode.All: Behind / Front relative to the locomotive ===
+            if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.All)
+            {
+                builder.AddField("Direction",
+                    builder.AddDropdown(
+                        new System.Collections.Generic.List<string> { "Aft", "Fore" },
+                        waypoint.UncoupleAllDirectionSide == ManagedWaypoint.UncoupleAllDirection.Aft ? 0 : 1,
+                        (int idx) =>
+                        {
+                            waypoint.UncoupleAllDirectionSide =
+                                (idx == 0)
+                                    ? ManagedWaypoint.UncoupleAllDirection.Aft
+                                    : ManagedWaypoint.UncoupleAllDirection.Fore;
+                            onWaypointChange(waypoint);
+                        }));
+            }
+            else if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount && !isPostCoupleCut)
+            {
+                // Only NORMAL ByCount shows "closest / furthest from waypoint".
+                builder.AddField($"Count cars from",
+                    builder.AddDropdown(
+                        new System.Collections.Generic.List<string> { "Closest to waypoint", "Furthest from waypoint" },
+                        waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1,
+                        (int value) =>
+                        {
+                            waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
+                            onWaypointChange(waypoint);
+                        }));
+            }
+
+            // === UncoupleMode.ByDestination: destination dropdown + Keep String ===
+            if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByDestination)
+            {
+                string typed = waypoint.UncoupleDestinationId ?? string.Empty;
+
+                // Text box drives the actual matching string
+                var matchField = builder.AddField(
+                    "Waybill",
+                    builder.AddInputField(
+                        typed,
+                        (string value) =>
+                        {
+                            waypoint.UncoupleDestinationId = value ?? string.Empty;
+                            onWaypointChange(waypoint);
+
+                            // Optional: if you want live suggestion updates as you type:
+                            RebuildWithScroll();
+                        },
+                        placeholder: "Type match text (e.g., Whittier)"
+                    ).Width(200f)
+                );
+
+                AddLabelOnlyTooltip(
+                    matchField,
+                    "Waybill",
+                    "This text is used to match car waybill destinations. \n\n" +
+                    "Example: 'Whittier' will match any destination containing 'Whittier'."
+                );
+
+                // Suggestions dropdown filters by what's typed
+                var (destLabels, destIds, selectedIndex) = BuildDestinationChoices(waypoint);
+
+                var suggestionsField = builder.AddField(
+                    "Suggestions",
+                    builder.AddDropdown(destLabels, selectedIndex, (int idx) =>
+                    {
+                        // index 0 is a placeholder row
+                        if (idx <= 0) return;
+
+                        waypoint.UncoupleDestinationId = destIds[idx] ?? string.Empty;
+                        onWaypointChange(waypoint);
+
+                        // Refresh UI so the input shows the full selected value
+                        RebuildWithScroll();
+                    }).Width(200f)
+                );
+
+                AddLabelOnlyTooltip(
+                    suggestionsField,
+                    "Suggestions",
+                    "List of waybill destinations that you can click to select for your cut.\n\n" +
+                    "This list can be filtered by typing in the 'Waybill' field."
+                );
+
+                builder.HStack(row =>
+                {
+                    var keepStringField = row.AddField(
+                        "Keep Matching Cars",
+                        row.AddToggle(
+                            () => waypoint.TakeUncoupledCarsAsActiveCut,
+                            value =>
+                            {
+                                waypoint.TakeUncoupledCarsAsActiveCut = value;
+                                onWaypointChange(waypoint);
+                            })
+                    );
+
+                    AddLabelOnlyTooltip(
+                        keepStringField,
+                        "Keep Matching Cars",
+                        "When ON: the matched destination block\nis treated as the ACTIVE cut\n(kept with the locomotive).\n\n" +
+                        "When OFF: the matched destination block is treated as the INACTIVE cut (dropped)."
+                    );
+
+                    row.Spacer(5f);
+
+                    var findFurthestField = row.AddField(
+                        "Tail End Cut",
+                        row.AddToggle(
+                            () => waypoint.FindDestinationBlockFurthestFromLocomotive,
+                            value =>
+                            {
+                                waypoint.FindDestinationBlockFurthestFromLocomotive = value;
+                                onWaypointChange(waypoint);
+                            })
+                    );
+
+                    AddLabelOnlyTooltip(
+                        findFurthestField,
+                        "Tail End Cut",
+                        "When ON: choose the furthest matching\ndestination block\nfrom the locomotive (tail-end).\n\n" +
+                        "When OFF: choose the closest matching\ndestination block (head-end)."
+                    );
+                });
+            }
+
+            // --- Bleed/handbrakes toggles (show for normal uncouple OR post-couple cut UI) ---
+            bool showUncoupleOptions = isPostCoupleCut
+                ? waypoint.UncoupleByMode != ManagedWaypoint.UncoupleMode.None
+                : waypoint.IsUncoupling;
+
+            if (showUncoupleOptions)
+            {
+                bool alwaysInteract = waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.All
+                                   || waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByDestination;
 
                 if (Loader.Settings.UseCompactLayout)
                 {
-                    builder.HStack(delegate (UIPanelBuilder builder)
+                    builder.HStack(delegate (UIPanelBuilder compactBuilder)
                     {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+                        AddBleedAirAndSetBrakeToggles(waypoint, compactBuilder, onWaypointChange, alwaysInteract);
                     });
                 }
                 else
                 {
-                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange, alwaysInteract);
                 }
 
-                var takeActiveCutField = builder.AddField($"Make uncoupled cars active", builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
+                // Normal-only option: Make uncoupled cars active (NOT for post-couple ByCount)
+                if (!isPostCoupleCut && waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByCount)
                 {
-                    waypoint.TakeUncoupledCarsAsActiveCut = value;
-                    onWaypointChange(waypoint);
-                }));
+                    var takeActiveCutField = builder.AddField($"Make uncoupled cars active",
+                        builder.AddToggle(() => waypoint.TakeUncoupledCarsAsActiveCut, delegate (bool value)
+                        {
+                            waypoint.TakeUncoupledCarsAsActiveCut = value;
+                            onWaypointChange(waypoint);
+                        }));
 
-                AddLabelOnlyTooltip(takeActiveCutField, "Make uncoupled cars active", "If this is active, the number of cars to uncouple will still be part of the active train. " +
-                    "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
-                    "This is particularly useful for local freight switching." +
-                    "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
-                    "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                    AddLabelOnlyTooltip(takeActiveCutField, "Make uncoupled cars active", "If this is active, the number of cars to uncouple will still be part of the active train. " +
+                        "The rest of the train will be treated as an uncoupled cut which may bleed air and apply handbrakes. " +
+                        "This is particularly useful for local freight switching." +
+                        "\n\nA train of 10 cars arrives in Whittier. The 2 cars behind the locomotive need to be delivered. " +
+                        "By checking \"Make uncoupled cars active\", you can order the engineer to travel to a waypoint, uncouple 4 cars including the locomotive and tender, and travel to another waypoint to the industry track to deliver the 2 cars, all while knowing that the rest of the local freight consist has handbrakes applied.");
+                }
             }
+
             if (waypoint.CurrentlyWaitingBeforeCutting)
             {
                 BuildWaitingBeforeCuttingField(builder);
@@ -602,83 +818,38 @@ namespace WaypointQueue
 
         private void BuildPostCouplingCutSection(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            if (!waypoint.ShowPostCouplingCut)
-            {
-                BuildThenPerformCutField(waypoint, builder, onWaypointChange);
-            }
-            else
-            {
-                BuildPostCouplingCutField(waypoint, builder, onWaypointChange);
-            }
-        }
-
-        private UIPanelBuilder BuildThenPerformCutField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
-        {
-            var thenPerformCutField = builder.AddField($"Then perform cut", builder.AddToggle(() => waypoint.ShowPostCouplingCut, delegate (bool value)
-            {
-                waypoint.ShowPostCouplingCut = value;
-                onWaypointChange(waypoint);
-            }));
-
-            AddLabelOnlyTooltip(thenPerformCutField, "Pickup or dropoff", "Enabling this advanced option allows you to perform a cut immediately after coupling in order to pickup or dropoff cars.");
-            return builder;
-        }
-
-        private UIPanelBuilder BuildPostCouplingCutField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
-        {
-            var postCouplingCutField = builder.AddField($"After coupling", builder.HStack(delegate (UIPanelBuilder field)
-            {
-                string prefix = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? "Pickup " : "Dropoff ";
-                AddCarCutButtons(waypoint, field, onWaypointChange, prefix);
-                field.AddButtonCompact("Swap", () =>
+            var thenPerformCutField = builder.AddField($"Then perform cut",
+                builder.AddToggle(() => waypoint.ShowPostCouplingCut, value =>
                 {
-                    waypoint.TakeOrLeaveCut = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? ManagedWaypoint.PostCoupleCutType.Leave : ManagedWaypoint.PostCoupleCutType.Take;
+                    waypoint.ShowPostCouplingCut = value;
+
+                    if (!value)
+                    {
+                        waypoint.NumberOfCarsToCut = 0;
+                        waypoint.CurrentlyWaitingBeforeCutting = false;
+                        waypoint.SecondsSpentWaitingBeforeCut = 0f;
+                        waypoint.UncoupleByMode = ManagedWaypoint.UncoupleMode.None;
+                        waypoint.UncoupleDestinationId = "";
+                        waypoint.TakeUncoupledCarsAsActiveCut = false;
+                    }
+
                     onWaypointChange(waypoint);
-
-                });
-                field.Spacer(8f);
-            }));
-
-            AddLabelOnlyTooltip(postCouplingCutField, "Pickup or dropoff", "After coupling, you can \"Pickup\" or \"Dropoff\" a number of cars relative to the car you are coupling to. " +
-            "This is very useful when queueing switching orders." +
-            "\n\nIf you couple to a cut of 3 cars and \"Pickup\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. " +
-            "You \"Pickup\" cars from the cut you are coupling to." +
-            "\n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Dropoff\" 2 cars and continue to the next queued waypoint. " +
-            "You \"Dropoff\" cars from your current consist." +
-            "\n\nIf you Pickup or Dropoff 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to all cars.");
-
-            if (waypoint.NumberOfCarsToCut > 0)
-            {
-                if (Loader.Settings.UseCompactLayout)
-                {
-                    builder.HStack(delegate (UIPanelBuilder builder)
-                    {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                    });
-                }
-                else
-                {
-                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                }
-            }
-
-            if (waypoint.NumberOfCarsToCut == 0)
-            {
-                builder.AddField("", builder.HStack((UIPanelBuilder field) =>
-                {
-                    field.AddLabel("Will remain coupled to ALL cars", (TMP_Text text) =>
-                    {
-                        text.fontStyle = FontStyles.Bold;
-                    });
+                    RebuildWithScroll();
                 }));
-            }
 
-            if (waypoint.CurrentlyWaitingBeforeCutting)
-            {
-                BuildWaitingBeforeCuttingField(builder);
-            }
+            AddLabelOnlyTooltip(
+                thenPerformCutField,
+                "After coupling",
+                "Perform an uncouple operation immediately after coupling.\n\n" +
+                "All / By Count / By Destination supported.\n" +
+                "By Count uses Pickup/Dropoff logic."
+            );
 
-            return builder;
+            if (!waypoint.ShowPostCouplingCut)
+                return;
+
+            builder.Spacer(8f);
+            BuildUncouplingField(waypoint, builder, onWaypointChange, isPostCoupleCut: true);
         }
 
         private UIPanelBuilder BuildCoupleNearestField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
@@ -745,18 +916,18 @@ namespace WaypointQueue
             }));
         }
 
-        private void AddBleedAirAndSetBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private void AddBleedAirAndSetBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, bool alwaysInteract = false)
         {
             builder.AddField("Bleed air", builder.AddToggle(() => waypoint.BleedAirOnUncouple, delegate (bool value)
             {
                 waypoint.BleedAirOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }, interactable: waypoint.NumberOfCarsToCut > 0 || alwaysInteract));
             builder.AddField("Apply handbrakes", builder.AddToggle(() => waypoint.ApplyHandbrakesOnUncouple, delegate (bool value)
             {
                 waypoint.ApplyHandbrakesOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }, interactable: waypoint.NumberOfCarsToCut > 0 || alwaysInteract));
         }
 
         private void AddCarCutButtons(ManagedWaypoint waypoint, UIPanelBuilder field, Action<ManagedWaypoint> onWaypointChange, string prefix = null)
@@ -1031,6 +1202,86 @@ namespace WaypointQueue
         private void AddLabelOnlyTooltip(IConfigurableElement element, string title, string message)
         {
             element.RectTransform.Find("Label").GetComponent<TMP_Text>().rectTransform.Tooltip(title, message);
+        }
+
+        private static bool _loggedDestinationMapOnce = false;
+
+        private (
+            System.Collections.Generic.List<string> labels,
+            System.Collections.Generic.List<string> destIds,
+            int selectedIndex)
+
+        BuildDestinationChoices(ManagedWaypoint waypoint)
+        {
+            var labels = new System.Collections.Generic.List<string>();
+            var destIds = new System.Collections.Generic.List<string>();
+            int selectedIndex = 0;
+
+            // Placeholder row
+            labels.Add("Select a suggestion...");
+            destIds.Add(null);
+
+            var all = FreightManager.Destinations;
+            if (all == null || all.Count == 0)
+                return (labels, destIds, selectedIndex);
+
+            string filter = (waypoint.UncoupleDestinationId ?? string.Empty).Trim();
+            bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+
+            bool ContainsIgnoreCase(string haystack, string needle)
+            {
+                if (string.IsNullOrEmpty(haystack) || string.IsNullOrEmpty(needle))
+                    return false;
+                return haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase) >= 0;
+            }
+
+            var byKey = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+
+            foreach (var d in all)
+            {
+                string idRaw = d.Id ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(idRaw))
+                    continue;
+
+                string labelRaw = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
+
+                // Normalize Interchange label for display + key
+                string key = labelRaw;
+                string displayLabel = labelRaw;
+
+                int idxInterchange = labelRaw.IndexOf("Interchange", StringComparison.OrdinalIgnoreCase);
+                if (idxInterchange >= 0)
+                {
+                    string baseInterchange = labelRaw.Substring(0, idxInterchange + "Interchange".Length).TrimEnd();
+                    key = baseInterchange;
+                    displayLabel = baseInterchange;
+                }
+
+                if (hasFilter)
+                {
+                    // Filter suggestions using the typed match text
+                    if (!ContainsIgnoreCase(displayLabel, filter) && !ContainsIgnoreCase(key, filter))
+                        continue;
+                }
+
+                if (!byKey.ContainsKey(key))
+                    byKey[key] = displayLabel;
+            }
+
+            foreach (var kvp in byKey.OrderBy(e => e.Value, StringComparer.InvariantCultureIgnoreCase))
+            {
+                labels.Add(kvp.Value);
+                destIds.Add(kvp.Key);
+
+                // Selected index if exact match
+                if (!string.IsNullOrEmpty(waypoint.UncoupleDestinationId) &&
+                    string.Equals(waypoint.UncoupleDestinationId, kvp.Key, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    selectedIndex = labels.Count - 1;
+                }
+            }
+
+            return (labels, destIds, selectedIndex);
         }
     }
 }
