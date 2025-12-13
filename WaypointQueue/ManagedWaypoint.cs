@@ -327,7 +327,7 @@ namespace WaypointQueue
              *  
              *  Infer previous waypoint intention using IsCoupling and SeekNearbyCoupling.
             */
-            if (UncoupleByMode == UncoupleMode.None && !IsCoupling && !SeekNearbyCoupling)
+            if (UncoupleByMode == UncoupleMode.None)
             {
                 /* As of 1.3.4 only ByCount orders need to be updated to the new format
                  * ths condition is separated from the previous statement to simplify 
@@ -336,9 +336,13 @@ namespace WaypointQueue
                  */
 
                 if (NumberOfCarsToCut > 0)
-                {
+                { 
                     UncoupleByMode = UncoupleMode.ByCount;
 
+                    if (IsCoupling || SeekNearbyCoupling)
+                    {
+                        ShowPostCouplingCut = true;
+                    }
                     Loader.LogDebug($"[WaypointQueue] Migrated waypoint {Id} to UncoupleByMode.ByCount (legacy cut count={NumberOfCarsToCut}).");
                 }
             }
