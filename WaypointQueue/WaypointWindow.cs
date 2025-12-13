@@ -654,10 +654,10 @@ namespace WaypointQueue
                 builder.AddField(
                     "Keep String",
                     builder.AddToggle(
-                        () => waypoint.KeepDestinationString,
+                        () => waypoint.TakeUncoupledCarsAsActiveCut,
                         (bool value) =>
                         {
-                            waypoint.KeepDestinationString = value;
+                            waypoint.TakeUncoupledCarsAsActiveCut = value;
                             onWaypointChange(waypoint);
                         })
                 );
