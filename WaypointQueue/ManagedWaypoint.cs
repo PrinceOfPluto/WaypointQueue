@@ -131,6 +131,7 @@ namespace WaypointQueue
         public UncoupleAllDirection UncoupleAllDirectionSide { get; set; } = UncoupleAllDirection.Aft;
 
         public string UncoupleDestinationId { get; set; }
+        public bool FindDestinationBlockFurthestFromLocomotive { get; set; } = false;
 
         [JsonIgnore]
         public bool CanRefuelNearby

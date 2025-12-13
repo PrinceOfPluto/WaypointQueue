@@ -42,7 +42,26 @@ namespace WaypointQueue
         private string _selectedLocomotiveId;
         private Coroutine _coroutine;
         private float _scrollPosition;
-        private string _destinationFilter = string.Empty;
+
+        private readonly Dictionary<string, string> _destinationFilterByWaypointId = new();
+
+        private string GetDestinationFilter(ManagedWaypoint wp)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return string.Empty;
+            return _destinationFilterByWaypointId.TryGetValue(wp.Id, out var v) ? (v ?? string.Empty) : string.Empty;
+        }
+
+        private void SetDestinationFilter(ManagedWaypoint wp, string value)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return;
+            _destinationFilterByWaypointId[wp.Id] = value ?? string.Empty;
+        }
+
+        private void ClearDestinationFilter(ManagedWaypoint wp)
+        {
+            if (wp == null || string.IsNullOrEmpty(wp.Id)) return;
+            _destinationFilterByWaypointId.Remove(wp.Id);
+        }
 
         private void OnEnable()
         {
@@ -245,6 +264,7 @@ namespace WaypointQueue
 
         private void OnWaypointDelete(ManagedWaypoint waypoint)
         {
+            ClearDestinationFilter(waypoint); // prevent stale UI state
             WaypointQueueController.Shared.RemoveWaypoint(waypoint);
         }
 
@@ -620,47 +640,97 @@ namespace WaypointQueue
             // === UncoupleMode.ByDestination: destination dropdown + Keep String ===
             if (waypoint.UncoupleByMode == ManagedWaypoint.UncoupleMode.ByDestination)
             {
-                var (destLabels, destIds, destSelectedIndex) = BuildDestinationChoices(waypoint);
+                string typed = waypoint.UncoupleDestinationId ?? string.Empty;
 
-                builder.AddField(
-                    "",
+                // Text box drives the actual matching string
+                var matchField = builder.AddField(
+                    "Waybill",
                     builder.AddInputField(
-                        _destinationFilter ?? string.Empty,
+                        typed,
                         (string value) =>
                         {
-                            _destinationFilter = value ?? string.Empty;
+                            waypoint.UncoupleDestinationId = value ?? string.Empty;
+                            onWaypointChange(waypoint);
+
+                            // Optional: if you want live suggestion updates as you type:
                             RebuildWithScroll();
                         },
-                        placeholder: "Filter destinations..."
+                        placeholder: "Type match text (e.g., Whittier)"
                     ).Width(200f)
                 );
 
-                builder.AddField(
-                    "Destination",
-                    builder.AddDropdown(destLabels, destSelectedIndex, (int idx) =>
+                AddLabelOnlyTooltip(
+                    matchField,
+                    "Waybill",
+                    "This text is used to match car waybill destinations. \n\n" +
+                    "Example: 'Whittier' will match any destination containing 'Whittier'."
+                );
+
+                // Suggestions dropdown filters by what's typed
+                var (destLabels, destIds, selectedIndex) = BuildDestinationChoices(waypoint);
+
+                var suggestionsField = builder.AddField(
+                    "Suggestions",
+                    builder.AddDropdown(destLabels, selectedIndex, (int idx) =>
                     {
-                        waypoint.UncoupleDestinationId = destIds[idx];
+                        // index 0 is a placeholder row
+                        if (idx <= 0) return;
 
-                        if (idx > 0 && !string.IsNullOrEmpty(_destinationFilter))
-                        {
-                            _destinationFilter = string.Empty;
-                            RebuildWithScroll();
-                        }
-
+                        waypoint.UncoupleDestinationId = destIds[idx] ?? string.Empty;
                         onWaypointChange(waypoint);
+
+                        // Refresh UI so the input shows the full selected value
+                        RebuildWithScroll();
                     }).Width(200f)
                 );
 
-                builder.AddField(
-                    "Keep String",
-                    builder.AddToggle(
-                        () => waypoint.TakeUncoupledCarsAsActiveCut,
-                        (bool value) =>
-                        {
-                            waypoint.TakeUncoupledCarsAsActiveCut = value;
-                            onWaypointChange(waypoint);
-                        })
+                AddLabelOnlyTooltip(
+                    suggestionsField,
+                    "Suggestions",
+                    "List of waybill destinations that you can click to select for your cut.\n\n" +
+                    "This list can be filtered by typing in the 'Waybill' field."
                 );
+
+                builder.HStack(row =>
+                {
+                    var keepStringField = row.AddField(
+                        "Keep Matching Cars",
+                        row.AddToggle(
+                            () => waypoint.TakeUncoupledCarsAsActiveCut,
+                            value =>
+                            {
+                                waypoint.TakeUncoupledCarsAsActiveCut = value;
+                                onWaypointChange(waypoint);
+                            })
+                    );
+
+                    AddLabelOnlyTooltip(
+                        keepStringField,
+                        "Keep Matching Cars",
+                        "When ON: the matched destination block\nis treated as the ACTIVE cut\n(kept with the locomotive).\n\n" +
+                        "When OFF: the matched destination block is treated as the INACTIVE cut (dropped)."
+                    );
+
+                    row.Spacer(5f);
+
+                    var findFurthestField = row.AddField(
+                        "Tail End Cut",
+                        row.AddToggle(
+                            () => waypoint.FindDestinationBlockFurthestFromLocomotive,
+                            value =>
+                            {
+                                waypoint.FindDestinationBlockFurthestFromLocomotive = value;
+                                onWaypointChange(waypoint);
+                            })
+                    );
+
+                    AddLabelOnlyTooltip(
+                        findFurthestField,
+                        "Tail End Cut",
+                        "When ON: choose the furthest matching\ndestination block\nfrom the locomotive (tail-end).\n\n" +
+                        "When OFF: choose the closest matching\ndestination block (head-end)."
+                    );
+                });
             }
 
             if (waypoint.IsUncoupling)
@@ -1170,54 +1240,23 @@ namespace WaypointQueue
             var destIds = new System.Collections.Generic.List<string>();
             int selectedIndex = 0;
 
-            labels.Add("Select destination");
+            // Placeholder row
+            labels.Add("Select a suggestion...");
             destIds.Add(null);
 
             var all = FreightManager.Destinations;
             if (all == null || all.Count == 0)
-            {
                 return (labels, destIds, selectedIndex);
-            }
 
-            if (!_loggedDestinationMapOnce)
-            {
-                try
-                {
-                    var debugMap = new Dictionary<string, HashSet<string>>(StringComparer.InvariantCultureIgnoreCase);
-
-                    foreach (var d in all)
-                    {
-                        string idRaw = d.Id ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(idRaw))
-                            continue;
-
-                        string labelForDropdown = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
-
-                        if (!debugMap.TryGetValue(labelForDropdown, out var set))
-                        {
-                            set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            debugMap[labelForDropdown] = set;
-                        }
-
-                        set.Add(idRaw);
-                    }
-
-                    foreach (var kvp in debugMap.OrderBy(k => k.Key, StringComparer.InvariantCultureIgnoreCase))
-                    {
-                        string idsJoined = string.Join(", ", kvp.Value);
-                        Loader.LogDebug($"[FreightManager] Destination label '{kvp.Key}' is backed by Ops Ids: {idsJoined}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Loader.Log($"[FreightManager] Error logging destination map: {ex}");
-                }
-
-                _loggedDestinationMapOnce = true;
-            }
-
-            string filter = _destinationFilter ?? string.Empty;
+            string filter = (waypoint.UncoupleDestinationId ?? string.Empty).Trim();
             bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+
+            bool ContainsIgnoreCase(string haystack, string needle)
+            {
+                if (string.IsNullOrEmpty(haystack) || string.IsNullOrEmpty(needle))
+                    return false;
+                return haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase) >= 0;
+            }
 
             var byKey = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
@@ -1229,48 +1268,37 @@ namespace WaypointQueue
 
                 string labelRaw = string.IsNullOrWhiteSpace(d.Label) ? idRaw : d.Label;
 
-                if (hasFilter)
-                {
-                    bool labelMatch = labelRaw.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
-                    bool idMatch = idRaw.IndexOf(filter, StringComparison.InvariantCultureIgnoreCase) >= 0;
-
-                    if (!labelMatch && !idMatch)
-                    {
-                        continue;
-                    }
-                }
-
-                //Normalize key & display label for any "Interchange" label
+                // Normalize Interchange label for display + key
                 string key = labelRaw;
                 string displayLabel = labelRaw;
 
                 int idxInterchange = labelRaw.IndexOf("Interchange", StringComparison.OrdinalIgnoreCase);
                 if (idxInterchange >= 0)
                 {
-                    // Base becomes "____ Interchange"
                     string baseInterchange = labelRaw.Substring(0, idxInterchange + "Interchange".Length).TrimEnd();
+                    key = baseInterchange;
+                    displayLabel = baseInterchange;
+                }
 
-                    key = baseInterchange;          // stored in UncoupleDestinationId
-                    displayLabel = baseInterchange; // ALWAYS show just "____ Interchange"
+                if (hasFilter)
+                {
+                    // Filter suggestions using the typed match text
+                    if (!ContainsIgnoreCase(displayLabel, filter) && !ContainsIgnoreCase(key, filter))
+                        continue;
                 }
 
                 if (!byKey.ContainsKey(key))
-                {
                     byKey[key] = displayLabel;
-                }
             }
 
-            // Sort by display label
             foreach (var kvp in byKey.OrderBy(e => e.Value, StringComparer.InvariantCultureIgnoreCase))
             {
-                string key = kvp.Key;           // e.g. "Sylva Interchange"
-                string displayLabel = kvp.Value;
+                labels.Add(kvp.Value);
+                destIds.Add(kvp.Key);
 
-                labels.Add(displayLabel);
-                destIds.Add(key);               // stored on waypoint.UncoupleDestinationId
-
+                // Selected index if exact match
                 if (!string.IsNullOrEmpty(waypoint.UncoupleDestinationId) &&
-                    string.Equals(waypoint.UncoupleDestinationId, key, StringComparison.InvariantCultureIgnoreCase))
+                    string.Equals(waypoint.UncoupleDestinationId, kvp.Key, StringComparison.InvariantCultureIgnoreCase))
                 {
                     selectedIndex = labels.Count - 1;
                 }

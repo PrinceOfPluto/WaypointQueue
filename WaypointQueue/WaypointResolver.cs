@@ -1374,20 +1374,20 @@ namespace WaypointQueue
         private static bool TryFindDestinationBlockOnSide(
             List<Car> sideCars,
             string destinationKey,
+            bool pickLastBlock,
             out int startIndex,
             out int endIndex)
         {
             startIndex = -1;
             endIndex = -1;
 
-            if (sideCars == null || sideCars.Count == 0 || string.IsNullOrEmpty(destinationKey))
+            if (sideCars == null || sideCars.Count == 0)
                 return false;
 
-            string keyNorm = destinationKey.Trim();
+            string keyNorm = (destinationKey ?? string.Empty).Trim();
             if (keyNorm.Length == 0)
                 return false;
 
-            // All Ops Ids that back this label in FreightManager
             var opsIdsForLabel = FreightManager
                 .GetOpsIdsForLabel(keyNorm)
                 .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
@@ -1400,49 +1400,90 @@ namespace WaypointQueue
                 return haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase) >= 0;
             }
 
+            int bestStart = -1;
+            int bestEnd = -1;
+
+            int currentStart = -1;
+            int currentEnd = -1;
+
+            void CommitCurrentBlock()
+            {
+                if (currentStart == -1) return;
+
+                if (!pickLastBlock)
+                {
+                    // keep first block only
+                    if (bestStart == -1)
+                    {
+                        bestStart = currentStart;
+                        bestEnd = currentEnd;
+                    }
+                }
+                else
+                {
+                    // keep overwriting so we end up with the last block
+                    bestStart = currentStart;
+                    bestEnd = currentEnd;
+                }
+
+                currentStart = -1;
+                currentEnd = -1;
+            }
+
             for (int i = 0; i < sideCars.Count; i++)
             {
                 Car car = sideCars[i];
-                if (!car.Waybill.HasValue)
+
+                bool matches = false;
+
+                if (car.Waybill.HasValue)
                 {
-                    if (startIndex != -1)
-                        break;
-                    continue;
+                    var wb = car.Waybill.Value;
+                    string raw = (wb.Destination.ToString() ?? string.Empty).Trim();
+                    string baseKey = GetDestinationBaseKeyFromWaybill(wb);
+
+                    bool labelExactMatch =
+                        string.Equals(raw, keyNorm, StringComparison.InvariantCultureIgnoreCase) ||
+                        (!string.IsNullOrEmpty(baseKey) &&
+                         string.Equals(baseKey, keyNorm, StringComparison.InvariantCultureIgnoreCase));
+
+                    bool typedSubstringMatch =
+                        ContainsIgnoreCase(raw, keyNorm) ||
+                        (!string.IsNullOrEmpty(baseKey) && ContainsIgnoreCase(baseKey, keyNorm));
+
+                    bool opsIdMatch =
+                        opsIdsForLabel.Count > 0 &&
+                        opsIdsForLabel.Any(id =>
+                            ContainsIgnoreCase(raw, id) ||
+                            (!string.IsNullOrEmpty(baseKey) && ContainsIgnoreCase(baseKey, id)));
+
+                    matches = labelExactMatch || typedSubstringMatch || opsIdMatch;
                 }
 
-                var wb = car.Waybill.Value;
-                string raw = wb.Destination.ToString() ?? string.Empty;
-                string rawNorm = raw.Trim();
-
-                string baseKey = GetDestinationBaseKeyFromWaybill(wb);
-
-                // Existing label-based behavior (exact matches)
-                bool labelMatch =
-                    string.Equals(rawNorm, keyNorm, StringComparison.InvariantCultureIgnoreCase) ||
-                    (!string.IsNullOrEmpty(baseKey) &&
-                     string.Equals(baseKey, keyNorm, StringComparison.InvariantCultureIgnoreCase));
-
-                // NEW: substring check against any Ops Id backing this label
-                bool opsIdMatch =
-                    opsIdsForLabel.Count > 0 &&
-                    opsIdsForLabel.Any(id =>
-                        ContainsIgnoreCase(rawNorm, id) ||
-                        (!string.IsNullOrEmpty(baseKey) && ContainsIgnoreCase(baseKey, id)));
-
-                bool matches = labelMatch || opsIdMatch;
-
-                if (!matches)
+                if (matches)
                 {
-                    if (startIndex != -1)
-                        break; // already in a contiguous block, this breaks it
-                    continue;
+                    if (currentStart == -1) currentStart = i;
+                    currentEnd = i;
                 }
+                else
+                {
+                    if (currentStart != -1)
+                    {
+                        CommitCurrentBlock();
 
-                if (startIndex == -1)
-                    startIndex = i;
-
-                endIndex = i;
+                        // if we only want the first block, we're done as soon as we find it
+                        if (!pickLastBlock && bestStart != -1)
+                            break;
+                    }
+                }
             }
+
+            // handle a block that runs to the end
+            if (currentStart != -1)
+                CommitCurrentBlock();
+
+            startIndex = bestStart;
+            endIndex = bestEnd;
 
             return startIndex != -1 && endIndex >= startIndex;
         }
@@ -1524,13 +1565,41 @@ namespace WaypointQueue
 
             (List<Car> list, LogicalEnd side, int start, int end)? best = null;
 
+            bool pickFurthest = waypoint.FindDestinationBlockFurthestFromLocomotive;
+
             void ConsiderSide(List<Car> list, LogicalEnd side)
             {
                 if (list == null || list.Count == 0) return;
 
-                if (TryFindDestinationBlockOnSide(list, destKey, out int startIndex, out int endIndex))
+                if (!TryFindDestinationBlockOnSide(
+                        list,
+                        destKey,
+                        pickLastBlock: waypoint.FindDestinationBlockFurthestFromLocomotive,
+                        out int startIndex,
+                        out int endIndex))
                 {
-                    if (best == null || startIndex < best.Value.start)
+                    return; // nothing found on this side
+                }
+
+                if (best == null)
+                {
+                    best = (list, side, startIndex, endIndex);
+                    return;
+                }
+
+                // Primary: choose closest vs furthest by comparing startIndex
+                if (!pickFurthest)
+                {
+                    if (startIndex < best.Value.start ||
+                        (startIndex == best.Value.start && endIndex > best.Value.end))
+                    {
+                        best = (list, side, startIndex, endIndex);
+                    }
+                }
+                else
+                {
+                    if (startIndex > best.Value.start ||
+                        (startIndex == best.Value.start && endIndex > best.Value.end))
                     {
                         best = (list, side, startIndex, endIndex);
                     }
