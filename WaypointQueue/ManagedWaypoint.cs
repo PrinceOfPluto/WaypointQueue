@@ -3,6 +3,7 @@ using Model;
 using Model.Ops;
 using Newtonsoft.Json;
 using System;
+using System.Runtime.Serialization;
 using Track;
 using UI.EngineControls;
 using UnityEngine;
@@ -92,7 +93,7 @@ namespace WaypointQueue
         {
             get
             {
-                if (IsCoupling) return false;
+                if (IsCoupling || SeekNearbyCoupling) return false;
 
                 switch (UncoupleByMode)
                 {
@@ -130,7 +131,6 @@ namespace WaypointQueue
         public UncoupleAllDirection UncoupleAllDirectionSide { get; set; } = UncoupleAllDirection.Aft;
 
         public string UncoupleDestinationId { get; set; }
-        public bool KeepDestinationString { get; set; } = false;
 
         [JsonIgnore]
         public bool CanRefuelNearby
@@ -311,6 +311,36 @@ namespace WaypointQueue
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
+        }
+
+
+        [OnDeserialized]
+        internal void OnDeserialized(StreamingContext _)
+        {
+            /* Use legacy fields to ensure backwards compatability with old waypoints on new version.
+             * 
+             * ---- UncoupleByMode Section (for Ver <= 1.3.4) ----
+             *  
+             *  if a given waypoint was saved prior to uncoupleByMode 
+             *  the default uncoupleByMode will be set to 'None'.
+             *  
+             *  Infer previous waypoint intention using IsCoupling and SeekNearbyCoupling.
+            */
+            if (UncoupleByMode == UncoupleMode.None && !IsCoupling && !SeekNearbyCoupling)
+            {
+                /* As of 1.3.4 only ByCount orders need to be updated to the new format
+                 * ths condition is separated from the previous statement to simplify 
+                 * future edits / establish the format to this section in order to update 
+                 * other modes if needs be in future versions.
+                 */
+
+                if (NumberOfCarsToCut > 0)
+                {
+                    UncoupleByMode = UncoupleMode.ByCount;
+
+                    Loader.LogDebug($"[WaypointQueue] Migrated waypoint {Id} to UncoupleByMode.ByCount (legacy cut count={NumberOfCarsToCut}).");
+                }
+            }
         }
     }
 
