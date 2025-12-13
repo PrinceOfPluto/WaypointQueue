@@ -132,6 +132,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PatchAutoEngineerDestinationPicker.cs" />
     <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="PatchPopulateOperationsPanel.cs" />
