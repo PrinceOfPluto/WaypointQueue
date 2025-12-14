@@ -569,6 +569,7 @@ namespace WaypointQueue
                         }
                         break;
                     }
+                    waypoint.LoadMiscProperties();
 
                     validWaypoints.Add(waypoint);
                 }

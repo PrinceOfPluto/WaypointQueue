@@ -25,7 +25,7 @@ namespace WaypointQueue
                 {
                     try
                     {
-                        wp?.Load();
+                        wp?.LoadForRoute();
                     }
                     catch (Exception ex)
                     {

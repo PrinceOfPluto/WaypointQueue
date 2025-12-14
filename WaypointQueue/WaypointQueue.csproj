@@ -132,6 +132,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WaypointCarPicker.cs" />
+    <Compile Include="PatchCarPickable.cs" />
     <Compile Include="PatchAutoEngineerDestinationPicker.cs" />
     <Compile Include="PatchAutoEngineerPlanner.cs" />
     <Compile Include="PatchAutoEngineerWaypointControls.cs" />

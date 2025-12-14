@@ -315,7 +315,12 @@ namespace WaypointQueue
 
                 if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
                 {
-                    BuildCoupleNearestField(waypoint, builder, onWaypointChange);
+                    BuildCouplingModeField(waypoint, builder, onWaypointChange);
+                }
+
+                if (waypoint.CouplingSearchMode == ManagedWaypoint.CoupleSearchMode.SpecificCar)
+                {
+                    BuildCouplingSearchField(waypoint, builder, onWaypointChange);
                 }
 
                 if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling && !waypoint.MoveTrainPastWaypoint)
@@ -681,16 +686,106 @@ namespace WaypointQueue
             return builder;
         }
 
-        private UIPanelBuilder BuildCoupleNearestField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildCouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var coupleNearbyField = builder.AddField($"Couple nearest", builder.AddToggle(() => waypoint.SeekNearbyCoupling, delegate (bool value)
+            var couplingModeField = builder.AddField($"Then couple", builder.AddDropdown(["None", "To nearest car", "To a specific car"], (int)waypoint.CouplingSearchMode, (int value) =>
             {
-                waypoint.SeekNearbyCoupling = value;
-                waypoint.StopAtWaypoint = true;
+                switch (value)
+                {
+                    case (int)ManagedWaypoint.CoupleSearchMode.None:
+                        waypoint.CoupleToCarId = null;
+                        waypoint.CoupleToCar = null;
+                        waypoint.SeekNearbyCoupling = false;
+                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                        break;
+                    case (int)ManagedWaypoint.CoupleSearchMode.Nearest:
+                        waypoint.SeekNearbyCoupling = true;
+                        waypoint.StopAtWaypoint = true;
+                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.Nearest;
+                        break;
+                    case (int)ManagedWaypoint.CoupleSearchMode.SpecificCar:
+                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.SpecificCar;
+                        break;
+                    default:
+                        break;
+                }
                 onWaypointChange(waypoint);
             }));
 
-            AddLabelOnlyTooltip(coupleNearbyField, "Couple nearest", "Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius.\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. You can configure the search radius in the mod settings.");
+            string tooltipTitle = "Coupling mode";
+            string coupleNearestTooltipBody = "Nearest\n\nUpon arriving at this waypoint, the engineer will couple to the nearest car within the search radius." +
+                "\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. " +
+                "You can configure the search radius in the mod settings.";
+            string specificCarTooltipBody = "Specific car\n\nAllows you to choose a specific car to couple to after arriving at the waypoint.";
+
+            AddLabelOnlyTooltip(couplingModeField, tooltipTitle, $"{coupleNearestTooltipBody}\n\n{specificCarTooltipBody}");
+            return builder;
+        }
+
+        private UIPanelBuilder BuildCouplingSearchField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            var searchForCarField = builder.AddField("Search for car", builder.HStack(builder =>
+            {
+                builder.VStack(builder =>
+                {
+                    builder.HStack(field =>
+                    {
+                        field.AddInputField(waypoint.CouplingSearchText, (string value) =>
+                        {
+                            waypoint.CouplingSearchText = value;
+                            waypoint.TryResolveCouplingSearchText(out Car foundCar);
+                            onWaypointChange(waypoint);
+                        }, "Enter car id").FlexibleWidth();
+
+                        field.Spacer();
+
+                        field.AddButton("Clear", () =>
+                        {
+                            waypoint.CouplingSearchText = "";
+                            waypoint.CouplingSearchResultCar = null;
+                            onWaypointChange(waypoint);
+                        });
+
+                    });
+
+                    builder.Spacer(8f);
+
+                    builder.HStack(field =>
+                    {
+                        field.AddButton("Select by click", () =>
+                        {
+                            WaypointCarPicker.Shared.StartPickingCar(waypoint, onWaypointChange);
+                        });
+                        field.AddButton("Jump to", () =>
+                        {
+                            CameraSelector.shared.JumpToPoint(waypoint.CouplingSearchResultCar.OpsLocation.GetPosition(), waypoint.CouplingSearchResultCar.OpsLocation.GetRotation(), CameraSelector.CameraIdentifier.Strategy);
+                        }).Disable(waypoint.CouplingSearchResultCar == null);
+                    });
+
+                    builder.Spacer(8f);
+
+                    builder.HStack(field =>
+                    {
+                        string searchResult = "Search or select a car";
+                        if (waypoint.CouplingSearchResultCar != null)
+                        {
+                            searchResult = $"Couple to {waypoint.CouplingSearchResultCar.Ident}";
+                        }
+                        else if (waypoint.CouplingSearchText.Length > 0)
+                        {
+                            searchResult = $"Cannot find \"{waypoint.CouplingSearchText}\"";
+                        }
+                        if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
+                        {
+                            searchResult += $"\nWarning! Neither end of the car is currently free to couple";
+                        }
+                        field.AddLabel(searchResult);
+                    });
+                });
+            }));
+
+            builder.Spacer(8f);
+
             return builder;
         }
 

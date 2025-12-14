@@ -45,6 +45,14 @@ namespace WaypointQueue
             Today,
             Tomorrow
         }
+
+        public enum CoupleSearchMode
+        {
+            None,
+            Nearest,
+            SpecificCar
+        }
+
         [JsonProperty]
         public string Id { get; private set; } = Guid.NewGuid().ToString();
 
@@ -132,8 +140,14 @@ namespace WaypointQueue
         public double WaitUntilGameTotalSeconds { get; set; }
         public bool StopAtWaypoint { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
+
+        public CoupleSearchMode CouplingSearchMode { get; set; } = CoupleSearchMode.None;
         public bool SeekNearbyCoupling { get; set; }
         public bool CurrentlyCouplingNearby { get; set; }
+        public string CouplingSearchText { get; set; }
+        [JsonIgnore]
+        public Car CouplingSearchResultCar { get; set; }
+
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
 
@@ -151,10 +165,24 @@ namespace WaypointQueue
             return TryResolveLocation(out Location loc) && TryResolveLocomotive(out Car loco);
         }
 
-        public void Load()
+        public void LoadForRoute()
         {
             TryResolveLocation(out Location loc);
-            TryResolveLocomotive(out Car loco);
+
+            LoadMiscProperties();
+        }
+
+        public void LoadMiscProperties()
+        {
+            if (SeekNearbyCoupling)
+            {
+                CouplingSearchMode = CoupleSearchMode.Nearest;
+            }
+
+            if (!string.IsNullOrEmpty(CouplingSearchText))
+            {
+                TryResolveCouplingSearchText(out Car _);
+            }
 
             if (IsCoupling && NumberOfCarsToCut > 0)
             {
@@ -216,6 +244,20 @@ namespace WaypointQueue
             car = null;
             return false;
         }
+
+        public bool TryResolveCouplingSearchText(out Car car)
+        {
+            if (String.IsNullOrEmpty(CouplingSearchText))
+            {
+                car = null;
+                return false;
+            }
+
+            CouplingSearchResultCar = TrainController.Shared.CarForString(CouplingSearchText);
+            car = CouplingSearchResultCar;
+            return car != null;
+        }
+
         public void SetTargetSpeedToOrdersMax()
         {
             if (Locomotive != null)
