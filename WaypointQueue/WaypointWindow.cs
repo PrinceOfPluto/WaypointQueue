@@ -292,23 +292,24 @@ namespace WaypointQueue
                     BuildTrainSymbolField(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
+                if (!waypoint.IsCoupling)
                 {
                     BuildStopAtWaypointField(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling)
+                if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling)
                 {
                     BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
                 }
 
                 BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
 
-                if ((waypoint.IsCoupling || waypoint.SeekNearbyCoupling) && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint)
+                if (waypoint.IsCoupling && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingFieldSection(waypoint, builder, onWaypointChange);
                 }
-                else if (!waypoint.CurrentlyWaiting)
+
+                if (!waypoint.HasAnyCouplingOrders && !waypoint.CurrentlyWaiting)
                 {
                     BuildUncouplingField(waypoint, builder, onWaypointChange);
                 }
@@ -318,12 +319,22 @@ namespace WaypointQueue
                     BuildCouplingModeField(waypoint, builder, onWaypointChange);
                 }
 
-                if (waypoint.CouplingSearchMode == ManagedWaypoint.CoupleSearchMode.SpecificCar)
+                if (!waypoint.IsCoupling && waypoint.WillCoupleSpecificCar)
                 {
                     BuildCouplingSearchField(waypoint, builder, onWaypointChange);
                 }
 
-                if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.IsCoupling && !waypoint.SeekNearbyCoupling && !waypoint.MoveTrainPastWaypoint)
+                if ((waypoint.WillCoupleNearby || waypoint.WillCoupleSpecificCar) && !waypoint.IsCoupling && !waypoint.CurrentlyWaiting)
+                {
+                    BuildCouplingFieldSection(waypoint, builder, onWaypointChange);
+                }
+
+                if (waypoint.HasAnyCouplingOrders && !waypoint.CurrentlyWaiting)
+                {
+                    BuildPostCouplingCutSection(waypoint, builder, onWaypointChange);
+                }
+
+                if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.HasAnyCouplingOrders && !waypoint.MoveTrainPastWaypoint)
                 {
                     BuildRefuelField(waypoint, builder, onWaypointChange);
                 }
@@ -503,27 +514,28 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildCouplingFieldSection(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            if (waypoint.IsCoupling)
+            builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
             {
-                builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
+                string labelText = "Failed to find car";
+                if (waypoint.CoupleToCar != null)
                 {
-                    if (waypoint.TryResolveCoupleToCar(out Car coupleToCar))
-                    {
-                        field.AddLabel(coupleToCar.Ident.ToString());
-                    }
-                    else
-                    {
-                        field.AddLabel("Failed to find car");
-                    }
-                }));
-            }
-            else if (waypoint.SeekNearbyCoupling)
-            {
-                builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
+                    labelText = waypoint.CoupleToCar.Ident.ToString();
+                }
+                else if (waypoint.CouplingSearchResultCar != null)
                 {
-                    field.AddLabel("Nearest car upon arrival");
-                }));
-            }
+                    labelText = waypoint.CouplingSearchResultCar.Ident.ToString();
+                }
+                else if (waypoint.WillCoupleSpecificCar && string.IsNullOrEmpty(waypoint.CouplingSearchText))
+                {
+                    labelText = "None";
+                }
+                else if (waypoint.WillCoupleNearby)
+                {
+                    labelText = "Nearest car upon arrival";
+                }
+
+                field.AddLabel(labelText);
+            }));
 
             if (Loader.Settings.UseCompactLayout)
             {
@@ -537,7 +549,6 @@ namespace WaypointQueue
                 AddConnectAirAndReleaseBrakeToggles(waypoint, builder, onWaypointChange);
             }
 
-            BuildPostCouplingCutSection(waypoint, builder, onWaypointChange);
 
             return builder;
         }
@@ -690,25 +701,7 @@ namespace WaypointQueue
         {
             var couplingModeField = builder.AddField($"Then couple", builder.AddDropdown(["None", "To nearest car", "To a specific car"], (int)waypoint.CouplingSearchMode, (int value) =>
             {
-                switch (value)
-                {
-                    case (int)ManagedWaypoint.CoupleSearchMode.None:
-                        waypoint.CoupleToCarId = null;
-                        waypoint.CoupleToCar = null;
-                        waypoint.SeekNearbyCoupling = false;
-                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
-                        break;
-                    case (int)ManagedWaypoint.CoupleSearchMode.Nearest:
-                        waypoint.SeekNearbyCoupling = true;
-                        waypoint.StopAtWaypoint = true;
-                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.Nearest;
-                        break;
-                    case (int)ManagedWaypoint.CoupleSearchMode.SpecificCar:
-                        waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.SpecificCar;
-                        break;
-                    default:
-                        break;
-                }
+                waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)value;
                 onWaypointChange(waypoint);
             }));
 
@@ -724,67 +717,61 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildCouplingSearchField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var searchForCarField = builder.AddField("Search for car", builder.HStack(builder =>
+            var searchForCarField = builder.AddField("Search for car", builder.HStack(field =>
             {
-                builder.VStack(builder =>
+                field.AddInputField(waypoint.CouplingSearchText ?? "", (string value) =>
                 {
-                    builder.HStack(field =>
-                    {
-                        field.AddInputField(waypoint.CouplingSearchText, (string value) =>
-                        {
-                            waypoint.CouplingSearchText = value;
-                            waypoint.TryResolveCouplingSearchText(out Car foundCar);
-                            onWaypointChange(waypoint);
-                        }, "Enter car id").FlexibleWidth();
+                    waypoint.CouplingSearchText = value;
+                    waypoint.TryResolveCouplingSearchText(out Car foundCar);
+                    onWaypointChange(waypoint);
+                }, "Enter car id").FlexibleWidth();
 
-                        field.Spacer();
+                field.Spacer();
 
-                        field.AddButton("Clear", () =>
-                        {
-                            waypoint.CouplingSearchText = "";
-                            waypoint.CouplingSearchResultCar = null;
-                            onWaypointChange(waypoint);
-                        });
-
-                    });
-
-                    builder.Spacer(8f);
-
-                    builder.HStack(field =>
-                    {
-                        field.AddButton("Select by click", () =>
-                        {
-                            WaypointCarPicker.Shared.StartPickingCar(waypoint, onWaypointChange);
-                        });
-                        field.AddButton("Jump to", () =>
-                        {
-                            CameraSelector.shared.JumpToPoint(waypoint.CouplingSearchResultCar.OpsLocation.GetPosition(), waypoint.CouplingSearchResultCar.OpsLocation.GetRotation(), CameraSelector.CameraIdentifier.Strategy);
-                        }).Disable(waypoint.CouplingSearchResultCar == null);
-                    });
-
-                    builder.Spacer(8f);
-
-                    builder.HStack(field =>
-                    {
-                        string searchResult = "Search or select a car";
-                        if (waypoint.CouplingSearchResultCar != null)
-                        {
-                            searchResult = $"Couple to {waypoint.CouplingSearchResultCar.Ident}";
-                        }
-                        else if (waypoint.CouplingSearchText.Length > 0)
-                        {
-                            searchResult = $"Cannot find \"{waypoint.CouplingSearchText}\"";
-                        }
-                        if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
-                        {
-                            searchResult += $"\nWarning! Neither end of the car is currently free to couple";
-                        }
-                        field.AddLabel(searchResult);
-                    });
+                field.AddButton("Clear", () =>
+                {
+                    waypoint.CouplingSearchText = "";
+                    waypoint.CouplingSearchResultCar = null;
+                    onWaypointChange(waypoint);
                 });
             }));
 
             builder.Spacer(8f);
+
+            var buttonsField = builder.AddField("", builder.HStack(field =>
+            {
+                field.AddButton("Select by click", () =>
+                {
+                    WaypointCarPicker.Shared.StartPickingCar(waypoint, onWaypointChange);
+                });
+                field.AddButton("Jump to", () =>
+                {
+                    if (waypoint.CouplingSearchResultCar != null)
+                    {
+                        CameraSelector.shared.JumpToPoint(waypoint.CouplingSearchResultCar.OpsLocation.GetPosition(), waypoint.CouplingSearchResultCar.OpsLocation.GetRotation(), CameraSelector.CameraIdentifier.Strategy);
+                    }
+                }).Disable(waypoint.CouplingSearchResultCar == null);
+            }));
+
+            builder.Spacer(8f);
+
+            var labelField = builder.AddField("Search result", builder.HStack(field =>
+            {
+                string searchResult = "Search or select a car";
+                if (waypoint.CouplingSearchResultCar != null)
+                {
+                    searchResult = $"Found {waypoint.CouplingSearchResultCar.Ident}";
+                }
+                else if (!string.IsNullOrEmpty(waypoint.CouplingSearchText))
+                {
+                    searchResult = $"Cannot find \"{waypoint.CouplingSearchText}\"";
+                }
+                if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
+                {
+                    searchResult += $"\nWarning! Neither end of the car is currently free to couple";
+                }
+                field.AddLabel(searchResult);
+            }));
 
             return builder;
         }

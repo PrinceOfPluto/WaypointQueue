@@ -48,6 +48,36 @@ namespace WaypointQueue
                     }
                 }
 
+                // TODO: refactor TryHandleUnresolvedWaypoint to
+                // avoid handling orders like this when not stopping at a waypoint
+
+                // Try to begin nearby coupling
+                if (wp.WillCoupleNearby && !wp.CurrentlyCouplingNearby)
+                {
+                    if (FindNearbyCoupling(wp, ordersHelper))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                        Toast.Present($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                    }
+                }
+
+                // Try coupling to target
+                if (wp.WillCoupleSpecificCar && !wp.CurrentlyCouplingSpecificCar)
+                {
+                    if (FindSpecificCouplingTarget(wp, ordersHelper))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                    }
+                }
+
                 ResolveUncouplingOrders(wp);
                 return true;
             }
@@ -73,7 +103,7 @@ namespace WaypointQueue
             }
 
             // Try to begin nearby coupling
-            if (wp.SeekNearbyCoupling && !wp.CurrentlyCouplingNearby)
+            if (wp.WillCoupleNearby && !wp.CurrentlyCouplingNearby)
             {
                 if (FindNearbyCoupling(wp, ordersHelper))
                 {
@@ -81,8 +111,21 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    wp.SeekNearbyCoupling = false;
+                    wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                     Toast.Present($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                }
+            }
+
+            // Try coupling to target
+            if (wp.WillCoupleSpecificCar && !wp.CurrentlyCouplingSpecificCar)
+            {
+                if (FindSpecificCouplingTarget(wp, ordersHelper))
+                {
+                    return false;
+                }
+                else
+                {
+                    wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                 }
             }
 
@@ -171,7 +214,7 @@ namespace WaypointQueue
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Reposition to refuel
-            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.SeekNearbyCoupling && !wp.MoveTrainPastWaypoint)
+            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.WillCoupleNearby && !wp.WillCoupleSpecificCar && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
                 return false;
@@ -301,7 +344,9 @@ namespace WaypointQueue
             }
             if (bestMatchCar != null)
             {
+                wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                 wp.CoupleToCarId = bestMatchCar.id;
+                wp.StopAtWaypoint = true;
                 wp.CurrentlyCouplingNearby = true;
                 wp.StatusLabel = "Moving to couple nearby";
 
@@ -318,6 +363,71 @@ namespace WaypointQueue
             Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
 
             return false;
+        }
+
+        private static bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Car targetCar = waypoint.CouplingSearchResultCar;
+            if (targetCar == null && !waypoint.TryResolveCouplingSearchText(out targetCar))
+            {
+                Toast.Present($"Cannot find valid car matching \"{waypoint.CouplingSearchText}\" for {waypoint.Locomotive.Ident} to couple");
+                return false;
+            }
+
+            LogicalEnd nearestEnd = ClosestLogicalEndTo(targetCar, waypoint.Locomotive.OpsLocation);
+
+            Location bestLocation;
+
+            if (!targetCar[nearestEnd].IsCoupled)
+            {
+                Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
+                bestLocation = GetCouplerLocation(targetCar, nearestEnd);
+            }
+            else if (!targetCar[GetOppositeEnd(nearestEnd)].IsCoupled)
+            {
+                Loader.Log($"Furthest end of {targetCar.Ident} is available to couple");
+                bestLocation = GetCouplerLocation(targetCar, GetOppositeEnd(nearestEnd));
+            }
+            else
+            {
+                Loader.Log($"Both ends of {targetCar.Ident} are unavailable to couple");
+                Toast.Present($"{waypoint.Locomotive.Ident} coupling to {targetCar.Ident} is blocked");
+                return false;
+            }
+
+            if (bestLocation.IsValid)
+            {
+
+                waypoint.StatusLabel = $"Moving to couple {targetCar.Ident}";
+                waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                waypoint.CurrentlyCouplingSpecificCar = true;
+                waypoint.StopAtWaypoint = true;
+                waypoint.CoupleToCar = targetCar;
+                waypoint.CoupleToCarId = targetCar.id;
+                waypoint.OverwriteLocation(bestLocation);
+                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
+                Loader.Log($"Sending target coupling waypoint for {waypoint.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
+                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
+                return true;
+            }
+
+            Loader.LogError($"Location {bestLocation} was not valid for {waypoint.Locomotive.Ident} to couple to {targetCar.Ident}");
+
+            Toast.Present($"{waypoint.Locomotive.Ident} failed to determine a valid location to couple {targetCar.Ident}");
+            return false;
+        }
+
+        private static Location GetCouplerLocation(Car car, LogicalEnd logicalEnd)
+        {
+            End carEnd = car.LogicalToEnd(logicalEnd);
+            if (carEnd == End.F)
+            {
+                return Graph.Shared.LocationByMoving(car.LocationF, 0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
+            }
+            else
+            {
+                return Graph.Shared.LocationByMoving(car.LocationR, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true).Flipped();
+            }
         }
 
         private static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)

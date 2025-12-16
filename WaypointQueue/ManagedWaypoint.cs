@@ -87,7 +87,7 @@ namespace WaypointQueue
         {
             get
             {
-                return !IsCoupling && !SeekNearbyCoupling && NumberOfCarsToCut > 0;
+                return !IsCoupling && !WillCoupleNearby && !WillCoupleSpecificCar && NumberOfCarsToCut > 0;
             }
         }
 
@@ -141,10 +141,37 @@ namespace WaypointQueue
         public bool StopAtWaypoint { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
 
-        public CoupleSearchMode CouplingSearchMode { get; set; } = CoupleSearchMode.None;
-        public bool SeekNearbyCoupling { get; set; }
+        private CoupleSearchMode _couplingSearchMode = CoupleSearchMode.None;
+
+        [JsonIgnore]
+        public CoupleSearchMode CouplingSearchMode
+        {
+            get { return _couplingSearchMode; }
+            set
+            {
+                _couplingSearchMode = value;
+                CoupleToCar = null;
+                CoupleToCarId = null;
+                CouplingSearchText = "";
+                CouplingSearchResultCar = null;
+            }
+        }
+
+        [JsonIgnore]
+        public bool WillCoupleNearby { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
+        [JsonIgnore]
+        public bool WillCoupleSpecificCar { get { return CouplingSearchMode == CoupleSearchMode.SpecificCar; } }
+
         public bool CurrentlyCouplingNearby { get; set; }
-        public string CouplingSearchText { get; set; }
+        public bool CurrentlyCouplingSpecificCar { get; set; }
+
+        public bool HasAnyCouplingOrders { get { return IsCoupling || WillCoupleNearby || WillCoupleSpecificCar; } }
+
+        [JsonProperty("WillCoupleNearby")]
+        [Obsolete("Use CouplingSearchMode instead")]
+        private bool _backwardsCompatibleSeekNearbyCoupling = false;
+
+        public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
         public Car CouplingSearchResultCar { get; set; }
 
@@ -174,14 +201,21 @@ namespace WaypointQueue
 
         public void LoadMiscProperties()
         {
-            if (SeekNearbyCoupling)
+#pragma warning disable 0618
+            // below is the only area where this obsolete field should be used
+            if (_backwardsCompatibleSeekNearbyCoupling)
             {
+#pragma warning restore 0618
                 CouplingSearchMode = CoupleSearchMode.Nearest;
             }
 
             if (!string.IsNullOrEmpty(CouplingSearchText))
             {
                 TryResolveCouplingSearchText(out Car _);
+            }
+            else
+            {
+                CouplingSearchText = string.Empty;
             }
 
             if (IsCoupling && NumberOfCarsToCut > 0)
@@ -249,12 +283,27 @@ namespace WaypointQueue
         {
             if (String.IsNullOrEmpty(CouplingSearchText))
             {
+                //Loader.LogDebug($"Coupling search text is empty");
                 car = null;
                 return false;
             }
 
+            // Check if we already have it
+            if (CouplingSearchResultCar != null && CouplingSearchResultCar.Ident.ToString() == CouplingSearchText)
+            {
+                //Loader.LogDebug($"Coupling search result car already cached");
+                car = CouplingSearchResultCar;
+                return true;
+            }
+
             CouplingSearchResultCar = TrainController.Shared.CarForString(CouplingSearchText);
             car = CouplingSearchResultCar;
+
+            if (CouplingSearchResultCar != null)
+            {
+                CouplingSearchText = CouplingSearchResultCar.Ident.ToString();
+            }
+
             return car != null;
         }
 
