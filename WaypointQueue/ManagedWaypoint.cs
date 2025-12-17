@@ -3,6 +3,7 @@ using Model;
 using Model.Ops;
 using Newtonsoft.Json;
 using System;
+using System.Runtime.Serialization;
 using Track;
 using UI.EngineControls;
 using UnityEngine;
@@ -167,9 +168,8 @@ namespace WaypointQueue
 
         public bool HasAnyCouplingOrders { get { return IsCoupling || WillCoupleNearby || WillCoupleSpecificCar; } }
 
-        [JsonProperty("WillCoupleNearby")]
         [Obsolete("Use CouplingSearchMode instead")]
-        private bool _backwardsCompatibleSeekNearbyCoupling = false;
+        private bool SeekNearbyCoupling { get; set; } = false;
 
         public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
@@ -194,31 +194,23 @@ namespace WaypointQueue
 
         public void LoadForRoute()
         {
-            TryResolveLocation(out Location loc);
+            TryResolveLocation(out Location _);
 
-            LoadMiscProperties();
+            TryResolveCouplingSearchText(out Car _);
         }
 
-        public void LoadMiscProperties()
+        [OnDeserialized]
+        internal void OnDeserialized(StreamingContext _)
         {
 #pragma warning disable 0618
             // below is the only area where this obsolete field should be used
-            if (_backwardsCompatibleSeekNearbyCoupling)
+            if (SeekNearbyCoupling)
             {
 #pragma warning restore 0618
                 CouplingSearchMode = CoupleSearchMode.Nearest;
             }
 
-            if (!string.IsNullOrEmpty(CouplingSearchText))
-            {
-                TryResolveCouplingSearchText(out Car _);
-            }
-            else
-            {
-                CouplingSearchText = string.Empty;
-            }
-
-            if (IsCoupling && NumberOfCarsToCut > 0)
+            if (HasAnyCouplingOrders && NumberOfCarsToCut > 0)
             {
                 ShowPostCouplingCut = true;
             }

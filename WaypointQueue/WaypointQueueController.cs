@@ -569,7 +569,7 @@ namespace WaypointQueue
                         }
                         break;
                     }
-                    waypoint.LoadMiscProperties();
+                    waypoint.TryResolveCouplingSearchText(out Car _);
 
                     validWaypoints.Add(waypoint);
                 }
