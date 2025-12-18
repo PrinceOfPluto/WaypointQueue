@@ -292,17 +292,17 @@ namespace WaypointQueue
                     BuildTrainSymbolField(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.IsCoupling)
+                builder.HStack(row =>
                 {
-                    BuildStopAtWaypointField(waypoint, builder, onWaypointChange);
-                }
+                    BuildStopAtWaypointField(waypoint, row, onWaypointChange);
+
+                    BuildSendPastWaypointField(waypoint, row, onWaypointChange);
+                });
 
                 if (!waypoint.StopAtWaypoint && !waypoint.IsCoupling)
                 {
                     BuildPassingSpeedLimitField(waypoint, builder, onWaypointChange);
                 }
-
-                BuildSendPastWaypointField(waypoint, builder, onWaypointChange);
 
                 if (waypoint.IsCoupling && !waypoint.CurrentlyWaiting)
                 {
@@ -462,7 +462,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildStopAtWaypointField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var stopAtWaypointField = builder.AddField($"Stop at waypoint", builder.AddToggle(() => waypoint.StopAtWaypoint, delegate (bool value)
+            var stopAtWaypointField = builder.AddField($"Stop at waypoint", builder.AddToggle(() => waypoint.StopAtWaypoint || waypoint.IsCoupling, delegate (bool value)
             {
                 waypoint.StopAtWaypoint = value;
                 if (!waypoint.StopAtWaypoint)
@@ -470,7 +470,7 @@ namespace WaypointQueue
                     waypoint.SetTargetSpeedToOrdersMax();
                 }
                 onWaypointChange(waypoint);
-            }));
+            }, interactable: !waypoint.IsCoupling));
 
             AddLabelOnlyTooltip(stopAtWaypointField, "Stop at waypoint", "Controls whether the train will come to a complete stop at the waypoint.\n\nIf you are not stopping, you may still perform uncoupling orders, but you cannot perform coupling, refueling, or waiting orders.");
             return builder;
