@@ -54,6 +54,12 @@ namespace WaypointQueue
             SpecificCar
         }
 
+        public enum UncoupleMode
+        {
+            None,
+            ByCount
+        }
+
         [JsonProperty]
         public string Id { get; private set; } = Guid.NewGuid().ToString();
 
@@ -71,6 +77,7 @@ namespace WaypointQueue
 
         [JsonProperty]
         public string CoupleToCarId { get; internal set; }
+
         [JsonIgnore]
         public Car CoupleToCar { get; internal set; }
 
@@ -79,16 +86,7 @@ namespace WaypointQueue
         {
             get
             {
-                return CoupleToCarId != null && CoupleToCarId.Length > 0;
-            }
-        }
-
-        [JsonIgnore]
-        public bool IsUncoupling
-        {
-            get
-            {
-                return !IsCoupling && !WillCoupleNearby && !WillCoupleSpecificCar && NumberOfCarsToCut > 0;
+                return !string.IsNullOrEmpty(CoupleToCarId);
             }
         }
 
@@ -142,6 +140,7 @@ namespace WaypointQueue
         public bool StopAtWaypoint { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
 
+        [JsonProperty("CouplingSearchMode")]
         private CoupleSearchMode _couplingSearchMode = CoupleSearchMode.None;
 
         [JsonIgnore]
@@ -158,15 +157,34 @@ namespace WaypointQueue
             }
         }
 
+        [JsonProperty("UncouplingMode")]
+        private UncoupleMode _uncouplingMode = UncoupleMode.None;
+
         [JsonIgnore]
-        public bool WillCoupleNearby { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
+        public UncoupleMode UncouplingMode
+        {
+            get { return _uncouplingMode; }
+            set
+            {
+                _uncouplingMode = value;
+            }
+        }
+
         [JsonIgnore]
-        public bool WillCoupleSpecificCar { get { return CouplingSearchMode == CoupleSearchMode.SpecificCar; } }
+        public bool WillUncoupleByCount { get { return UncouplingMode == UncoupleMode.ByCount; } }
+
+        [JsonIgnore]
+        public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
+        [JsonIgnore]
+        public bool WillSeekSpecificCarCoupling { get { return CouplingSearchMode == CoupleSearchMode.SpecificCar; } }
 
         public bool CurrentlyCouplingNearby { get; set; }
         public bool CurrentlyCouplingSpecificCar { get; set; }
 
-        public bool HasAnyCouplingOrders { get { return IsCoupling || WillCoupleNearby || WillCoupleSpecificCar; } }
+        [JsonIgnore]
+        public bool HasAnyCouplingOrders { get { return IsCoupling || WillSeekNearestCoupling || WillSeekSpecificCarCoupling; } }
+        [JsonIgnore]
+        public bool HasAnyUncouplingOrders { get { return UncouplingMode != UncoupleMode.None; } }
 
         [Obsolete("Use CouplingSearchMode instead")]
         private bool SeekNearbyCoupling { get; set; } = false;
@@ -206,13 +224,22 @@ namespace WaypointQueue
             // below is the only area where this obsolete field should be used
             if (SeekNearbyCoupling)
             {
-#pragma warning restore 0618
+                Loader.LogDebug($"Setting waypoint id {Id} CouplingSearchMode to Nearest as migration from SeekNearbyCoupling");
                 CouplingSearchMode = CoupleSearchMode.Nearest;
+                SeekNearbyCoupling = false; // set to false so it doesn't get saved as true in the future
             }
+#pragma warning restore 0618
 
             if (HasAnyCouplingOrders && NumberOfCarsToCut > 0)
             {
+                Loader.LogDebug($"Setting waypoint id {Id} ShowPostCouplingCut to true since there are coupling orders with {NumberOfCarsToCut} cars to cut");
                 ShowPostCouplingCut = true;
+            }
+
+            if (!HasAnyCouplingOrders && UncouplingMode == UncoupleMode.None && NumberOfCarsToCut > 0)
+            {
+                Loader.LogDebug($"Setting waypoint id {Id} UncouplingMode to ByCount since there are {NumberOfCarsToCut} cars to cut");
+                UncouplingMode = UncoupleMode.ByCount;
             }
         }
 
