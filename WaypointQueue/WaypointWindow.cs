@@ -311,20 +311,25 @@ namespace WaypointQueue
 
                 if (!waypoint.HasAnyCouplingOrders && !waypoint.CurrentlyWaiting)
                 {
-                    BuildUncouplingField(waypoint, builder, onWaypointChange);
+                    BuildUncouplingModeField(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.IsCoupling && !waypoint.IsUncoupling && !waypoint.CurrentlyWaiting)
+                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleByCount)
+                {
+                    BuildUncoupleByCountField(waypoint, builder, onWaypointChange);
+                }
+
+                if (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingModeField(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.IsCoupling && waypoint.WillCoupleSpecificCar)
+                if (!waypoint.IsCoupling && waypoint.WillSeekSpecificCarCoupling)
                 {
                     BuildCouplingSearchField(waypoint, builder, onWaypointChange);
                 }
 
-                if ((waypoint.WillCoupleNearby || waypoint.WillCoupleSpecificCar) && !waypoint.IsCoupling && !waypoint.CurrentlyWaiting)
+                if ((waypoint.WillSeekNearestCoupling || waypoint.WillSeekSpecificCarCoupling) && !waypoint.IsCoupling && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingFieldSection(waypoint, builder, onWaypointChange);
                 }
@@ -517,19 +522,19 @@ namespace WaypointQueue
             builder.AddField($"Couple to ", builder.HStack(delegate (UIPanelBuilder field)
             {
                 string labelText = "Failed to find car";
-                if (waypoint.CoupleToCar != null)
+                if (!string.IsNullOrEmpty(waypoint.CoupleToCarId) && waypoint.TryResolveCoupleToCar(out Car coupleToCar))
                 {
-                    labelText = waypoint.CoupleToCar.Ident.ToString();
+                    labelText = coupleToCar.Ident.ToString();
                 }
                 else if (waypoint.CouplingSearchResultCar != null)
                 {
                     labelText = waypoint.CouplingSearchResultCar.Ident.ToString();
                 }
-                else if (waypoint.WillCoupleSpecificCar && string.IsNullOrEmpty(waypoint.CouplingSearchText))
+                else if (waypoint.WillSeekSpecificCarCoupling && string.IsNullOrEmpty(waypoint.CouplingSearchText))
                 {
                     labelText = "None";
                 }
-                else if (waypoint.WillCoupleNearby)
+                else if (waypoint.WillSeekNearestCoupling)
                 {
                     labelText = "Nearest car upon arrival";
                 }
@@ -553,7 +558,23 @@ namespace WaypointQueue
             return builder;
         }
 
-        private UIPanelBuilder BuildUncouplingField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            var uncouplingModeField = builder.AddField($"Uncoupling mode", builder.AddDropdown(["None", "By count"], (int)waypoint.UncouplingMode, (int value) =>
+            {
+                waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
+                onWaypointChange(waypoint);
+            }));
+
+            string tooltipTitle = "Uncoupling mode";
+            string noneTooltipBody = "None\n\nNo cars will uncouple.";
+            string byCountTooltipBody = "By count\n\nPick a number of cars to uncouple and the direction to count cars from.";
+
+            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{noneTooltipBody}\n\n{byCountTooltipBody}");
+            return builder;
+        }
+
+        private UIPanelBuilder BuildUncoupleByCountField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             builder.HStack(delegate (UIPanelBuilder builder)
             {
@@ -563,7 +584,7 @@ namespace WaypointQueue
                 }));
             });
 
-            if (waypoint.IsUncoupling)
+            if (waypoint.NumberOfCarsToCut > 0)
             {
                 builder.AddField($"Count cars from",
                 builder.AddDropdown(new List<string> { "Closest to waypoint", "Furthest from waypoint" }, waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
@@ -699,7 +720,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildCouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var couplingModeField = builder.AddField($"Then couple", builder.AddDropdown(["None", "To nearest car", "To a specific car"], (int)waypoint.CouplingSearchMode, (int value) =>
+            var couplingModeField = builder.AddField($"Coupling mode", builder.AddDropdown(["None", "To nearest car", "To a specific car"], (int)waypoint.CouplingSearchMode, (int value) =>
             {
                 waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)value;
                 onWaypointChange(waypoint);

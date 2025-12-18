@@ -52,7 +52,7 @@ namespace WaypointQueue
                 // avoid handling orders like this when not stopping at a waypoint
 
                 // Try to begin nearby coupling
-                if (wp.WillCoupleNearby && !wp.CurrentlyCouplingNearby)
+                if (wp.WillSeekNearestCoupling && !wp.CurrentlyCouplingNearby)
                 {
                     if (FindNearbyCoupling(wp, ordersHelper))
                     {
@@ -66,7 +66,7 @@ namespace WaypointQueue
                 }
 
                 // Try coupling to target
-                if (wp.WillCoupleSpecificCar && !wp.CurrentlyCouplingSpecificCar)
+                if (wp.WillSeekSpecificCarCoupling && !wp.CurrentlyCouplingSpecificCar)
                 {
                     if (FindSpecificCouplingTarget(wp, ordersHelper))
                     {
@@ -103,7 +103,7 @@ namespace WaypointQueue
             }
 
             // Try to begin nearby coupling
-            if (wp.WillCoupleNearby && !wp.CurrentlyCouplingNearby)
+            if (wp.WillSeekNearestCoupling && !wp.CurrentlyCouplingNearby)
             {
                 if (FindNearbyCoupling(wp, ordersHelper))
                 {
@@ -117,7 +117,7 @@ namespace WaypointQueue
             }
 
             // Try coupling to target
-            if (wp.WillCoupleSpecificCar && !wp.CurrentlyCouplingSpecificCar)
+            if (wp.WillSeekSpecificCarCoupling && !wp.CurrentlyCouplingSpecificCar)
             {
                 if (FindSpecificCouplingTarget(wp, ordersHelper))
                 {
@@ -182,12 +182,12 @@ namespace WaypointQueue
                 }
             }
 
-            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car _))
+            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car _) && wp.NumberOfCarsToCut > 0)
             {
                 ResolvePostCouplingCut(wp);
             }
 
-            if (wp.IsUncoupling)
+            if (wp.HasAnyUncouplingOrders)
             {
                 ResolveUncouplingOrders(wp);
             }
@@ -214,7 +214,7 @@ namespace WaypointQueue
         private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Reposition to refuel
-            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.IsCoupling && !wp.WillCoupleNearby && !wp.WillCoupleSpecificCar && !wp.MoveTrainPastWaypoint)
+            if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.HasAnyCouplingOrders && !wp.MoveTrainPastWaypoint)
             {
                 OrderToRefuel(wp, ordersHelper);
                 return false;
@@ -1019,7 +1019,16 @@ namespace WaypointQueue
 
         private static void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
-            if (!waypoint.IsUncoupling) return;
+            if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
+            {
+                ResolveUncoupleByCount(waypoint);
+            }
+        }
+
+
+        private static void ResolveUncoupleByCount(ManagedWaypoint waypoint)
+        {
+            if (!waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut <= 0) return;
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
 
             LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
