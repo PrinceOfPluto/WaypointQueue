@@ -187,6 +187,7 @@ namespace WaypointQueue
         public bool HasAnyUncouplingOrders { get { return UncouplingMode != UncoupleMode.None; } }
 
         [Obsolete("Use CouplingSearchMode instead")]
+        [JsonProperty]
         private bool SeekNearbyCoupling { get; set; } = false;
 
         public string CouplingSearchText { get; set; } = "";
