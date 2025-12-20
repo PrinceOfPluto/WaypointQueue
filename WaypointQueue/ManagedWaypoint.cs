@@ -201,8 +201,9 @@ namespace WaypointQueue
 
         [JsonIgnore]
         public string DestinationSearchText { get; set; } = "";
-        public string UncoupleDestinationDisplayName { get; set; } = "";
+        public string UncoupleDestinationId { get; set; } = "";
         public bool IncludeMatchingCarsInCut { get; set; } = true;
+        public bool MatchAreaTag { get; set; } = false;
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
@@ -251,12 +252,6 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"Setting waypoint id {Id} UncouplingMode to ByCount since there are {NumberOfCarsToCut} cars to cut");
                 UncouplingMode = UncoupleMode.ByCount;
-            }
-
-            if (!string.IsNullOrEmpty(UncoupleDestinationDisplayName))
-            {
-                Loader.LogDebug($"Setting waypoint id {Id} DestinationSearchText to UncoupleDestinationDisplayName of {UncoupleDestinationDisplayName}");
-                DestinationSearchText = UncoupleDestinationDisplayName;
             }
         }
 
