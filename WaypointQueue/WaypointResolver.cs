@@ -157,7 +157,7 @@ namespace WaypointQueue
              * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.NumberOfCarsToCut > 0 && wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
@@ -1023,6 +1023,11 @@ namespace WaypointQueue
             {
                 ResolveUncoupleByCount(waypoint);
             }
+
+            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationDisplayName))
+            {
+                UncoupleByWaybillDestination(waypoint);
+        }
         }
 
 
@@ -1060,12 +1065,72 @@ namespace WaypointQueue
                 }
             }
 
-            List<Car> carsRemaining = allCarsFromEnd.Where(c => !carsToCut.Contains(c)).ToList();
+            PerformCut(carsToCut, allCarsFromEnd, waypoint);
+        }
+
+        private static string CarListToString(List<Car> cars)
+        {
+            return String.Join("-", cars.Select(c => $"[{c.Ident}]"));
+            }
+
+        private static string LogicalEndToString(LogicalEnd logicalEnd)
+        {
+            return logicalEnd == LogicalEnd.A ? "A" : "B";
+        }
+
+        private static void UncoupleByWaybillDestination(ManagedWaypoint waypoint)
+        {
+            Loader.Log($"Resolving uncouple by waybill destination for {waypoint.Locomotive.Ident}");
+            LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
+
+            List<Car> allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
+            Loader.LogDebug($"Enumerating all cars of {waypoint.Locomotive.Ident} from logical end {LogicalEndToString(directionToCountCars)}:\n{CarListToString(allCarsFromEnd)}");
+
+            List<Car> carsToCut = [];
+
+            bool foundBlock = false;
+            for (int i = 0; i < allCarsFromEnd.Count; i++)
+            {
+                Car car = allCarsFromEnd[i];
+
+                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string destinationName, out bool isAtDestination, out Vector3 _, out OpsCarPosition destination);
+                bool carMatchesFilter = hasDestination && destination.DisplayName == waypoint.UncoupleDestinationDisplayName;
+
+                Loader.LogDebug(hasDestination ? $"Car {car.Ident} has destination to {destination}" : $"Car {car.Ident} has NO destination");
+                Loader.LogDebug($"Car {car.Ident} does {(carMatchesFilter ? "" : "NOT")} match filter of {waypoint.UncoupleDestinationDisplayName}");
+
+                if ((foundBlock && !hasDestination) || (foundBlock && !carMatchesFilter))
+                {
+                    break;
+                }
+
+                if (carMatchesFilter)
+                {
+                    foundBlock = true;
+                    if (waypoint.IncludeMatchingCarsInCut)
+                    {
+                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
+                        carsToCut.Add(car);
+                    }
+                }
+                else
+                {
+                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
+                    carsToCut.Add(car);
+                }
+            }
+
+            PerformCut(carsToCut, allCarsFromEnd, waypoint);
+        }
+
+        private static void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
+        {
+            List<Car> carsRemaining = allCars.Where(c => !carsToCut.Contains(c)).ToList();
 
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
-            Loader.Log($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCarsFromEnd.Count} total cars with {carsRemaining.Count} cars left behind");
+            Loader.Log($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCars.Count} total cars with {carsRemaining.Count} cars left behind");
 
             Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
             if (waypoint.TakeUncoupledCarsAsActiveCut)
@@ -1082,8 +1147,8 @@ namespace WaypointQueue
             }
 
             string carsToCutFormatted = String.Join("-", carsToCut.Select(c => $"[{c.Ident}]"));
-            string allCarsFromEndFormatted = String.Join("-", allCarsFromEnd.Select(c => $"[{c.Ident}]"));
-            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFromEndFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+            string allCarsFormatted = String.Join("-", allCars.Select(c => $"[{c.Ident}]"));
+            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
