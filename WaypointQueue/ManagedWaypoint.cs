@@ -57,7 +57,8 @@ namespace WaypointQueue
         public enum UncoupleMode
         {
             None,
-            ByCount
+            ByCount,
+            ByDestination
         }
 
         [JsonProperty]
@@ -172,6 +173,8 @@ namespace WaypointQueue
 
         [JsonIgnore]
         public bool WillUncoupleByCount { get { return UncouplingMode == UncoupleMode.ByCount; } }
+        [JsonIgnore]
+        public bool WillUncoupleByDestination { get { return UncouplingMode == UncoupleMode.ByDestination; } }
 
         [JsonIgnore]
         public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
@@ -185,6 +188,8 @@ namespace WaypointQueue
         public bool HasAnyCouplingOrders { get { return IsCoupling || WillSeekNearestCoupling || WillSeekSpecificCarCoupling; } }
         [JsonIgnore]
         public bool HasAnyUncouplingOrders { get { return UncouplingMode != UncoupleMode.None; } }
+        [JsonIgnore]
+        public bool HasAnyCutOrders { get { return HasAnyUncouplingOrders || (IsCoupling && NumberOfCarsToCut > 0); } }
 
         [Obsolete("Use CouplingSearchMode instead")]
         [JsonProperty]
@@ -193,6 +198,11 @@ namespace WaypointQueue
         public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
         public Car CouplingSearchResultCar { get; set; }
+
+        [JsonIgnore]
+        public string DestinationSearchText { get; set; } = "";
+        public string UncoupleDestinationDisplayName { get; set; } = "";
+        public bool IncludeMatchingCarsInCut { get; set; } = true;
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
@@ -241,6 +251,12 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"Setting waypoint id {Id} UncouplingMode to ByCount since there are {NumberOfCarsToCut} cars to cut");
                 UncouplingMode = UncoupleMode.ByCount;
+            }
+
+            if (!string.IsNullOrEmpty(UncoupleDestinationDisplayName))
+            {
+                Loader.LogDebug($"Setting waypoint id {Id} DestinationSearchText to UncoupleDestinationDisplayName of {UncoupleDestinationDisplayName}");
+                DestinationSearchText = UncoupleDestinationDisplayName;
             }
         }
 
