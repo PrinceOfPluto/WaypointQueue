@@ -1024,10 +1024,10 @@ namespace WaypointQueue
                 ResolveUncoupleByCount(waypoint);
             }
 
-            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationDisplayName))
+            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
-                UncoupleByWaybillDestination(waypoint);
-        }
+                UncoupleByDestination(waypoint);
+            }
         }
 
 
@@ -1071,16 +1071,16 @@ namespace WaypointQueue
         private static string CarListToString(List<Car> cars)
         {
             return String.Join("-", cars.Select(c => $"[{c.Ident}]"));
-            }
+        }
 
         private static string LogicalEndToString(LogicalEnd logicalEnd)
         {
             return logicalEnd == LogicalEnd.A ? "A" : "B";
         }
 
-        private static void UncoupleByWaybillDestination(ManagedWaypoint waypoint)
+        private static void UncoupleByDestination(ManagedWaypoint waypoint)
         {
-            Loader.Log($"Resolving uncouple by waybill destination for {waypoint.Locomotive.Ident}");
+            Loader.Log($"Resolving uncouple by destination for {waypoint.Locomotive.Ident}");
             LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
 
             List<Car> allCarsFromEnd = waypoint.Locomotive.EnumerateCoupled(directionToCountCars).ToList();
@@ -1088,16 +1088,35 @@ namespace WaypointQueue
 
             List<Car> carsToCut = [];
 
+            var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
+            OpsCarPosition destinationMatch = carPositionLookup[waypoint.UncoupleDestinationId];
+            Area matchArea = OpsController.Shared.AreaForCarPosition(destinationMatch);
+
             bool foundBlock = false;
             for (int i = 0; i < allCarsFromEnd.Count; i++)
             {
                 Car car = allCarsFromEnd[i];
 
-                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string destinationName, out bool isAtDestination, out Vector3 _, out OpsCarPosition destination);
-                bool carMatchesFilter = hasDestination && destination.DisplayName == waypoint.UncoupleDestinationDisplayName;
+                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string destinationName, out bool isAtDestination, out Vector3 _, out OpsCarPosition carDestination);
+                bool hasMatchingArea = false;
+                if (hasDestination && waypoint.MatchAreaTag)
+                {
+                    Area carDestinationArea = OpsController.Shared.AreaForCarPosition(carDestination);
+                    if (carDestinationArea.identifier == matchArea.identifier)
+                    {
+                        Loader.LogDebug($"Car {car.Ident} does match area of {matchArea.identifier}");
+                        hasMatchingArea = true;
+                    }
+                    else
+                    {
+                        Loader.LogDebug($"Car {car.Ident} does NOT match area of {matchArea.identifier}");
+                    }
+                }
 
-                Loader.LogDebug(hasDestination ? $"Car {car.Ident} has destination to {destination}" : $"Car {car.Ident} has NO destination");
-                Loader.LogDebug($"Car {car.Ident} does {(carMatchesFilter ? "" : "NOT")} match filter of {waypoint.UncoupleDestinationDisplayName}");
+                bool carMatchesFilter = (hasDestination && carDestination.DisplayName == destinationMatch.DisplayName) || hasMatchingArea;
+
+                Loader.LogDebug(hasDestination ? $"Car {car.Ident} has carDestination to {carDestination}" : $"Car {car.Ident} has NO carDestination");
+                Loader.LogDebug($"Car {car.Ident} does {(carMatchesFilter ? "" : "NOT")} match filter of {waypoint.UncoupleDestinationId}");
 
                 if ((foundBlock && !hasDestination) || (foundBlock && !carMatchesFilter))
                 {

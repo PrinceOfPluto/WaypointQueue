@@ -675,7 +675,7 @@ namespace WaypointQueue
                 destinationChoices = BuildDestinationMatchDropdown(waypoint);
             }
 
-            int currentIndex = destinationChoices.FindIndex(x => x.Value == waypoint.UncoupleDestinationDisplayName);
+            int currentIndex = destinationChoices.FindIndex(x => x.Value == waypoint.UncoupleDestinationId);
 
             if (currentIndex == -1)
             {
@@ -684,10 +684,30 @@ namespace WaypointQueue
 
             builder.AddField("Matching destination", builder.AddDropdown(destinationChoices.Select(x => x.Label).ToList(), currentIndex, index =>
             {
-                waypoint.UncoupleDestinationDisplayName = destinationChoices[index].Value;
-                waypoint.DestinationSearchText = destinationChoices[index].Value;
+                waypoint.UncoupleDestinationId = destinationChoices[index].Value;
+                waypoint.DestinationSearchText = destinationChoices[index].Label;
                 onWaypointChange(waypoint);
             }));
+
+            builder.HStack(row =>
+            {
+                var includeMatchInCutField = row.AddField("Include match in cut", row.AddToggle(() => waypoint.IncludeMatchingCarsInCut, (bool value) =>
+                {
+                    waypoint.IncludeMatchingCarsInCut = value;
+                    onWaypointChange(waypoint);
+                }));
+                AddLabelOnlyTooltip(includeMatchInCutField, "Include match in cut", "If this is disabled, the matching cars won't be included in the uncoupled cut." +
+                    "\n\nFor example, say you have a consist with a block of Whittier Sawmill SO1/SO2 cars followed by a mix of non-Whittier cars. " +
+                    "If you select the matching destination as Whittier Sawmill SO1/SO2 and disable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
+
+                var matchAreaTagField = row.AddField("Match area tag", row.AddToggle(() => waypoint.MatchAreaTag, (bool value) =>
+                {
+                    waypoint.MatchAreaTag = value;
+                    onWaypointChange(waypoint);
+                }));
+                AddLabelOnlyTooltip(matchAreaTagField, "Match area tag", "Enabling this will expand the match to other cars that have the same destination area, typically categorized by the tag color visible in Tab view." +
+                    "\n\nFor example, you can match to all Whittier cars if you select any Whittier destination and enable this setting.");
+            });
 
             builder.AddField($"Start cut from",
             builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
@@ -701,17 +721,7 @@ namespace WaypointQueue
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
 
-            builder.HStack(row =>
-            {
-                BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
-
-
-                row.AddField("Include match in cut", row.AddToggle(() => waypoint.IncludeMatchingCarsInCut, (bool value) =>
-                {
-                    waypoint.IncludeMatchingCarsInCut = value;
-                    onWaypointChange(waypoint);
-                }));
-            });
+            BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
 
             return builder;
         }
@@ -1241,7 +1251,6 @@ namespace WaypointQueue
         private List<DropdownOption> BuildDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
             List<DropdownOption> options = [new DropdownOption("Select a destination", "")];
-            HashSet<string> uniqueDisplayNames = [];
 
             var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
 
@@ -1256,14 +1265,11 @@ namespace WaypointQueue
 
                 if (item.Identifier.ToLower().Contains(filter) || item.DisplayName.ToLower().Contains(filter))
                 {
-                    uniqueDisplayNames.Add(item.DisplayName);
+                    options.Add(new DropdownOption(item.DisplayName, item.Identifier));
                 }
             }
 
-            foreach (var name in uniqueDisplayNames)
-            {
-                options.Add(new DropdownOption(name, name));
-            }
+            options = options.GroupBy(x => x.Label).Select(x => x.First()).ToList();
 
             _opsDestinationOptionsByWaypointId[waypoint.Id] = options;
 
