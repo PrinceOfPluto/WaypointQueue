@@ -21,6 +21,7 @@ using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
 using static Model.Car;
+using static Model.Ops.OpsController;
 
 namespace WaypointQueue
 {
@@ -1088,48 +1089,65 @@ namespace WaypointQueue
             Loader.LogDebug($"Enumerating all cars of {waypoint.Locomotive.Ident} from logical end {LogicalEndToString(directionToCountCars)}:\n{CarListToString(allCarsFromEnd)}");
 
             List<Car> carsToCut = [];
-
-            Dictionary<string, OpsCarPosition> carPositionLookup;
-            OpsCarPosition destinationMatch = default;
-            Area matchArea = null;
-
-            bool matchOnNoDestination = waypoint.UncoupleDestinationId == NoDestinationString;
-
-            if (!matchOnNoDestination)
+            if (waypoint.UncoupleDestinationId == NoDestinationString)
             {
-                carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
-                destinationMatch = carPositionLookup[waypoint.UncoupleDestinationId];
-                matchArea = OpsController.Shared.AreaForCarPosition(destinationMatch);
+                carsToCut = FindMatchingCarsByNoDestination(allCarsFromEnd, waypoint.IncludeMatchingCarsInCut);
+            }
+            if (waypoint.WillUncoupleByDestinationTrack)
+            {
+                try
+                {
+                    OpsCarPosition destinationMatch = OpsController.Shared.ResolveOpsCarPosition(waypoint.UncoupleDestinationId);
+                    carsToCut = FindMatchingCarsByTrackDestination(allCarsFromEnd, destinationMatch, waypoint.IncludeMatchingCarsInCut);
+                }
+                catch (InvalidOpsCarPositionException)
+                {
+                    Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown track destination.");
+                    Loader.LogError($"Failed to resolve track destination by id {waypoint.UncoupleDestinationId}");
+                    return;
+                }
+            }
+            if (waypoint.WillUncoupleByDestinationIndustry)
+            {
+                Industry industryMatch = OpsController.Shared.AllIndustries.Where(i => i.identifier == waypoint.UncoupleDestinationId).FirstOrDefault();
+                if (industryMatch == null)
+                {
+                    Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown industry.");
+                    Loader.LogError($"Failed to resolve industry by id {waypoint.UncoupleDestinationId}");
+                    return;
+                }
+                carsToCut = FindMatchingCarsByIndustryDestination(allCarsFromEnd, industryMatch, waypoint.IncludeMatchingCarsInCut);
+            }
+            if (waypoint.WillUncoupleByDestinationArea)
+            {
+                Area areaMatch = OpsController.Shared.Areas.Where(i => i.identifier == waypoint.UncoupleDestinationId).FirstOrDefault();
+                if (areaMatch == null)
+                {
+                    Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown area.");
+                    Loader.LogError($"Failed to resolve area by id {waypoint.UncoupleDestinationId}");
+                    return;
+                }
+                carsToCut = FindMatchingCarsByAreaDestination(allCarsFromEnd, areaMatch, waypoint.IncludeMatchingCarsInCut);
             }
 
+            PerformCut(carsToCut, allCarsFromEnd, waypoint);
+        }
+
+        private static List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool includeMatchingCarsInCut)
+        {
+            List<Car> carsToCut = [];
+
             bool foundBlock = false;
-            for (int i = 0; i < allCarsFromEnd.Count; i++)
+            for (int i = 0; i < allCars.Count; i++)
             {
-                Car car = allCarsFromEnd[i];
+                Car car = allCars[i];
+                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out _);
 
-                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string destinationName, out bool isAtDestination, out Vector3 _, out OpsCarPosition carDestination);
+                bool carMatchesFilter = !hasDestination;
 
-                bool hasMatchingArea = false;
-                if (hasDestination && !matchOnNoDestination && waypoint.MatchAreaTag)
-                {
-                    Area carDestinationArea = OpsController.Shared.AreaForCarPosition(carDestination);
-                    if (carDestinationArea.identifier == matchArea.identifier)
-                    {
-                        Loader.LogDebug($"Car {car.Ident} does match area of {matchArea.identifier}");
-                        hasMatchingArea = true;
-                    }
-                    else
-                    {
-                        Loader.LogDebug($"Car {car.Ident} does NOT match area of {matchArea.identifier}");
-                    }
-                }
+                Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of no destination" : $"Car {car.Ident} does NOT match filter of no destination");
 
-                bool carMatchesFilter = (!hasDestination && matchOnNoDestination) || (hasDestination && carDestination.DisplayName == destinationMatch.DisplayName) || hasMatchingArea;
-
-                Loader.LogDebug(hasDestination ? $"Car {car.Ident} has carDestination to {carDestination}" : $"Car {car.Ident} has NO carDestination");
-                Loader.LogDebug($"Car {car.Ident} does {(carMatchesFilter ? "" : "NOT")} match filter of {waypoint.UncoupleDestinationId}");
-
-                if ((foundBlock && !hasDestination) || (foundBlock && !carMatchesFilter))
+                if (foundBlock && !carMatchesFilter)
                 {
                     break;
                 }
@@ -1137,7 +1155,7 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (waypoint.IncludeMatchingCarsInCut)
+                    if (includeMatchingCarsInCut)
                     {
                         Loader.LogDebug($"Adding matching {car.Ident} to cut list");
                         carsToCut.Add(car);
@@ -1150,7 +1168,129 @@ namespace WaypointQueue
                 }
             }
 
-            PerformCut(carsToCut, allCarsFromEnd, waypoint);
+            return carsToCut;
+        }
+
+        private static List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool includeMatchingCarsInCut)
+        {
+            List<Car> carsToCut = [];
+
+            bool foundBlock = false;
+            for (int i = 0; i < allCars.Count; i++)
+            {
+                Car car = allCars[i];
+                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination);
+
+                bool carMatchesFilter = hasDestination && carDestination.DisplayName == destinationMatch.DisplayName;
+
+                Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.DisplayName}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.DisplayName}");
+
+                if (foundBlock && !carMatchesFilter)
+                {
+                    break;
+                }
+
+                if (carMatchesFilter)
+                {
+                    foundBlock = true;
+                    if (includeMatchingCarsInCut)
+                    {
+                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
+                        carsToCut.Add(car);
+                    }
+                }
+                else
+                {
+                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
+                    carsToCut.Add(car);
+                }
+            }
+
+            return carsToCut;
+        }
+
+        private static List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool includeMatchingCarsInCut)
+        {
+            List<Car> carsToCut = [];
+
+            bool foundBlock = false;
+            for (int i = 0; i < allCars.Count; i++)
+            {
+                Car car = allCars[i];
+                bool carMatchesFilter = false;
+
+                if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
+                {
+                    IndustryComponent industryComponent = Traverse.Create(OpsController.Shared).Method("IndustryComponentForPosition", [typeof(OpsCarPosition)], [carDestination]).GetValue<IndustryComponent>();
+                    carMatchesFilter = industryComponent?.Industry?.identifier == destinationMatch.identifier;
+                }
+
+                Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.name}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.name}");
+
+                if (foundBlock && !carMatchesFilter)
+                {
+                    break;
+                }
+
+                if (carMatchesFilter)
+                {
+                    foundBlock = true;
+                    if (includeMatchingCarsInCut)
+                    {
+                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
+                        carsToCut.Add(car);
+                    }
+                }
+                else
+                {
+                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
+                    carsToCut.Add(car);
+                }
+            }
+
+            return carsToCut;
+        }
+
+        private static List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool includeMatchingCarsInCut)
+        {
+            List<Car> carsToCut = [];
+
+            bool foundBlock = false;
+            for (int i = 0; i < allCars.Count; i++)
+            {
+                Car car = allCars[i];
+                bool carMatchesFilter = false;
+
+                if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
+                {
+                    Area carArea = OpsController.Shared.AreaForCarPosition(carDestination);
+                    carMatchesFilter = carArea?.identifier == destinationMatch.identifier;
+                }
+
+                Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.name}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.name}");
+
+                if (foundBlock && !carMatchesFilter)
+                {
+                    break;
+                }
+
+                if (carMatchesFilter)
+                {
+                    foundBlock = true;
+                    if (includeMatchingCarsInCut)
+                    {
+                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
+                        carsToCut.Add(car);
+                    }
+                }
+                else
+                {
+                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
+                    carsToCut.Add(car);
+                }
+            }
+
+            return carsToCut;
         }
 
         private static void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)

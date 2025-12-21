@@ -610,9 +610,10 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By car destination"], (int)waypoint.UncouplingMode, (int value) =>
+            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By track destination", "By industry destination", "By area destination"], (int)waypoint.UncouplingMode, (int value) =>
                 {
                     waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
+                    _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
                     onWaypointChange(waypoint);
                 }));
 
@@ -663,7 +664,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncoupleByDestinationField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            builder.AddField("Search filter", builder.AddInputField(waypoint.DestinationSearchText, (string value) =>
+            builder.AddField("Search filter", builder.AddInputField(waypoint.DestinationSearchText, placeholder: "Type to filter destination options", onApply: (string value) =>
             {
                 waypoint.DestinationSearchText = value;
                 _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
@@ -672,7 +673,20 @@ namespace WaypointQueue
 
             if (!_opsDestinationOptionsByWaypointId.TryGetValue(waypoint.Id, out var destinationChoices))
             {
-                destinationChoices = BuildDestinationMatchDropdown(waypoint);
+                switch (waypoint.UncouplingMode)
+                {
+                    case ManagedWaypoint.UncoupleMode.ByDestinationTrack:
+                        destinationChoices = BuildTrackDestinationMatchDropdown(waypoint);
+                        break;
+                    case ManagedWaypoint.UncoupleMode.ByDestinationIndustry:
+                        destinationChoices = BuildIndustryDestinationMatchDropdown(waypoint);
+                        break;
+                    case ManagedWaypoint.UncoupleMode.ByDestinationArea:
+                        destinationChoices = BuildAreaDestinationMatchDropdown(waypoint);
+                        break;
+                    default:
+                        break;
+                }
             }
 
             int currentIndex = destinationChoices.FindIndex(x => x.Value == waypoint.UncoupleDestinationId);
@@ -1248,8 +1262,9 @@ namespace WaypointQueue
             return (labels, values, selected);
         }
 
-        private List<DropdownOption> BuildDestinationMatchDropdown(ManagedWaypoint waypoint)
+        private List<DropdownOption> BuildTrackDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
+            Loader.LogDebug($"Building track destination options for {waypoint.Id}");
             List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
 
             var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
@@ -1266,6 +1281,50 @@ namespace WaypointQueue
                 if (item.Identifier.ToLower().Contains(filter) || item.DisplayName.ToLower().Contains(filter))
                 {
                     options.Add(new DropdownOption(item.DisplayName, item.Identifier));
+                }
+            }
+
+            options = options.GroupBy(x => x.Label).Select(x => x.First()).ToList();
+
+            _opsDestinationOptionsByWaypointId[waypoint.Id] = options;
+
+            return options;
+        }
+
+        private List<DropdownOption> BuildIndustryDestinationMatchDropdown(ManagedWaypoint waypoint)
+        {
+            Loader.LogDebug($"Building industry destination options for {waypoint.Id}");
+            List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
+
+            string filter = waypoint.DestinationSearchText?.Trim().ToLower() ?? "";
+
+            foreach (var industry in OpsController.Shared.AllIndustries)
+            {
+                if (industry.name.ToLower().Contains(filter) || industry.name.ToLower().Contains(filter))
+                {
+                    options.Add(new DropdownOption(industry.name, industry.identifier));
+                }
+            }
+
+            options = options.GroupBy(x => x.Label).Select(x => x.First()).ToList();
+
+            _opsDestinationOptionsByWaypointId[waypoint.Id] = options;
+
+            return options;
+        }
+
+        private List<DropdownOption> BuildAreaDestinationMatchDropdown(ManagedWaypoint waypoint)
+        {
+            Loader.LogDebug($"Building area destination options for {waypoint.Id}");
+            List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
+
+            string filter = waypoint.DestinationSearchText?.Trim().ToLower() ?? "";
+
+            foreach (var area in OpsController.Shared.Areas)
+            {
+                if (area.name.ToLower().Contains(filter) || area.name.ToLower().Contains(filter))
+                {
+                    options.Add(new DropdownOption(area.name, area.identifier));
                 }
             }
 
