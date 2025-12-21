@@ -699,29 +699,19 @@ namespace WaypointQueue
             builder.AddField("Matching destination", builder.AddDropdown(destinationChoices.Select(x => x.Label).ToList(), currentIndex, index =>
             {
                 waypoint.UncoupleDestinationId = destinationChoices[index].Value;
-                waypoint.DestinationSearchText = destinationChoices[index].Label;
+                bool choiceIsEmpty = string.IsNullOrEmpty(destinationChoices[index].Value);
+                waypoint.DestinationSearchText = choiceIsEmpty ? string.Empty : destinationChoices[index].Label;
                 onWaypointChange(waypoint);
             }));
 
-            builder.HStack(row =>
+            var includeMatchInCutField = builder.AddField("Include match in cut", builder.AddToggle(() => waypoint.IncludeMatchingCarsInCut, (bool value) =>
             {
-                var includeMatchInCutField = row.AddField("Include match in cut", row.AddToggle(() => waypoint.IncludeMatchingCarsInCut, (bool value) =>
-                {
-                    waypoint.IncludeMatchingCarsInCut = value;
-                    onWaypointChange(waypoint);
-                }));
-                AddLabelOnlyTooltip(includeMatchInCutField, "Include match in cut", "If this is disabled, the matching cars won't be included in the uncoupled cut." +
-                    "\n\nFor example, say you have a consist with a block of Whittier Sawmill SO1/SO2 cars followed by a mix of non-Whittier cars. " +
-                    "If you select the matching destination as Whittier Sawmill SO1/SO2 and disable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
-
-                var matchAreaTagField = row.AddField("Match area tag", row.AddToggle(() => waypoint.MatchAreaTag, (bool value) =>
-                {
-                    waypoint.MatchAreaTag = value;
-                    onWaypointChange(waypoint);
-                }));
-                AddLabelOnlyTooltip(matchAreaTagField, "Match area tag", "Enabling this will expand the match to other cars that have the same destination area, typically categorized by the tag color visible in Tab view." +
-                    "\n\nFor example, you can match to all Whittier cars if you select any Whittier destination and enable this setting.");
-            });
+                waypoint.IncludeMatchingCarsInCut = value;
+                onWaypointChange(waypoint);
+            }));
+            AddLabelOnlyTooltip(includeMatchInCutField, "Include match in cut", "If this is disabled, the matching cars won't be included in the uncoupled cut." +
+                "\n\nFor example, say you have a consist with a block of Whittier Sawmill SO1/SO2 cars followed by a mix of non-Whittier cars. " +
+                "If you select the matching destination as Whittier Sawmill SO1/SO2 and disable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
 
             builder.AddField($"Start cut from",
             builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
