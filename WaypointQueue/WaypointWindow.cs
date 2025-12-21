@@ -971,12 +971,12 @@ namespace WaypointQueue
             {
                 waypoint.BleedAirOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }));
             builder.AddField("Apply handbrakes", builder.AddToggle(() => waypoint.ApplyHandbrakesOnUncouple, delegate (bool value)
             {
                 waypoint.ApplyHandbrakesOnUncouple = value;
                 onWaypointChange(waypoint);
-            }, interactable: waypoint.NumberOfCarsToCut > 0));
+            }));
         }
 
         private void AddCarCutButtons(ManagedWaypoint waypoint, UIPanelBuilder field, Action<ManagedWaypoint> onWaypointChange, string prefix = null)
