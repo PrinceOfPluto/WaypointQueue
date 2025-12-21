@@ -1096,14 +1096,14 @@ namespace WaypointQueue
             List<Car> carsToCut = [];
             if (waypoint.UncoupleDestinationId == NoDestinationString)
             {
-                carsToCut = FindMatchingCarsByNoDestination(allCarsFromEnd, waypoint.IncludeMatchingCarsInCut);
+                carsToCut = FindMatchingCarsByNoDestination(allCarsFromEnd, waypoint.ExcludeMatchingCarsFromCut);
             }
             if (waypoint.WillUncoupleByDestinationTrack)
             {
                 try
                 {
                     OpsCarPosition destinationMatch = OpsController.Shared.ResolveOpsCarPosition(waypoint.UncoupleDestinationId);
-                    carsToCut = FindMatchingCarsByTrackDestination(allCarsFromEnd, destinationMatch, waypoint.IncludeMatchingCarsInCut);
+                    carsToCut = FindMatchingCarsByTrackDestination(allCarsFromEnd, destinationMatch, waypoint.ExcludeMatchingCarsFromCut);
                 }
                 catch (InvalidOpsCarPositionException)
                 {
@@ -1121,7 +1121,7 @@ namespace WaypointQueue
                     Loader.LogError($"Failed to resolve industry by id {waypoint.UncoupleDestinationId}");
                     return;
                 }
-                carsToCut = FindMatchingCarsByIndustryDestination(allCarsFromEnd, industryMatch, waypoint.IncludeMatchingCarsInCut);
+                carsToCut = FindMatchingCarsByIndustryDestination(allCarsFromEnd, industryMatch, waypoint.ExcludeMatchingCarsFromCut);
             }
             if (waypoint.WillUncoupleByDestinationArea)
             {
@@ -1132,13 +1132,13 @@ namespace WaypointQueue
                     Loader.LogError($"Failed to resolve area by id {waypoint.UncoupleDestinationId}");
                     return;
                 }
-                carsToCut = FindMatchingCarsByAreaDestination(allCarsFromEnd, areaMatch, waypoint.IncludeMatchingCarsInCut);
+                carsToCut = FindMatchingCarsByAreaDestination(allCarsFromEnd, areaMatch, waypoint.ExcludeMatchingCarsFromCut);
             }
 
             PerformCut(carsToCut, allCarsFromEnd, waypoint);
         }
 
-        private static List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool includeMatchingCarsInCut)
+        private static List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -1160,7 +1160,7 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (includeMatchingCarsInCut)
+                    if (!excludeMatchingCarsFromCut)
                     {
                         Loader.LogDebug($"Adding matching {car.Ident} to cut list");
                         carsToCut.Add(car);
@@ -1176,7 +1176,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool includeMatchingCarsInCut)
+        private static List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -1198,7 +1198,7 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (includeMatchingCarsInCut)
+                    if (!excludeMatchingCarsFromCut)
                     {
                         Loader.LogDebug($"Adding matching {car.Ident} to cut list");
                         carsToCut.Add(car);
@@ -1214,7 +1214,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool includeMatchingCarsInCut)
+        private static List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -1240,7 +1240,7 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (includeMatchingCarsInCut)
+                    if (!excludeMatchingCarsFromCut)
                     {
                         Loader.LogDebug($"Adding matching {car.Ident} to cut list");
                         carsToCut.Add(car);
@@ -1256,7 +1256,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool includeMatchingCarsInCut)
+        private static List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -1282,7 +1282,7 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (includeMatchingCarsInCut)
+                    if (!excludeMatchingCarsFromCut)
                     {
                         Loader.LogDebug($"Adding matching {car.Ident} to cut list");
                         carsToCut.Add(car);
@@ -1317,7 +1317,7 @@ namespace WaypointQueue
 
             LogicalEnd endToUncouple = waypoint.CountUncoupledFromNearestToWaypoint ? closestEnd : GetOppositeEnd(closestEnd);
 
-            List<Car> carsToCut = EnumerateCoupledToEnd(carToUncouple, endToUncouple, true);
+            List<Car> carsToCut = EnumerateCoupledToEnd(carToUncouple, endToUncouple, !waypoint.ExcludeMatchingCarsFromCut);
             // Reverse cars so that the car to uncouple is last
             carsToCut.Reverse();
 

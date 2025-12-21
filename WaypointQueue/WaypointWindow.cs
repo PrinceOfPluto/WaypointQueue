@@ -709,14 +709,14 @@ namespace WaypointQueue
                 onWaypointChange(waypoint);
             }));
 
-            var includeMatchInCutField = builder.AddField("Include match in cut", builder.AddToggle(() => waypoint.IncludeMatchingCarsInCut, (bool value) =>
+            var excludeMatchingCarsFromCutField = builder.AddField("Exclude match from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, (bool value) =>
             {
-                waypoint.IncludeMatchingCarsInCut = value;
+                waypoint.ExcludeMatchingCarsFromCut = value;
                 onWaypointChange(waypoint);
             }));
-            AddLabelOnlyTooltip(includeMatchInCutField, "Include match in cut", "If this is disabled, the matching cars won't be included in the uncoupled cut." +
+            AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude matching cars from cut", "If this is enabled, the matching cars won't be included in the uncoupled cut." +
                 "\n\nFor example, say you have a consist with a block of Whittier Sawmill SO1/SO2 cars followed by a mix of non-Whittier cars. " +
-                "If you select the matching destination as Whittier Sawmill SO1/SO2 and disable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
+                "If you select the matching destination as Whittier Sawmill SO1/SO2 and enable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
 
             builder.AddField($"Start cut from",
             builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
@@ -792,6 +792,15 @@ namespace WaypointQueue
                 waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
                 onWaypointChange(waypoint);
             }));
+
+            var excludeMatchingCarsFromCutField = builder.AddField("Exclude car from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, value =>
+            {
+                waypoint.ExcludeMatchingCarsFromCut = value;
+                onWaypointChange(waypoint);
+            }));
+
+            AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude car from cut", "If this is enabled, the selected car will NOT be included in the uncoupled cut." +
+                "\n\nThis can be useful to uncouple all cars past the locomotive tender by selecting the tender, excluding it from the cut, and choosing the appropriate direction to cut the cars.");
 
             builder.HStack(delegate (UIPanelBuilder builder)
             {
