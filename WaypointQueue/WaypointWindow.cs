@@ -1250,7 +1250,7 @@ namespace WaypointQueue
 
         private List<DropdownOption> BuildDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
-            List<DropdownOption> options = [new DropdownOption("Select a destination", "")];
+            List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
 
             var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
 

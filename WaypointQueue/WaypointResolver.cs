@@ -27,6 +27,7 @@ namespace WaypointQueue
     internal static class WaypointResolver
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
+        public static readonly string NoDestinationString = "No destination";
 
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
@@ -1088,9 +1089,18 @@ namespace WaypointQueue
 
             List<Car> carsToCut = [];
 
-            var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
-            OpsCarPosition destinationMatch = carPositionLookup[waypoint.UncoupleDestinationId];
-            Area matchArea = OpsController.Shared.AreaForCarPosition(destinationMatch);
+            Dictionary<string, OpsCarPosition> carPositionLookup;
+            OpsCarPosition destinationMatch = default;
+            Area matchArea = null;
+
+            bool matchOnNoDestination = waypoint.UncoupleDestinationId == NoDestinationString;
+
+            if (!matchOnNoDestination)
+            {
+                carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
+                destinationMatch = carPositionLookup[waypoint.UncoupleDestinationId];
+                matchArea = OpsController.Shared.AreaForCarPosition(destinationMatch);
+            }
 
             bool foundBlock = false;
             for (int i = 0; i < allCarsFromEnd.Count; i++)
@@ -1098,8 +1108,9 @@ namespace WaypointQueue
                 Car car = allCarsFromEnd[i];
 
                 bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string destinationName, out bool isAtDestination, out Vector3 _, out OpsCarPosition carDestination);
+
                 bool hasMatchingArea = false;
-                if (hasDestination && waypoint.MatchAreaTag)
+                if (hasDestination && !matchOnNoDestination && waypoint.MatchAreaTag)
                 {
                     Area carDestinationArea = OpsController.Shared.AreaForCarPosition(carDestination);
                     if (carDestinationArea.identifier == matchArea.identifier)
@@ -1113,7 +1124,7 @@ namespace WaypointQueue
                     }
                 }
 
-                bool carMatchesFilter = (hasDestination && carDestination.DisplayName == destinationMatch.DisplayName) || hasMatchingArea;
+                bool carMatchesFilter = (!hasDestination && matchOnNoDestination) || (hasDestination && carDestination.DisplayName == destinationMatch.DisplayName) || hasMatchingArea;
 
                 Loader.LogDebug(hasDestination ? $"Car {car.Ident} has carDestination to {carDestination}" : $"Car {car.Ident} has NO carDestination");
                 Loader.LogDebug($"Car {car.Ident} does {(carMatchesFilter ? "" : "NOT")} match filter of {waypoint.UncoupleDestinationId}");
