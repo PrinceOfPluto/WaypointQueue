@@ -165,7 +165,7 @@ namespace WaypointQueue
                 {
                     Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
                     wp.CurrentlyWaitingBeforeCutting = true;
-                    wp.StatusLabel = $"Waiting until train is at rest before cutting cars";
+                    wp.StatusLabel = $"Waiting until at rest to cut cars";
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
                 }
 
