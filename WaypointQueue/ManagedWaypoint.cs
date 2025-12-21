@@ -211,7 +211,6 @@ namespace WaypointQueue
         public string DestinationSearchText { get; set; } = "";
         public string UncoupleDestinationId { get; set; } = "";
         public bool IncludeMatchingCarsInCut { get; set; } = true;
-        public bool MatchAreaTag { get; set; } = false;
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
