@@ -13,6 +13,7 @@ namespace WaypointQueue
         private Action<ManagedWaypoint> _onWaypointChange;
         private Coroutine _coroutine;
         private bool _carWasPicked;
+        private bool _forUncoupling;
 
         private static WaypointCarPicker _shared;
         public static WaypointCarPicker Shared
@@ -36,10 +37,11 @@ namespace WaypointQueue
             }
         }
 
-        public void StartPickingCar(ManagedWaypoint waypoint, Action<ManagedWaypoint> onWaypointChange)
+        public void StartPickingCar(ManagedWaypoint waypoint, Action<ManagedWaypoint> onWaypointChange, bool forUncoupling = false)
         {
             _waypoint = waypoint;
             _onWaypointChange = onWaypointChange;
+            _forUncoupling = forUncoupling;
 
             if (_coroutine != null)
             {
@@ -47,7 +49,7 @@ namespace WaypointQueue
             }
 
             _coroutine = StartCoroutine(Loop());
-            ShowMessage("Click a car to set coupling target");
+            ShowMessage($"Click a car to set {(_forUncoupling ? "uncoupling" : "coupling")} target");
 
             GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
         }
@@ -55,8 +57,16 @@ namespace WaypointQueue
         public void PickCar(Car car)
         {
             _carWasPicked = true;
-            _waypoint.CouplingSearchResultCar = car;
-            _waypoint.CouplingSearchText = car.Ident.ToString();
+            if (_forUncoupling)
+            {
+                _waypoint.UncouplingSearchResultCar = car;
+                _waypoint.UncouplingSearchText = car.Ident.ToString();
+            }
+            else
+            {
+                _waypoint.CouplingSearchResultCar = car;
+                _waypoint.CouplingSearchText = car.Ident.ToString();
+            }
             _onWaypointChange(_waypoint);
         }
 
@@ -67,7 +77,7 @@ namespace WaypointQueue
                 _waypoint = null;
                 _onWaypointChange = null;
                 _carWasPicked = false;
-                ShowMessage("Cancelled coupling target selection");
+                ShowMessage($"Cancelled {(_forUncoupling ? "uncoupling" : "coupling")} target selection");
                 StopLoop();
             }
         }

@@ -1030,6 +1030,11 @@ namespace WaypointQueue
             {
                 UncoupleByDestination(waypoint);
             }
+
+            if (waypoint.WillUncoupleBySpecificCar)
+            {
+                UncoupleBySpecificCar(waypoint);
+            }
         }
 
 
@@ -1293,14 +1298,40 @@ namespace WaypointQueue
             return carsToCut;
         }
 
+        private static void UncoupleBySpecificCar(ManagedWaypoint waypoint)
+        {
+            if (!waypoint.TryResolveUncouplingSearchText(out Car carToUncouple))
+            {
+                Toast.Present($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple");
+                Loader.LogError($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple");
+                return;
+            }
+
+            LogicalEnd closestEnd = ClosestLogicalEndTo(carToUncouple, waypoint.Location);
+            List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(closestEnd)];
+            if (!consist.Any(c => c.id == carToUncouple.id))
+            {
+                Toast.Present($"{carToUncouple.Ident} cannot be uncoupled because it is not part of {waypoint.Locomotive.Ident}'s consist");
+                return;
+            }
+
+            LogicalEnd endToUncouple = waypoint.CountUncoupledFromNearestToWaypoint ? closestEnd : GetOppositeEnd(closestEnd);
+
+            List<Car> carsToCut = EnumerateCoupledToEnd(carToUncouple, endToUncouple, true);
+            // Reverse cars so that the car to uncouple is last
+            carsToCut.Reverse();
+
+            PerformCut(carsToCut, consist, waypoint);
+        }
+
         private static void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
         {
-            List<Car> carsRemaining = allCars.Where(c => !carsToCut.Contains(c)).ToList();
+            List<Car> carsRemaining = [.. allCars.Where(c => !carsToCut.Contains(c))];
 
             List<Car> activeCut = carsRemaining;
             List<Car> inactiveCut = carsToCut;
 
-            Loader.Log($"Seeking to uncouple {waypoint.NumberOfCarsToCut} cars from train of {allCars.Count} total cars with {carsRemaining.Count} cars left behind");
+            Loader.Log($"Seeking to uncouple {carsToCut.Count} cars from train of {allCars.Count} total cars with {carsRemaining.Count} cars left behind");
 
             Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
             if (waypoint.TakeUncoupledCarsAsActiveCut)
@@ -1316,9 +1347,7 @@ namespace WaypointQueue
                 return;
             }
 
-            string carsToCutFormatted = String.Join("-", carsToCut.Select(c => $"[{c.Ident}]"));
-            string allCarsFormatted = String.Join("-", allCars.Select(c => $"[{c.Ident}]"));
-            Loader.Log($"Cutting {carsToCutFormatted} from {allCarsFormatted} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+            Loader.Log($"Cutting {CarListToString(carsToCut)} from {CarListToString(allCars)} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
 
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
@@ -1415,11 +1444,13 @@ namespace WaypointQueue
         private static void UncoupleCar(Car car, LogicalEnd endToUncouple)
         {
             LogicalEnd oppositeEnd = endToUncouple == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
+            Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {(endToUncouple == LogicalEnd.A ? "A" : "B")}");
 
             if (StateManager.IsHost && car.set != null)
             {
                 if (car.TryGetAdjacentCar(endToUncouple, out var adjacent))
                 {
+                    Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
                     // Close anglecocks on both sides to simplify uncoupling. Bleeding air is already a separate option
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsCoupled, boolValue: false);
@@ -1430,6 +1461,10 @@ namespace WaypointQueue
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsCoupled, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);
+                }
+                else
+                {
+                    Loader.LogError($"No adjacent car to {car.Ident} on logical end {(endToUncouple == LogicalEnd.A ? "A" : "B")}");
                 }
             }
         }

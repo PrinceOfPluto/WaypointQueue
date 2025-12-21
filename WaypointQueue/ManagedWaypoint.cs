@@ -60,7 +60,8 @@ namespace WaypointQueue
             ByCount,
             ByDestinationTrack,
             ByDestinationIndustry,
-            ByDestinationArea
+            ByDestinationArea,
+            BySpecificCar
         }
 
         [JsonProperty]
@@ -183,6 +184,8 @@ namespace WaypointQueue
         public bool WillUncoupleByDestinationIndustry { get { return UncouplingMode == UncoupleMode.ByDestinationIndustry; } }
         [JsonIgnore]
         public bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
+        [JsonIgnore]
+        public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
 
         [JsonIgnore]
         public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
@@ -206,6 +209,10 @@ namespace WaypointQueue
         public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
         public Car CouplingSearchResultCar { get; set; }
+
+        public string UncouplingSearchText { get; set; } = "";
+        [JsonIgnore]
+        public Car UncouplingSearchResultCar { get; set; }
 
         [JsonIgnore]
         public string DestinationSearchText { get; set; } = "";
@@ -340,6 +347,34 @@ namespace WaypointQueue
             if (CouplingSearchResultCar != null)
             {
                 CouplingSearchText = CouplingSearchResultCar.Ident.ToString();
+            }
+
+            return car != null;
+        }
+
+        public bool TryResolveUncouplingSearchText(out Car car)
+        {
+            if (String.IsNullOrEmpty(UncouplingSearchText))
+            {
+                //Loader.LogDebug($"Uncoupling search text is empty");
+                car = null;
+                return false;
+            }
+
+            // Check if we already have it
+            if (UncouplingSearchResultCar != null && UncouplingSearchResultCar.Ident.ToString() == UncouplingSearchText)
+            {
+                //Loader.LogDebug($"Uncoupling search result car already cached");
+                car = UncouplingSearchResultCar;
+                return true;
+            }
+
+            UncouplingSearchResultCar = TrainController.Shared.CarForString(UncouplingSearchText);
+            car = UncouplingSearchResultCar;
+
+            if (UncouplingSearchResultCar != null)
+            {
+                UncouplingSearchText = UncouplingSearchResultCar.Ident.ToString();
             }
 
             return car != null;

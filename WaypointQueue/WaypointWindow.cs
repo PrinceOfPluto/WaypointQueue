@@ -345,6 +345,11 @@ namespace WaypointQueue
                     BuildUncoupleByDestinationField(waypoint, builder, onWaypointChange);
                 }
 
+                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleBySpecificCar)
+                {
+                    BuildUncoupleBySpecificCarField(waypoint, builder, onWaypointChange);
+                }
+
                 if (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingModeField(waypoint, builder, onWaypointChange);
@@ -610,7 +615,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By track destination", "By industry destination", "By area destination"], (int)waypoint.UncouplingMode, (int value) =>
+            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By track destination", "By industry destination", "By area destination", "By specific car"], (int)waypoint.UncouplingMode, (int value) =>
                 {
                     waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
                     _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
@@ -715,6 +720,74 @@ namespace WaypointQueue
 
             builder.AddField($"Start cut from",
             builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+            {
+                waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
+                onWaypointChange(waypoint);
+            }));
+
+            builder.HStack(delegate (UIPanelBuilder builder)
+            {
+                AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+            });
+
+            BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+
+            return builder;
+        }
+
+        private UIPanelBuilder BuildUncoupleBySpecificCarField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            var searchForCarField = builder.AddField("Search for car", builder.HStack(field =>
+            {
+                field.AddInputField(waypoint.UncouplingSearchText ?? "", (string value) =>
+                {
+                    waypoint.UncouplingSearchText = value;
+                    waypoint.TryResolveUncouplingSearchText(out Car foundCar);
+                    onWaypointChange(waypoint);
+                }, "Enter car id").FlexibleWidth();
+
+                field.Spacer();
+
+                field.AddButton("Clear", () =>
+                {
+                    waypoint.UncouplingSearchText = "";
+                    waypoint.UncouplingSearchResultCar = null;
+                    onWaypointChange(waypoint);
+                });
+            }));
+
+            builder.Spacer(8f);
+
+            var buttonsField = builder.AddField("", builder.HStack(field =>
+            {
+                field.AddButton("Select by click", () =>
+                {
+                    WaypointCarPicker.Shared.StartPickingCar(waypoint, onWaypointChange, forUncoupling: true);
+                });
+                field.AddButton("Jump to", () =>
+                {
+                    if (waypoint.UncouplingSearchResultCar != null)
+                    {
+                        CameraSelector.shared.JumpToPoint(waypoint.UncouplingSearchResultCar.OpsLocation.GetPosition(), waypoint.UncouplingSearchResultCar.OpsLocation.GetRotation(), CameraSelector.CameraIdentifier.Strategy);
+                    }
+                }).Disable(waypoint.UncouplingSearchResultCar == null);
+            }));
+
+            builder.Spacer(8f);
+
+            string searchResult = "Search or select a car";
+            if (waypoint.UncouplingSearchResultCar != null)
+            {
+                searchResult = $"Found {waypoint.UncouplingSearchResultCar.Ident}";
+            }
+            else if (!string.IsNullOrEmpty(waypoint.UncouplingSearchText))
+            {
+                searchResult = $"Cannot find \"{waypoint.UncouplingSearchText}\"";
+            }
+            var labelField = builder.AddField("Search result", builder.AddLabel(searchResult));
+
+            builder.AddField($"Direction to cut",
+            builder.AddDropdown(["Toward waypoint", "Away from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
             {
                 waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
                 onWaypointChange(waypoint);
