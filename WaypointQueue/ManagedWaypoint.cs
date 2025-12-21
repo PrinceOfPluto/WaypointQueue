@@ -58,7 +58,9 @@ namespace WaypointQueue
         {
             None,
             ByCount,
-            ByDestination
+            ByDestinationTrack,
+            ByDestinationIndustry,
+            ByDestinationArea
         }
 
         [JsonProperty]
@@ -174,7 +176,13 @@ namespace WaypointQueue
         [JsonIgnore]
         public bool WillUncoupleByCount { get { return UncouplingMode == UncoupleMode.ByCount; } }
         [JsonIgnore]
-        public bool WillUncoupleByDestination { get { return UncouplingMode == UncoupleMode.ByDestination; } }
+        public bool WillUncoupleByDestination { get { return WillUncoupleByDestinationTrack || WillUncoupleByDestinationIndustry || WillUncoupleByDestinationArea; } }
+        [JsonIgnore]
+        public bool WillUncoupleByDestinationTrack { get { return UncouplingMode == UncoupleMode.ByDestinationTrack; } }
+        [JsonIgnore]
+        public bool WillUncoupleByDestinationIndustry { get { return UncouplingMode == UncoupleMode.ByDestinationIndustry; } }
+        [JsonIgnore]
+        public bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
 
         [JsonIgnore]
         public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
