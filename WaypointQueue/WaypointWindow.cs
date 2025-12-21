@@ -27,7 +27,7 @@ namespace WaypointQueue
         public override string WindowIdentifier => "WaypointPanel";
         public override string Title => "Waypoints";
 
-        public override Vector2Int DefaultSize => new Vector2Int(400, 500);
+        public override Vector2Int DefaultSize => new Vector2Int(450, 500);
 
         public override Window.Position DefaultPosition => Window.Position.LowerRight;
 
@@ -897,23 +897,21 @@ namespace WaypointQueue
 
             builder.Spacer(8f);
 
-            var labelField = builder.AddField("Search result", builder.HStack(field =>
+            string searchResult = "Search or select a car";
+            if (waypoint.CouplingSearchResultCar != null)
             {
-                string searchResult = "Search or select a car";
-                if (waypoint.CouplingSearchResultCar != null)
-                {
-                    searchResult = $"Found {waypoint.CouplingSearchResultCar.Ident}";
-                }
-                else if (!string.IsNullOrEmpty(waypoint.CouplingSearchText))
-                {
-                    searchResult = $"Cannot find \"{waypoint.CouplingSearchText}\"";
-                }
-                if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
-                {
-                    searchResult += $"\nWarning! Neither end of the car is currently free to couple";
-                }
-                field.AddLabel(searchResult);
-            }));
+                searchResult = $"Found {waypoint.CouplingSearchResultCar.Ident}";
+            }
+            else if (!string.IsNullOrEmpty(waypoint.CouplingSearchText))
+            {
+                searchResult = $"Cannot find \"{waypoint.CouplingSearchText}\"";
+            }
+            var labelField = builder.AddField("Search result", builder.AddLabel(searchResult));
+
+            if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
+            {
+                builder.AddField("Warning", builder.AddLabel("Warning! Neither end of the car is currently free to couple"));
+            }
 
             return builder;
         }
