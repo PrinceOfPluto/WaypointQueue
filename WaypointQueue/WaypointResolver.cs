@@ -1326,6 +1326,7 @@ namespace WaypointQueue
 
         private static void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
         {
+            carsToCut = FilterAnySplitLocoTenderPairs(carsToCut);
             List<Car> carsRemaining = [.. allCars.Where(c => !carsToCut.Contains(c))];
 
             List<Car> activeCut = carsRemaining;
