@@ -1175,13 +1175,16 @@ namespace WaypointQueue
             }
             builder.AddField("Then wait", builder.HStack((UIPanelBuilder builder) =>
             {
-                builder.AddDropdown(["For a duration of time", "Until a specific time"], waypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration ? 0 : 1, (int value) =>
+                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time"], waypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
                 {
                     switch (value)
                     {
                         case 0:
-                            waypoint.DurationOrSpecificTime = ManagedWaypoint.WaitType.Duration; break;
+                            waypoint.WillWait = false;
+                            break;
                         case 1:
+                            waypoint.DurationOrSpecificTime = ManagedWaypoint.WaitType.Duration; break;
+                        case 2:
                             waypoint.DurationOrSpecificTime = ManagedWaypoint.WaitType.SpecificTime; break;
                         default:
                             break;
