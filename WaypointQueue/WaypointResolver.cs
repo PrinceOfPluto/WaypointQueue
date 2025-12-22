@@ -1472,27 +1472,7 @@ namespace WaypointQueue
 
         private static void SetHandbrakes(List<Car> cars)
         {
-            if (cars.Count == 0)
-            {
-                return;
-            }
-            float handbrakePercentage = Loader.Settings.HandbrakePercentOnUncouple;
-            float minimum = Loader.Settings.MinimumHandbrakesOnUncouple;
-
-            int carsToTieDown = (int)Math.Max(minimum, Math.Ceiling(cars.Count * handbrakePercentage));
-            if (carsToTieDown > cars.Count) carsToTieDown = cars.Count;
-
-            Loader.Log($"Setting handbrakes on {carsToTieDown} uncoupled cars");
-            for (int i = 0; i < carsToTieDown; i++)
-            {
-                //if (cars[i].Archetype.IsLocomotive())
-                //{
-                //    carsToTieDown++;
-                //    continue;
-                //}
-
-                cars[i].SetHandbrake(true);
-            }
+            Traverse.Create(TrainController.Shared).Method("ApplyHandbrakesAsNeeded", [typeof(List<Car>), typeof(PlaceTrainHandbrakes)], [cars, PlaceTrainHandbrakes.Automatic]).GetValue();
         }
 
         internal static void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
