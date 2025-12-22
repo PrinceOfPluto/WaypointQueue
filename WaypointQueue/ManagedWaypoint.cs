@@ -225,6 +225,8 @@ namespace WaypointQueue
         [JsonIgnore]
         public float SecondsSpentWaitingBeforeCut { get; set; }
         public string StatusLabel { get; set; } = "Inactive";
+        public string Name { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
 
         public bool IsValid()
         {

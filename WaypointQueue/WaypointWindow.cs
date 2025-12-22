@@ -376,6 +376,11 @@ namespace WaypointQueue
                 }
 
                 BuildWaitingSection(waypoint, builder, onWaypointChange);
+
+                if (!string.IsNullOrEmpty(waypoint.Notes))
+                {
+                    builder.AddField("Notes", builder.AddLabel(waypoint.Notes));
+                }
             });
         }
 
@@ -405,7 +410,8 @@ namespace WaypointQueue
 
         private void BuildWaypointItemHeader(ManagedWaypoint waypoint, int index, int totalWaypoints, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, UIPanelBuilder builder)
         {
-            builder.AddLabel($"Waypoint {index + 1}");
+            string waypointName = string.IsNullOrEmpty(waypoint.Name) ? string.Empty : $" - {waypoint.Name}";
+            builder.AddLabel($"Waypoint {index + 1}{waypointName}");
             builder.Spacer();
             builder.AddButtonCompact("▲", () =>
             {
@@ -419,7 +425,7 @@ namespace WaypointQueue
                     // move up one
                     onWaypointReorder(waypoint, index - 1);
                 }
-            }).Width(30f).Disable(index == 0);
+            }).Width(30f).Height(30f).Disable(index == 0);
 
             builder.AddButtonCompact("▼", () =>
             {
@@ -434,11 +440,12 @@ namespace WaypointQueue
                     // incrementing by 2 to account for index shifting after removal
                     onWaypointReorder(waypoint, index + 2);
                 }
-            }).Width(30f).Disable(index == totalWaypoints - 1);
+            }).Width(30f).Height(30f).Disable(index == totalWaypoints - 1);
 
             List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
             var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
             var makeNextWaypointRow = new DropdownMenu.RowData("Make next waypoint", "Moves this waypoint to after current waypoint");
+            var editNameAndNotesRow = new DropdownMenu.RowData("Edit name and notes", "");
             var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
             var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
@@ -448,6 +455,8 @@ namespace WaypointQueue
             {
                 options.Add(makeNextWaypointRow);
             }
+
+            options.Add(editNameAndNotesRow);
 
             if (waypoint.WillWait)
             {
@@ -467,6 +476,16 @@ namespace WaypointQueue
                     onWaypointReorder(waypoint, 1);
                 }
 
+                if (value == options.IndexOf(editNameAndNotesRow))
+                {
+                    PresentWaypointNotesModal("Edit waypoint", "Save", waypoint.Name, waypoint.Notes, (string name, string notes) =>
+                    {
+                        waypoint.Name = name;
+                        waypoint.Notes = notes;
+                        onWaypointChange(waypoint);
+                    });
+                }
+
                 if (value == options.IndexOf(removeWaitRow))
                 {
                     waypoint.ClearWaiting();
@@ -477,8 +496,46 @@ namespace WaypointQueue
                 {
                     onWaypointDelete(waypoint);
                 }
-            });
+            }).Width(30f).Height(30f);
             builder.Spacer(8f);
+        }
+
+        private static void PresentWaypointNotesModal(string title, string submitText, string editName, string editNotes, Action<string, string> onSubmit)
+        {
+            ModalAlertController.Present(delegate (UIPanelBuilder builder, Action dismiss)
+            {
+                builder.AddLabel(title, delegate (TMP_Text text)
+                {
+                    text.fontSize = 22f;
+                    text.horizontalAlignment = HorizontalAlignmentOptions.Center;
+                });
+                builder.AddSection("Name", delegate (UIPanelBuilder builder)
+                {
+                    builder.AddInputField(editName, delegate (string newName)
+                    {
+                        editName = newName;
+                    }, "Name");
+                });
+                builder.AddSection("Notes", delegate (UIPanelBuilder builder)
+                {
+                    builder.AddMultilineTextEditor(editNotes, "Notes", delegate (string newNotes)
+                    {
+                        editNotes = newNotes;
+                    }, delegate
+                    {
+                    }).Height(200f);
+                });
+                builder.Spacer(16f);
+                builder.AlertButtons(delegate (UIPanelBuilder builder)
+                {
+                    builder.AddButtonMedium("Cancel", dismiss);
+                    builder.AddButtonMedium(submitText, delegate
+                    {
+                        onSubmit(editName.Trim(), editNotes.Trim());
+                        dismiss();
+                    });
+                });
+            }, 500);
         }
 
         private UIPanelBuilder BuildStatusLabelField(ManagedWaypoint waypoint, UIPanelBuilder builder)
