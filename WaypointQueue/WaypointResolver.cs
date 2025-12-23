@@ -5,6 +5,7 @@ using HarmonyLib;
 using Helpers;
 using Model;
 using Model.AI;
+using Model.Definition;
 using Model.Definition.Data;
 using Model.Ops;
 using Model.Ops.Definition;
@@ -1110,7 +1111,7 @@ namespace WaypointQueue
         {
             if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
             {
-                ResolveUncoupleByCount(waypoint);
+                UncoupleByCount(waypoint);
             }
 
             if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
@@ -1122,10 +1123,67 @@ namespace WaypointQueue
             {
                 UncoupleBySpecificCar(waypoint);
             }
+
+            if (waypoint.WillUncoupleAllExceptLocomotives)
+            {
+                UncoupleAllExceptLocomotives(waypoint);
+            }
         }
 
+        private static void UncoupleAllExceptLocomotives(ManagedWaypoint waypoint)
+        {
+            Loader.Log($"Resolving uncoupling all except locomotives for {waypoint.Locomotive.Ident}");
+            List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(LogicalEnd.A)];
+            List<CarArchetype> locoArchetypes = [CarArchetype.LocomotiveDiesel, CarArchetype.LocomotiveSteam, CarArchetype.Tender];
 
-        private static void ResolveUncoupleByCount(ManagedWaypoint waypoint)
+            List<List<Car>> listOfCarBlocks = [[]];
+
+            for (int i = 0; i < consist.Count; i++)
+            {
+                Car currentCar = consist[i];
+                List<Car> currentBlock = listOfCarBlocks.Last();
+                currentBlock.Add(currentCar);
+
+                if (i < consist.Count - 1)
+                {
+                    Car nextCar = consist[i + 1];
+                    bool currentCarIsLocoType = locoArchetypes.Contains(currentCar.Archetype);
+                    bool nextCarIsLocoType = locoArchetypes.Contains(nextCar.Archetype);
+
+                    if ((currentCarIsLocoType && !nextCarIsLocoType) || (!currentCarIsLocoType && nextCarIsLocoType))
+                    {
+                        listOfCarBlocks.Add([]);
+                    }
+        }
+            }
+
+            foreach (List<Car> block in listOfCarBlocks)
+            {
+                if (block.Count > 0)
+                {
+                    Car lastCar = block.Last();
+                    Loader.Log($"Uncoupling {lastCar.Ident} on logical end B for block {block.Count} cars");
+                    UncoupleCar(lastCar, LogicalEnd.B);
+
+                    if (!locoArchetypes.Contains(lastCar.Archetype))
+        {
+                        if (waypoint.ApplyHandbrakesOnUncouple)
+                        {
+                            SetHandbrakes(block);
+                        }
+
+                        if (waypoint.BleedAirOnUncouple)
+                        {
+                            BleedAirOnCut(block);
+                        }
+                    }
+                }
+            }
+
+            UpdateCarsAfterUncoupling(waypoint.Locomotive as BaseLocomotive);
+        }
+
+        private static void UncoupleByCount(ManagedWaypoint waypoint)
         {
             if (!waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut <= 0) return;
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
@@ -1466,13 +1524,18 @@ namespace WaypointQueue
 
             if (waypoint.BleedAirOnUncouple)
             {
-                Loader.LogDebug($"Bleeding air on {inactiveCut.Count} cars");
-                foreach (Car car in inactiveCut)
+                BleedAirOnCut(inactiveCut);
+            }
+        }
+
+        private static void BleedAirOnCut(List<Car> cars)
+        {
+            Loader.LogDebug($"Bleeding air on {cars.Count} cars");
+            foreach (Car car in cars)
                 {
                     car.air.BleedBrakeCylinder();
                 }
             }
-        }
 
         private static void UpdateCarsAfterUncoupling(BaseLocomotive locomotive)
         {

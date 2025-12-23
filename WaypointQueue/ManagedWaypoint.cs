@@ -61,7 +61,8 @@ namespace WaypointQueue
             ByDestinationArea,
             ByDestinationIndustry,
             ByDestinationTrack,
-            BySpecificCar
+            BySpecificCar,
+            AllExceptLocomotives
         }
 
         [JsonProperty]
@@ -186,6 +187,8 @@ namespace WaypointQueue
         public bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
         [JsonIgnore]
         public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
+        [JsonIgnore]
+        public bool WillUncoupleAllExceptLocomotives { get { return UncouplingMode == UncoupleMode.AllExceptLocomotives; } }
 
         [JsonIgnore]
         public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }

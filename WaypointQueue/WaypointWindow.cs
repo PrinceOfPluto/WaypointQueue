@@ -350,6 +350,11 @@ namespace WaypointQueue
                     BuildUncoupleBySpecificCarField(waypoint, builder, onWaypointChange);
                 }
 
+                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleAllExceptLocomotives)
+                {
+                    BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
+                }
+
                 if (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingModeField(waypoint, builder, onWaypointChange);
@@ -381,6 +386,14 @@ namespace WaypointQueue
                 {
                     builder.AddField("Notes", builder.AddLabel(waypoint.Notes));
                 }
+            });
+        }
+
+        private void BuildUncoupleAllExceptLocomotive(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            builder.HStack(delegate (UIPanelBuilder builder)
+            {
+                AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
         }
 
@@ -682,7 +695,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car"], (int)waypoint.UncouplingMode, (int value) =>
+            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car", "All except locomotives"], (int)waypoint.UncouplingMode, (int value) =>
                 {
                     waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
                     _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
@@ -696,8 +709,9 @@ namespace WaypointQueue
             string byIndustryDestinationTooltipBody = "By industry destination - Pick an industry to uncouple a block of cars with destinations for that industry.";
             string byTrackDestinationTooltipBody = "By track destination - Pick a specific industry track to uncouple a block of cars with destinations for that track.";
             string bySpecificCarTooltipBody = "By specific car - Pick a specific car to uncouple and which direction to cut the consist.";
+            string allExceptLocomotiveTooltipBody = "All except locomotives - Uncouples all cars except locomotives and tenders.";
 
-            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{String.Join("\n\n", [noneTooltipBody, byCountTooltipBody, byAreaDestinationTooltipBody, byIndustryDestinationTooltipBody, byTrackDestinationTooltipBody, bySpecificCarTooltipBody])}");
+            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{String.Join("\n\n", [noneTooltipBody, byCountTooltipBody, byAreaDestinationTooltipBody, byIndustryDestinationTooltipBody, byTrackDestinationTooltipBody, bySpecificCarTooltipBody, allExceptLocomotiveTooltipBody])}");
             return builder;
         }
 
