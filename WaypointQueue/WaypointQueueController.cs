@@ -553,7 +553,7 @@ namespace WaypointQueue
         {
             try
             {
-                (Location closest, Location furthest) = WaypointResolver.GetTrainEndLocations(waypoint, out float closestDistance);
+                (Location closest, Location furthest) = WaypointResolver.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
                 return closestDistance < 10;
             }
             catch (InvalidOperationException)

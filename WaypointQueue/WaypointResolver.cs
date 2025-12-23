@@ -28,6 +28,7 @@ namespace WaypointQueue
     internal static class WaypointResolver
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
+        private static readonly float AverageCarLengthMeters = 12.2f;
         public static readonly string NoDestinationString = "No destination";
 
         /**
@@ -314,8 +315,76 @@ namespace WaypointQueue
 
         private static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Starting search for nearby coupling");
-            float searchRadius = Loader.Settings.NearbyCouplingSearchRadius;
+            return wp.OnlySeekNearbyOnTrackAhead ? FindNearbyCouplingInStraightLine(wp, ordersHelper) : FindNearbyCouplingInRadius(wp, ordersHelper);
+        }
+
+        private static bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.LogDebug($"Starting search for nearby coupling in straight line");
+            (Location closestTrainEnd, Location furthestTrainEnd) = GetTrainEndLocations(wp, out float closestDistance, out Car closestCar, out Car furthestCar);
+            Location orientedClosestTrainEnd = Graph.Shared.LocationOrientedToward(closestTrainEnd, furthestTrainEnd);
+
+            float checkDistanceInterval = AverageCarLengthMeters / 2;
+            float totalDistanceChecked = 0;
+            float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
+            List<Car> consist = wp.Locomotive.EnumerateCoupled().ToList();
+
+            Car targetCar = null;
+            while (totalDistanceChecked < searchRadius)
+            {
+                totalDistanceChecked += checkDistanceInterval;
+                try
+                {
+                    Loader.LogDebug($"Checking for coupling ahead by moving {totalDistanceChecked}");
+                    Location checkLocation = Graph.Shared.LocationByMoving(orientedClosestTrainEnd, totalDistanceChecked, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
+                    targetCar = TrainController.Shared.CheckForCarAtPoint(Graph.Shared.GetPosition(checkLocation));
+                    if (targetCar != null && !consist.Contains(targetCar))
+                    {
+                        break;
+                    }
+                }
+                catch (Exception)
+                {
+                    break;
+                }
+            }
+
+            if (targetCar != null)
+            {
+                LogicalEnd nearestEnd = ClosestLogicalEndTo(targetCar, closestTrainEnd);
+                Location bestLocation;
+                if (!targetCar[nearestEnd].IsCoupled)
+                {
+                    Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
+                    bestLocation = GetCouplerLocation(targetCar, nearestEnd);
+                }
+                else
+                {
+                    Loader.LogError($"Closest end of {targetCar.Ident} is NOT available to couple");
+                    return false;
+                }
+                wp.StatusLabel = $"Moving to couple {targetCar.Ident}";
+                wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                wp.CurrentlyCouplingNearby = true;
+                wp.StopAtWaypoint = true;
+                wp.CoupleToCar = targetCar;
+                wp.CoupleToCarId = targetCar.id;
+                wp.OverwriteLocation(bestLocation);
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
+                Loader.Log($"Sending target coupling waypoint for {wp.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
+                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
+                return true;
+            }
+
+            Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
+
+            return false;
+        }
+
+        private static bool FindNearbyCouplingInRadius(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.LogDebug($"Starting search for nearby coupling in radius");
+            float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
             List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
             List<string> nearbyCarIds = [.. TrainController.Shared
                 .CarIdsInRadius(wp.Location.GetPosition(), searchRadius)
@@ -438,7 +507,7 @@ namespace WaypointQueue
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint, out _);
+            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint, out _, out _, out _);
 
             float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
 
@@ -550,7 +619,7 @@ namespace WaypointQueue
                 throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
             }
 
-            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint, out _);
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = GetTrainEndLocations(waypoint, out _, out _, out _);
 
             LogicalEnd furthestFuelCarEnd = ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
             LogicalEnd closestFuelCarEnd = GetOppositeEnd(furthestFuelCarEnd);
@@ -620,7 +689,7 @@ namespace WaypointQueue
             return false;
         }
 
-        internal static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance)
+        internal static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance, out Car closestCar, out Car furthestCar)
         {
             Location closestLocation;
             Location furthestLocation;
@@ -639,6 +708,8 @@ namespace WaypointQueue
                 furthestLocation = onlyCar.LocationFor(furthestEnd);
 
                 closestDistance = Graph.Shared.GetDistanceBetweenClose(closestLocation, waypoint.Location);
+                closestCar = onlyCar;
+                furthestCar = onlyCar;
 
                 return (closestLocation, furthestLocation);
             }
@@ -672,11 +743,15 @@ namespace WaypointQueue
                 closestDistance = lastDistance;
                 closestLocation = lastLocation;
                 furthestLocation = firstLocation;
+                closestCar = lastCar;
+                furthestCar = firstCar;
                 Loader.LogDebug($"Closest car is {lastCar.Ident}");
                 Loader.LogDebug($"Furthest car is {firstCar.Ident}");
             }
             else
             {
+                closestCar = firstCar;
+                furthestCar = lastCar;
                 Loader.LogDebug($"Closest car is {firstCar.Ident}");
                 Loader.LogDebug($"Furthest car is {lastCar.Ident}");
             }

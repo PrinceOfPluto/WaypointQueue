@@ -205,6 +205,7 @@ namespace WaypointQueue
         [Obsolete("Use CouplingSearchMode instead")]
         [JsonProperty]
         private bool SeekNearbyCoupling { get; set; } = false;
+        public bool OnlySeekNearbyOnTrackAhead { get; set; } = true;
 
         public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
