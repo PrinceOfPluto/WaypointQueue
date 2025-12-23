@@ -84,6 +84,10 @@ namespace WaypointQueue
                 }
 
                 ResolveUncouplingOrders(wp);
+                if (wp.WillChangeMaxSpeed)
+                {
+                    ResolveChangeMaxSpeed(wp);
+                }
                 return true;
             }
 
@@ -197,6 +201,11 @@ namespace WaypointQueue
                 ResolveUncouplingOrders(wp);
             }
 
+            if (wp.WillChangeMaxSpeed)
+            {
+                ResolveChangeMaxSpeed(wp);
+            }
+
             if (TryBeginWaiting(wp, onWaypointDidUpdate))
             {
                 wp.StatusLabel = "Waiting before continuing";
@@ -205,6 +214,13 @@ namespace WaypointQueue
             }
 
             return true;
+        }
+
+        private static void ResolveChangeMaxSpeed(ManagedWaypoint wp)
+        {
+            var ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(wp.Locomotive);
+            int maxSpeedToSet = Mathf.Clamp(wp.MaxSpeedForChange, 0, 45);
+            ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeedToSet, null, null);
         }
 
         public static bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
@@ -1155,7 +1171,7 @@ namespace WaypointQueue
                     {
                         listOfCarBlocks.Add([]);
                     }
-        }
+                }
             }
 
             foreach (List<Car> block in listOfCarBlocks)
@@ -1167,7 +1183,7 @@ namespace WaypointQueue
                     UncoupleCar(lastCar, LogicalEnd.B);
 
                     if (!locoArchetypes.Contains(lastCar.Archetype))
-        {
+                    {
                         if (waypoint.ApplyHandbrakesOnUncouple)
                         {
                             SetHandbrakes(block);
@@ -1533,10 +1549,10 @@ namespace WaypointQueue
         {
             Loader.LogDebug($"Bleeding air on {cars.Count} cars");
             foreach (Car car in cars)
-                {
-                    car.air.BleedBrakeCylinder();
-                }
+            {
+                car.air.BleedBrakeCylinder();
             }
+        }
 
         private static void UpdateCarsAfterUncoupling(BaseLocomotive locomotive)
         {

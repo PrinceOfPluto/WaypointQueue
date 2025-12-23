@@ -380,6 +380,13 @@ namespace WaypointQueue
                     BuildRefuelField(waypoint, builder, onWaypointChange);
                 }
 
+                BuildThenChangeSpeedField(waypoint, builder, onWaypointChange, isRouteWindow);
+
+                if (waypoint.WillChangeMaxSpeed && !waypoint.CurrentlyWaiting)
+                {
+                    BuildChangeMaxSpeedField(waypoint, builder, onWaypointChange);
+                }
+
                 BuildWaitingSection(waypoint, builder, onWaypointChange);
 
                 if (!string.IsNullOrEmpty(waypoint.Notes))
@@ -601,34 +608,73 @@ namespace WaypointQueue
             return builder;
         }
 
+        private UIPanelBuilder BuildThenChangeSpeedField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, bool isRouteWindow)
+        {
+            builder.AddField("Then change speed", builder.AddToggle(() => waypoint.WillChangeMaxSpeed, value =>
+            {
+                waypoint.WillChangeMaxSpeed = value;
+                if (value && !isRouteWindow)
+                {
+                    var ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(waypoint.Locomotive);
+                    waypoint.MaxSpeedForChange = ordersHelper.Orders.MaxSpeedMph;
+                }
+                onWaypointChange(waypoint);
+            }));
+            return builder;
+        }
+
+        private UIPanelBuilder BuildChangeMaxSpeedField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            var changeMaxSpeedField = builder.AddField($"Max speed", builder.HStack((UIPanelBuilder field) =>
+            {
+                field.AddLabel($"{waypoint.MaxSpeedForChange} mph")
+                        .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
+                        .Width(100f);
+                field.AddButtonCompact("-", delegate
+                {
+                    int result = Mathf.Max(waypoint.MaxSpeedForChange - GetOffsetAmount(), 0);
+                    waypoint.MaxSpeedForChange = result;
+                    onWaypointChange(waypoint);
+                }).Disable(waypoint.MaxSpeedForChange <= 0).Width(24f);
+                field.AddButtonCompact("+", delegate
+                {
+                    waypoint.MaxSpeedForChange += GetOffsetAmount();
+                    onWaypointChange(waypoint);
+                }).Width(24f);
+            }));
+
+            AddLabelOnlyTooltip(changeMaxSpeedField, "Change max speed", "Assigns a new max speed for the locomotive after reaching this waypoint.");
+            return builder;
+        }
+
         private UIPanelBuilder BuildPassingSpeedLimitField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             var passingSpeedField = builder.AddField($"Passing speed limit", builder.HStack((UIPanelBuilder field) =>
             {
                 if (waypoint.WillLimitPassingSpeed)
                 {
-                field.AddLabel($"{waypoint.WaypointTargetSpeed} mph")
+                    field.AddLabel($"{waypoint.WaypointTargetSpeed} mph")
                         .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
                         .Width(100f);
-                field.AddButtonCompact("-", delegate
-                {
-                    int result = Mathf.Max(waypoint.WaypointTargetSpeed - GetOffsetAmount(), 0);
-                    waypoint.WaypointTargetSpeed = result;
-                    onWaypointChange(waypoint);
-                }).Disable(waypoint.WaypointTargetSpeed <= 0).Width(24f);
-                field.AddButtonCompact("+", delegate
-                {
-                    waypoint.WaypointTargetSpeed += GetOffsetAmount();
-                    onWaypointChange(waypoint);
-                }).Width(24f);
-                field.AddButtonCompact("Kick", delegate
-                {
-                    waypoint.WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
-                    if (Loader.Settings.UncheckAirAndBrakesForKick)
+                    field.AddButtonCompact("-", delegate
                     {
-                        waypoint.ApplyHandbrakesOnUncouple = false;
-                        waypoint.BleedAirOnUncouple = false;
-                    }
+                        int result = Mathf.Max(waypoint.WaypointTargetSpeed - GetOffsetAmount(), 0);
+                        waypoint.WaypointTargetSpeed = result;
+                        onWaypointChange(waypoint);
+                    }).Disable(waypoint.WaypointTargetSpeed <= 0).Width(24f);
+                    field.AddButtonCompact("+", delegate
+                    {
+                        waypoint.WaypointTargetSpeed += GetOffsetAmount();
+                        onWaypointChange(waypoint);
+                    }).Width(24f);
+                    field.AddButtonCompact("Kick", delegate
+                    {
+                        waypoint.WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
+                        if (Loader.Settings.UncheckAirAndBrakesForKick)
+                        {
+                            waypoint.ApplyHandbrakesOnUncouple = false;
+                            waypoint.BleedAirOnUncouple = false;
+                        }
                         onWaypointChange(waypoint);
                     });
                 }

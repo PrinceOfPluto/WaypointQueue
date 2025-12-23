@@ -148,6 +148,9 @@ namespace WaypointQueue
         public bool StopAtWaypoint { get; set; } = true;
         public bool WillLimitPassingSpeed { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
+        public bool WillChangeMaxSpeed { get; set; } = false;
+        public int MaxSpeedForChange { get; set; }
+
 
         [JsonProperty("CouplingSearchMode")]
         private CoupleSearchMode _couplingSearchMode = CoupleSearchMode.None;
