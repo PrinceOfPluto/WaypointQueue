@@ -431,6 +431,8 @@ namespace WaypointQueue
                 copy.Locomotive = loco;
                 copy.LocomotiveId = loco?.id ?? null;
                 copy.Location = Location;
+                copy.TryResolveCouplingSearchText(out _);
+                copy.TryResolveUncouplingSearchText(out _);
                 return true;
             }
             else
