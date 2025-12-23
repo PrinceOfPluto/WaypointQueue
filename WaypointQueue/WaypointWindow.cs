@@ -1022,7 +1022,7 @@ namespace WaypointQueue
                 }));
 
             string tooltipTitle = "Coupling mode";
-            string coupleNearestTooltipBody = "To nearest car - Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius. The nearest car is determine by track distance from the waypoint, not physical distance. You can configure this search radius in the mod settings.";
+            string coupleNearestTooltipBody = "To nearest car - Couple to the nearest car to the waypoint. You can choose to only search straight ahead or in a radius. The search distance is configurable in mod settings.";
             string specificCarTooltipBody = "To a specific car - Allows you to choose a specific car to couple to after arriving at the waypoint.";
 
             AddLabelOnlyTooltip(couplingModeField, tooltipTitle, $"{coupleNearestTooltipBody}\n\n{specificCarTooltipBody}");
