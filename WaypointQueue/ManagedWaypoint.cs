@@ -58,9 +58,9 @@ namespace WaypointQueue
         {
             None,
             ByCount,
-            ByDestinationTrack,
-            ByDestinationIndustry,
             ByDestinationArea,
+            ByDestinationIndustry,
+            ByDestinationTrack,
             BySpecificCar
         }
 

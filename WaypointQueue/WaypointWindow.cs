@@ -672,7 +672,7 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By track destination", "By industry destination", "By area destination", "By specific car"], (int)waypoint.UncouplingMode, (int value) =>
+            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car"], (int)waypoint.UncouplingMode, (int value) =>
                 {
                     waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
                     _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
