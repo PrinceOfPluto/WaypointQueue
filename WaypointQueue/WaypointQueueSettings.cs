@@ -14,6 +14,7 @@ namespace WaypointQueue
 
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
+        [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
 
         [Header("Coupling settings")]
         [Draw("Nearby coupling search distance in car lengths", DrawType.Slider, Precision = 0, Min = 1, Max = 100, Tooltip = "Distance to search for nearby coupling. Measured in car lengths of about 40 ft each")] public float NearbyCouplingSearchDistanceInCarLengths = 10;
@@ -28,8 +29,8 @@ namespace WaypointQueue
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
         [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
-        [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
         [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
+        [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)
