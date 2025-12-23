@@ -31,6 +31,7 @@ namespace WaypointQueue
         [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
         [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
         [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
+        [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)

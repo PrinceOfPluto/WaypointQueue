@@ -31,6 +31,7 @@ namespace WaypointQueue
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
             ShowPostCouplingCut = Loader.Settings.ShowPostCouplingCutByDefault;
+            WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
         }
 
         public enum WaitType
@@ -145,6 +146,7 @@ namespace WaypointQueue
         public int WaitForDurationMinutes { get; set; }
         public double WaitUntilGameTotalSeconds { get; set; }
         public bool StopAtWaypoint { get; set; } = true;
+        public bool WillLimitPassingSpeed { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
 
         [JsonProperty("CouplingSearchMode")]

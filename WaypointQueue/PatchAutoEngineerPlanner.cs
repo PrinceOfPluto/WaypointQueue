@@ -69,8 +69,13 @@ namespace WaypointQueue
 
                 List<Targets.Target> updatedTargets = [.. targets.AllTargets];
 
+                float targetSpeed = ordersHelper.Orders.MaxSpeedMph;
+                if (waypointState.UnresolvedWaypoint.WillLimitPassingSpeed)
+                {
+                    targetSpeed = waypointState.UnresolvedWaypoint.WaypointTargetSpeed;
+                }
+
                 float maxSafeSpeed = Mathf.Abs(targets.MaxSpeedMph);
-                float targetSpeed = waypointState.UnresolvedWaypoint.WaypointTargetSpeed;
                 float speedToSet = Mathf.Clamp(targetSpeed, 0, maxSafeSpeed);
                 float signedSpeedToSet = speedToSet * Mathf.Sign(direction);
 

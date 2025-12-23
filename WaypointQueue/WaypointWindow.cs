@@ -605,6 +605,8 @@ namespace WaypointQueue
         {
             var passingSpeedField = builder.AddField($"Passing speed limit", builder.HStack((UIPanelBuilder field) =>
             {
+                if (waypoint.WillLimitPassingSpeed)
+                {
                 field.AddLabel($"{waypoint.WaypointTargetSpeed} mph")
                         .TextWrap(TextOverflowModes.Overflow, TextWrappingModes.NoWrap)
                         .Width(100f);
@@ -627,8 +629,22 @@ namespace WaypointQueue
                         waypoint.ApplyHandbrakesOnUncouple = false;
                         waypoint.BleedAirOnUncouple = false;
                     }
+                        onWaypointChange(waypoint);
+                    });
+                }
+                else
+                {
+                    field.AddLabel($"No passing speed limit");
+                }
+                field.Spacer();
+
+                string setOrUnsetLimit = waypoint.WillLimitPassingSpeed ? "Unset" : "Set";
+                field.AddButtonCompact(setOrUnsetLimit, delegate
+                {
+                    waypoint.WillLimitPassingSpeed = !waypoint.WillLimitPassingSpeed;
                     onWaypointChange(waypoint);
                 });
+                field.Spacer(8f);
             }));
 
             AddLabelOnlyTooltip(passingSpeedField, "Passing speed limit", "When passing this waypoint, the engineer will aim to be traveling at or below this speed.\n\nIf there is a track speed restriction, the engineer will not exceed that speed restriction to ensure safety.");
