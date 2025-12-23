@@ -622,6 +622,11 @@ namespace WaypointQueue
                 field.AddButtonCompact("Kick", delegate
                 {
                     waypoint.WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
+                    if (Loader.Settings.UncheckAirAndBrakesForKick)
+                    {
+                        waypoint.ApplyHandbrakesOnUncouple = false;
+                        waypoint.BleedAirOnUncouple = false;
+                    }
                     onWaypointChange(waypoint);
                 });
             }));
