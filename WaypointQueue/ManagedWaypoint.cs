@@ -3,11 +3,13 @@ using Model;
 using Model.Ops;
 using Newtonsoft.Json;
 using System;
+using System.Linq;
 using System.Runtime.Serialization;
 using Track;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
+using static Model.Ops.OpsController;
 
 namespace WaypointQueue
 {
@@ -384,6 +386,66 @@ namespace WaypointQueue
             }
 
             return car != null;
+        }
+
+        public bool CheckValidUncoupleDestinationId()
+        {
+            if (string.IsNullOrEmpty(UncoupleDestinationId))
+            {
+                return true;
+            }
+
+            if (WillUncoupleByDestinationTrack)
+            {
+                return HasValidTrackDestinationId();
+            }
+
+            if (WillUncoupleByDestinationIndustry)
+            {
+                return HasValidIndustryDestinationId();
+            }
+
+            if (WillUncoupleByDestinationArea)
+            {
+                return HasValidAreaDestinationId();
+            }
+            return true;
+        }
+
+        public bool HasValidTrackDestinationId()
+        {
+            try
+            {
+                OpsCarPosition destinationMatch = OpsController.Shared.ResolveOpsCarPosition(UncoupleDestinationId);
+                return true;
+            }
+            catch (InvalidOpsCarPositionException)
+            {
+                Loader.LogError($"Failed to resolve track destination by id {UncoupleDestinationId}  for waypoint id {Id}");
+                return false;
+            }
+        }
+
+        public bool HasValidIndustryDestinationId()
+        {
+            Industry industryMatch = OpsController.Shared.AllIndustries.Where(i => i.identifier == UncoupleDestinationId).FirstOrDefault();
+            if (industryMatch == null)
+            {
+                Loader.LogError($"Failed to resolve industry by id {UncoupleDestinationId} for waypoint id {Id}");
+                return false;
+            }
+            return true;
+        }
+
+        public bool HasValidAreaDestinationId()
+        {
+            Area areaMatch = OpsController.Shared.Areas.Where(i => i.identifier == UncoupleDestinationId).FirstOrDefault();
+            if (areaMatch == null)
+            {
+                Loader.LogError($"Failed to resolve area by id {UncoupleDestinationId} for waypoint id {Id}");
+                return false;
+            }
+            return true;
         }
 
         public void SetTargetSpeedToOrdersMax()
