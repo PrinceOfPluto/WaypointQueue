@@ -128,10 +128,10 @@ namespace WaypointQueue
                 }
                 else
                 {
+                    //Loader.LogDebug($"Loco {entry.Locomotive.Ident} is NOT ready to resolve waypoint");
                     continue;
                 }
 
-                //Loader.LogDebug($"Loco {entry.Locomotive.Ident} has no active waypoint during tick update");
 
                 // Resolve waypoint order
                 /**
@@ -191,7 +191,27 @@ namespace WaypointQueue
 
         private bool NeedsForceResolve(LocoWaypointState entry)
         {
-            return entry.UnresolvedWaypoint != null && AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint);
+            if (entry.UnresolvedWaypoint == null)
+            {
+                return false;
+            }
+            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint);
+            bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry);
+            return needsEndOfTrackResolve || needsAlreadyCoupledResolve;
+        }
+
+        private bool IsUnresolvedWaypointAlreadyCoupled(LocoWaypointState entry)
+        {
+            ManagedWaypoint wp = entry.UnresolvedWaypoint;
+            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car car))
+            {
+                List<Car> consist = [.. wp.Locomotive.EnumerateCoupled()];
+                if (consist.Contains(car))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing, bool isInsertingNext)
