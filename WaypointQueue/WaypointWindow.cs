@@ -1387,8 +1387,8 @@ namespace WaypointQueue
         private static (List<string> labels, List<string> values, int selected) BuildTimetableSymbolChoices(string current)
         {
             // 0 = "No change" → do nothing
-            var labels = new List<string> { "No change" };
-            var values = new List<string> { null };
+            List<string> labels = ["No change", "Remove train symbol"];
+            List<string> values = [null, WaypointResolver.RemoveTrainSymbolString];
 
             try
             {

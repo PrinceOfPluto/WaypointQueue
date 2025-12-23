@@ -31,6 +31,7 @@ namespace WaypointQueue
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         private static readonly float AverageCarLengthMeters = 12.2f;
         public static readonly string NoDestinationString = "No destination";
+        public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
@@ -1629,8 +1630,6 @@ namespace WaypointQueue
         {
             if (waypoint.TimetableSymbol == null) return;
 
-            string valueToSet = string.IsNullOrEmpty(waypoint.TimetableSymbol) ? null : waypoint.TimetableSymbol;
-
             string crewId = waypoint.Locomotive?.trainCrewId;
 
             if (string.IsNullOrEmpty(crewId))
@@ -1648,8 +1647,13 @@ namespace WaypointQueue
                 return;
             }
 
-            StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, valueToSet));
-            Loader.Log($"[Timetable] {(valueToSet ?? "None")} for {waypoint.Locomotive.Ident}");
+            if (waypoint.TimetableSymbol == RemoveTrainSymbolString)
+            {
+                waypoint.TimetableSymbol = null;
+            }
+
+            StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, waypoint.TimetableSymbol));
+            Loader.Log($"[Timetable] {(waypoint.TimetableSymbol ?? "None")} for {waypoint.Locomotive.Ident}");
         }
     }
 }
