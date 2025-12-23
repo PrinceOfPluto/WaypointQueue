@@ -584,7 +584,7 @@ namespace WaypointQueue
                 onWaypointChange(waypoint);
             }, interactable: !waypoint.IsCoupling));
 
-            AddLabelOnlyTooltip(stopAtWaypointField, "Stop at waypoint", "Controls whether the train will come to a complete stop at the waypoint.\n\nIf you are not stopping, you may still perform uncoupling orders, but you cannot perform coupling, refueling, or waiting orders.");
+            AddLabelOnlyTooltip(stopAtWaypointField, "Stop at waypoint", "Controls whether the train will come to a complete stop at the waypoint.\n\nIf you are not stopping, you cannot perform refueling orders.");
             return builder;
         }
 
@@ -680,10 +680,14 @@ namespace WaypointQueue
                 }));
 
             string tooltipTitle = "Uncoupling mode";
-            string noneTooltipBody = "None\n\nNo cars will uncouple.";
-            string byCountTooltipBody = "By count\n\nPick a number of cars to uncouple and the direction to count cars from.";
+            string noneTooltipBody = "None - No cars will uncouple.";
+            string byCountTooltipBody = "By count - Pick a number of cars to uncouple and which direction to count cars from.";
+            string byAreaDestinationTooltipBody = "By area destination - Pick an area to uncouple a block of cars with destinations for that area.";
+            string byIndustryDestinationTooltipBody = "By industry destination - Pick an industry to uncouple a block of cars with destinations for that industry.";
+            string byTrackDestinationTooltipBody = "By track destination - Pick a specific industry track to uncouple a block of cars with destinations for that track.";
+            string bySpecificCarTooltipBody = "By specific car - Pick a specific car to uncouple and which direction to cut the consist.";
 
-            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{noneTooltipBody}\n\n{byCountTooltipBody}");
+            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{String.Join("\n\n", [noneTooltipBody, byCountTooltipBody, byAreaDestinationTooltipBody, byIndustryDestinationTooltipBody, byTrackDestinationTooltipBody, bySpecificCarTooltipBody])}");
             return builder;
         }
 
@@ -726,12 +730,14 @@ namespace WaypointQueue
 
         private UIPanelBuilder BuildUncoupleByDestinationField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            builder.AddField("Search filter", builder.AddInputField(waypoint.DestinationSearchText, placeholder: "Type to filter destination options", onApply: (string value) =>
+            var searchFilterField = builder.AddField("Search filter", builder.AddInputField(waypoint.DestinationSearchText, placeholder: "Type to filter destination options", onApply: (string value) =>
             {
                 waypoint.DestinationSearchText = value;
                 _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
                 onWaypointChange(waypoint);
             }));
+
+            AddLabelOnlyTooltip(searchFilterField, "Search filter", "Filters the dropdown list of destination options");
 
             if (!_opsDestinationOptionsByWaypointId.TryGetValue(waypoint.Id, out var destinationChoices))
             {
@@ -758,13 +764,14 @@ namespace WaypointQueue
                 currentIndex = 0;
             }
 
-            builder.AddField("Matching destination", builder.AddDropdown(destinationChoices.Select(x => x.Label).ToList(), currentIndex, index =>
+            var matchingDestinationField = builder.AddField("Matching destination", builder.AddDropdown(destinationChoices.Select(x => x.Label).ToList(), currentIndex, index =>
             {
                 waypoint.UncoupleDestinationId = destinationChoices[index].Value;
                 bool choiceIsEmpty = string.IsNullOrEmpty(destinationChoices[index].Value);
                 waypoint.DestinationSearchText = choiceIsEmpty ? string.Empty : destinationChoices[index].Label;
                 onWaypointChange(waypoint);
             }));
+            AddLabelOnlyTooltip(matchingDestinationField, "Matching destination", "Select an option to uncouple a block of cars with matching destinations. When uncoupling, the mod will check cars starting from the train end you select to cut a block from. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars. The matching block is included in the uncoupled cut by default, but you can also choose to exclude the match.");
 
             var excludeMatchingCarsFromCutField = builder.AddField("Exclude match from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, (bool value) =>
             {
@@ -772,15 +779,19 @@ namespace WaypointQueue
                 onWaypointChange(waypoint);
             }));
             AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude matching cars from cut", "If this is enabled, the matching cars won't be included in the uncoupled cut." +
-                "\n\nFor example, say you have a consist with a block of Whittier Sawmill SO1/SO2 cars followed by a mix of non-Whittier cars. " +
-                "If you select the matching destination as Whittier Sawmill SO1/SO2 and enable this option, then the SO1/SO2 cars will be excluded from the cut. The cut will include all non-matching cars between that SO1/SO2 block and whichever train end you chose.");
+                "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by a mix of non-Whittier cars at the end. You want to uncouple all non-Whittier cars without counting the individual cars." +
+                "\n\nTo do that, you can select the matching destination as Whittier, exclude this match from the cut, and choose to cut the block from the furthest train end from waypoint. When uncoupling, the mod will begin checking cars from that end to add to the list of cars to cut and stop once it finds a matching Whittier car. If this option were not enabled, then the matching Whittier cars would also be included in this uncoupled cut.");
 
-            builder.AddField($"Start cut from",
+            var cutBlockFromField = builder.AddField($"Cut block from",
             builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
             {
                 waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
                 onWaypointChange(waypoint);
             }));
+            AddLabelOnlyTooltip(cutBlockFromField, "Cut block from", "This option determines which end of the train the matching block cut starts from. This is needed to determine your intent particularly if the matching block is in the middle of the consist." +
+                "\n\nWhen uncoupling, the mod will check cars starting from the train end you selected. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars which are included in the uncoupled cut by default, but you can choose to exclude the match with a different option." +
+                "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by non-Whittier cars. You want to dropoff the Whittier cars without counting how many cars you have." +
+                "\n\nTo do that, you can select the matching Whittier destination, cut the block from closest end to the waypoint which will include the locomotive since that it at the closest end, and in this case very importantly also select make uncoupled cars active.");
 
             builder.HStack(delegate (UIPanelBuilder builder)
             {
@@ -987,10 +998,8 @@ namespace WaypointQueue
                 }));
 
             string tooltipTitle = "Coupling mode";
-            string coupleNearestTooltipBody = "Nearest\n\nUpon arriving at this waypoint, the engineer will couple to the nearest car within the search radius." +
-                "\n\nThe nearest car is determine by track distance from the waypoint, not physical distance. " +
-                "You can configure the search radius in the mod settings.";
-            string specificCarTooltipBody = "Specific car\n\nAllows you to choose a specific car to couple to after arriving at the waypoint.";
+            string coupleNearestTooltipBody = "To nearest car - Upon arriving at this waypoint, the engineer will couple to the nearest car within the search radius. The nearest car is determine by track distance from the waypoint, not physical distance. You can configure this search radius in the mod settings.";
+            string specificCarTooltipBody = "To a specific car - Allows you to choose a specific car to couple to after arriving at the waypoint.";
 
             AddLabelOnlyTooltip(couplingModeField, tooltipTitle, $"{coupleNearestTooltipBody}\n\n{specificCarTooltipBody}");
             return builder;
