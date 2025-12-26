@@ -410,7 +410,7 @@ namespace WaypointQueue
             {
                 if (value)
                 {
-                    waypoint.UncouplingMode = ManagedWaypoint.UncoupleMode.ByCount;
+                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultUncouplingMode;
                     onWaypointChange(waypoint);
                 }
             }));
@@ -422,7 +422,7 @@ namespace WaypointQueue
             {
                 if (value)
                 {
-                    waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.SpecificCar;
+                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)Loader.Settings.DefaultCouplingSearchMode;
                     onWaypointChange(waypoint);
                 }
             }));
