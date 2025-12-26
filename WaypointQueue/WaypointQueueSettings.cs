@@ -3,6 +3,22 @@ using UnityModManagerNet;
 
 namespace WaypointQueue
 {
+    public enum CoupleSearchModeDefaultOptions
+    {
+        Nearest = ManagedWaypoint.CoupleSearchMode.Nearest,
+        BySpecificCar = ManagedWaypoint.CoupleSearchMode.SpecificCar,
+    }
+
+    public enum UncoupleModeDefaultOptions
+    {
+        ByCount = ManagedWaypoint.UncoupleMode.ByCount,
+        ByDestinationArea = ManagedWaypoint.UncoupleMode.ByDestinationArea,
+        ByDestinationIndustry = ManagedWaypoint.UncoupleMode.ByDestinationIndustry,
+        ByDestinationTrack = ManagedWaypoint.UncoupleMode.ByDestinationTrack,
+        BySpecificCar = ManagedWaypoint.UncoupleMode.BySpecificCar,
+        AllExceptLocomotives = ManagedWaypoint.UncoupleMode.AllExceptLocomotives,
+    }
+
     public class WaypointQueueSettings : UnityModManager.ModSettings, IDrawable
     {
         [Header("Keybindings")]
@@ -15,20 +31,23 @@ namespace WaypointQueue
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
+        [Draw("Enable post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
 
         [Header("Coupling settings")]
-        [Draw("Nearby coupling search distance in car lengths", DrawType.Slider, Precision = 0, Min = 1, Max = 100, Tooltip = "Distance to search for nearby coupling. Measured in car lengths of about 40 ft each")] public float NearbyCouplingSearchDistanceInCarLengths = 10;
-
-        [Header("Uncoupling settings")]
-        [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
-        [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
-
-        [Header("Custom Defaults")]
         [Draw("Connect air by default when coupling")] public bool ConnectAirByDefault = true;
         [Draw("Release handbrakes by default when coupling")] public bool ReleaseHandbrakesByDefault = true;
+        [Draw("Nearby coupling search distance in car lengths", DrawType.Slider, Precision = 0, Min = 1, Max = 100, Tooltip = "Distance to search for nearby coupling. Measured in car lengths of about 40 ft each")] public float NearbyCouplingSearchDistanceInCarLengths = 10;
+        [Draw("Default coupling search mode", DrawType.ToggleGroup)] public CoupleSearchModeDefaultOptions DefaultCouplingSearchMode = CoupleSearchModeDefaultOptions.BySpecificCar;
+
+        [Header("Uncoupling settings")]
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
-        [Draw("Show post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
+        [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
+        [Draw("Default uncoupling mode", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
+
+        [Header("Custom Defaults")]
         [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
         [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
         [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;

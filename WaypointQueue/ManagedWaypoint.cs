@@ -32,6 +32,11 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
             ShowPostCouplingCut = Loader.Settings.ShowPostCouplingCutByDefault;
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
+
+            if (Loader.Settings.EnableThenUncoupleByDefault)
+            {
+                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+            }
         }
 
         public enum WaitType
