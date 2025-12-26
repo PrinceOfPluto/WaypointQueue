@@ -28,9 +28,9 @@ namespace WaypointQueue
 
         public Dictionary<string, LocoWaypointState> WaypointStateMap { get; private set; } = new();
 
-        public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; private set; } = new List<CarLoadTargetLoader>();
+        public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; private set; } = [];
 
-        public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = new List<CarLoaderSequencer>();
+        public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = [];
 
         private static WaypointQueueController _shared;
 
@@ -92,15 +92,18 @@ namespace WaypointQueue
 
         public void InitCarLoaders(bool reload = false)
         {
+            Loader.Log($"Begin InitCarLoaders");
             if (reload || CarLoadTargetLoaders == null || CarLoadTargetLoaders.Count <= 0)
             {
-                Loader.LogDebug($"Initializing list of car load target loaders");
                 CarLoadTargetLoaders = FindObjectsOfType<CarLoadTargetLoader>().ToList();
+                Loader.Log($"Initialized list of CarLoadTargetLoader");
             }
             if (reload || CarLoaderSequencers == null || CarLoaderSequencers.Count <= 0)
             {
                 CarLoaderSequencers = FindObjectsOfType<CarLoaderSequencer>().ToList();
+                Loader.Log($"Initialized list of CarLoaderSequencer");
             }
+            Loader.Log($"End InitCarLoaders");
         }
 
         private void DoQueueTickUpdate()
