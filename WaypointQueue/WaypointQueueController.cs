@@ -195,7 +195,7 @@ namespace WaypointQueue
             {
                 return false;
             }
-            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint);
+            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint) && WaypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
             bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry);
             return needsEndOfTrackResolve || needsAlreadyCoupledResolve;
         }

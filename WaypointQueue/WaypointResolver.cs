@@ -268,7 +268,7 @@ namespace WaypointQueue
             return true;
         }
 
-        private static bool IsTrainStopped(ManagedWaypoint wp)
+        internal static bool IsTrainStopped(ManagedWaypoint wp)
         {
             List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
             Car firstCar = coupled.First();
