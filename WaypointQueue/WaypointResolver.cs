@@ -195,8 +195,7 @@ namespace WaypointQueue
             {
                 ResolvePostCouplingCut(wp);
             }
-
-            if (wp.HasAnyUncouplingOrders)
+            else if (wp.HasAnyUncouplingOrders)
             {
                 ResolveUncouplingOrders(wp);
             }
