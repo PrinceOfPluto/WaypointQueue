@@ -18,8 +18,11 @@ namespace WaypointQueue
         // Used for JSON deserialization
         public ManagedWaypoint() { }
 
+        public int? Version { get; set; }
+
         public ManagedWaypoint(Car locomotive, Location location, string coupleToCarId = "")
         {
+            Version = 1;
             Locomotive = locomotive;
             LocomotiveId = locomotive.id;
             Location = location;
@@ -264,6 +267,15 @@ namespace WaypointQueue
         [OnDeserialized]
         internal void OnDeserialized(StreamingContext _)
         {
+            if (!Version.HasValue)
+            {
+                MigrateFromVersion0To1();
+            }
+        }
+
+        private void MigrateFromVersion0To1()
+        {
+            Loader.LogDebug($"Migrating waypoint {Id} from version 0 to version 1");
 #pragma warning disable 0618
             // below is the only area where this obsolete field should be used
             if (SeekNearbyCoupling)
