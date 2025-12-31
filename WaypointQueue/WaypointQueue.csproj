@@ -134,11 +134,11 @@
   <ItemGroup>
     <Compile Include="UI\DropdownOption.cs" />
     <Compile Include="WaypointCarPicker.cs" />
-    <Compile Include="PatchCarPickable.cs" />
-    <Compile Include="PatchAutoEngineerDestinationPicker.cs" />
-    <Compile Include="PatchAutoEngineerPlanner.cs" />
-    <Compile Include="PatchAutoEngineerWaypointControls.cs" />
-    <Compile Include="PatchPopulateOperationsPanel.cs" />
+    <Compile Include="Patches\PatchCarPickable.cs" />
+    <Compile Include="Patches\PatchAutoEngineerDestinationPicker.cs" />
+    <Compile Include="Patches\PatchAutoEngineerPlanner.cs" />
+    <Compile Include="Patches\PatchAutoEngineerWaypointControls.cs" />
+    <Compile Include="Patches\PatchPopulateOperationsPanel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RouteAssignmentRegistry.cs" />
     <Compile Include="RouteDefinition.cs" />
@@ -146,8 +146,8 @@
     <Compile Include="LocoWaypointState.cs" />
     <Compile Include="ManagedWaypoint.cs" />
     <Compile Include="Loader.cs" />
-    <Compile Include="PatchAutoEngineerOrdersHelper.cs" />
-    <Compile Include="PatchSteamLocomotive.cs" />
+    <Compile Include="Patches\PatchAutoEngineerOrdersHelper.cs" />
+    <Compile Include="Patches\PatchSteamLocomotive.cs" />
     <Compile Include="RouteRegistry.cs" />
     <Compile Include="WaypointQueueController.cs" />
     <Compile Include="ModSaveManager.cs" />
