@@ -33,7 +33,7 @@ namespace WaypointQueue
 
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
 
-        public static WaypointWindow Shared => WindowManager.Shared.GetWindow<WaypointWindow>();
+        public static WaypointWindow Shared {get; private set; }
 
         private static Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
@@ -45,13 +45,23 @@ namespace WaypointQueue
         private Coroutine _coroutine;
         private float _scrollPosition;
 
-        private void OnEnable()
+        protected void Awake()
+        {
+            Shared = this;
+        }
+
+        protected void OnDestroy()
+        {
+            Shared = null;
+        }
+
+        protected void OnEnable()
         {
             WaypointQueueController.LocoWaypointStateDidUpdate += OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate += OnWaypointDidUpdate;
         }
 
-        private void OnDisable()
+        protected void OnDisable()
         {
             WaypointQueueController.LocoWaypointStateDidUpdate -= OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;

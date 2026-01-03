@@ -74,7 +74,7 @@ namespace WaypointQueue
                         if (win == null)
                         {
                             WindowHelper.CreateWindow<RouteManagerWindow>(null);
-                            win = WindowManager.Shared.GetWindow<RouteManagerWindow>();
+                            win = RouteManagerWindow.Shared;
                         }
                         win.Show();
                     });
