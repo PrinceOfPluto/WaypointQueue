@@ -118,10 +118,10 @@ namespace WaypointQueue.UUM
         private static void InitWindows()
         {
             WindowHelper.CreateWindow<WaypointWindow>(null);
-            WaypointWindow = WindowManager.Shared.GetWindow<WaypointWindow>();
+            WaypointWindow = WaypointWindow.Shared;
 
             WindowHelper.CreateWindow<RouteManagerWindow>(null);
-            RouteManagerWindow = WindowManager.Shared.GetWindow<RouteManagerWindow>();
+            RouteManagerWindow = RouteManagerWindow.Shared;
         }
 
         public static void Log(string str)
