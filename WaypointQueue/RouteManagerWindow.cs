@@ -19,20 +19,29 @@ namespace WaypointQueue
         public override Window.Position DefaultPosition => Window.Position.Center;
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
 
-        public static RouteManagerWindow Shared => WindowManager.Shared.GetWindow<RouteManagerWindow>();
+        public static RouteManagerWindow Shared;
 
         private readonly UIState<string> _selectedRouteId = new UIState<string>(null);
         private readonly List<float> _scrollPositions = new List<float>();
 
+        protected void Awake()
+        {
+            Shared = this;
+        }
 
-        private void OnEnable()
+        protected void OnDestroy()
+        {
+            Shared = null;
+        }
+
+        protected void OnEnable()
         {
             RouteRegistry.OnChanged += OnRoutesChanged;
 
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
                 _selectedRouteId.Value = RouteRegistry.Routes[0].Id;
         }
-        private void OnDisable()
+        protected void OnDisable()
         {
             RouteRegistry.OnChanged -= OnRoutesChanged;
         }
