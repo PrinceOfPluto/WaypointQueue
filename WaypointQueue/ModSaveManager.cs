@@ -1,11 +1,13 @@
 ﻿using Game.Persistence;
 using Game.State;
 using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using WaypointQueue.Services;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
@@ -225,7 +227,9 @@ namespace WaypointQueue
             _timeAlreadyStarted = true;
             Loader.LogDebug($"The dawn of time");
 
-            WaypointQueueController.Shared.InitCarLoaders(reload: true);
+            RefuelService refuelService = Loader.ServiceProvider.GetService<RefuelService>();
+            refuelService.RebuildCollections();
+
             RouteRegistry.LoadWaypointsForRoutes();
 
             if (ModSaveManager.UnappliedWaypointSaveState != null)

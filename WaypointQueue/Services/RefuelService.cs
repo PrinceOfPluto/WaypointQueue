@@ -18,6 +18,19 @@ namespace WaypointQueue.Services
 {
     internal class RefuelService
     {
+        private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
+        private List<CarLoaderSequencer> _carLoaderSequencers = [];
+
+        public void RebuildCollections()
+        {
+            Loader.LogDebug($"RefuelService RebuildCollections");
+            _carLoadTargetLoaders.Clear();
+            _carLoaderSequencers.Clear();
+
+            _carLoadTargetLoaders = [.. UnityEngine.Object.FindObjectsOfType<CarLoadTargetLoader>()];
+            _carLoaderSequencers = [.. UnityEngine.Object.FindObjectsOfType<CarLoaderSequencer>()];
+        }
+
         public void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident}");
@@ -183,13 +196,13 @@ namespace WaypointQueue.Services
 
         public void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
-            WaypointQueueController.Shared.InitCarLoaders();
+            RebuildCollections();
             List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
             CarLoadTargetLoader closestLoader = null;
             float shortestDistance = 0;
             Loader.LogDebug($"Checking for nearby fuel loaders");
 
-            foreach (CarLoadTargetLoader targetLoader in WaypointQueueController.Shared.CarLoadTargetLoaders)
+            foreach (CarLoadTargetLoader targetLoader in _carLoadTargetLoaders)
             {
                 if (!validLoads.Contains(targetLoader.load?.name?.ToLower()))
                 {
@@ -346,7 +359,7 @@ namespace WaypointQueue.Services
                 Loader.LogError($"Cannot find CarLoadTargetLoader at point {waypoint.RefuelPoint} for waypoint {waypoint.Id}");
                 return;
             }
-            CarLoaderSequencer sequencer = WaypointQueueController.Shared.CarLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
+            CarLoaderSequencer sequencer = _carLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
             if (sequencer != null)
             {
                 sequencer.keyValueObject[sequencer.readWantsLoadingKey] = value;
@@ -359,10 +372,10 @@ namespace WaypointQueue.Services
 
         private CarLoadTargetLoader FindCarLoadTargetLoader(ManagedWaypoint waypoint)
         {
-            WaypointQueueController.Shared.InitCarLoaders();
+            RebuildCollections();
             Vector3 worldPosition = WorldTransformer.GameToWorld(waypoint.RefuelPoint);
             //Loader.LogDebug($"Starting search for target loader matching world point {worldPosition}");
-            CarLoadTargetLoader loader = WaypointQueueController.Shared.CarLoadTargetLoaders.Find(l => l.transform.position == worldPosition);
+            CarLoadTargetLoader loader = _carLoadTargetLoaders.Find(l => l.transform.position == worldPosition);
             //Loader.LogDebug($"Found matching {loader.load.name} loader at game point {waypoint.RefuelPoint}");
             return loader;
         }

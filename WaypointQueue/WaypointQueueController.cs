@@ -5,7 +5,6 @@ using Game.State;
 using Microsoft.Extensions.DependencyInjection;
 using Model;
 using Model.AI;
-using RollingStock;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,10 +28,6 @@ namespace WaypointQueue
         private Coroutine _coroutine;
 
         public Dictionary<string, LocoWaypointState> WaypointStateMap { get; private set; } = new();
-
-        public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; private set; } = [];
-
-        public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = [];
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
@@ -95,22 +90,6 @@ namespace WaypointQueue
                 StopCoroutine(_coroutine);
                 throw;
             }
-        }
-
-        public void InitCarLoaders(bool reload = false)
-        {
-            Loader.Log($"Begin InitCarLoaders");
-            if (reload || CarLoadTargetLoaders == null || CarLoadTargetLoaders.Count <= 0)
-            {
-                CarLoadTargetLoaders = FindObjectsOfType<CarLoadTargetLoader>().ToList();
-                Loader.Log($"Initialized list of CarLoadTargetLoader");
-            }
-            if (reload || CarLoaderSequencers == null || CarLoaderSequencers.Count <= 0)
-            {
-                CarLoaderSequencers = FindObjectsOfType<CarLoaderSequencer>().ToList();
-                Loader.Log($"Initialized list of CarLoaderSequencer");
-            }
-            Loader.Log($"End InitCarLoaders");
         }
 
         private void DoQueueTickUpdate()
@@ -730,9 +709,6 @@ namespace WaypointQueue
                 Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in LoadWaypointSaveState");
                 LocoWaypointStateDidUpdate.Invoke(TrainController.Shared.SelectedLocomotive.id);
             }
-
-            CarLoadTargetLoaders = null;
-            InitCarLoaders();
 
             if (_coroutine == null)
             {
