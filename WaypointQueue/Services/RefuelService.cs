@@ -324,5 +324,47 @@ namespace WaypointQueue.Services
             }
             return false;
         }
+
+        public void CleanupAfterRefuel(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            Loader.Log($"Done refueling {wp.Locomotive.Ident}");
+            wp.WillRefuel = false;
+            wp.CurrentlyRefueling = false;
+            SetCarLoaderSequencerWantsLoading(wp, false);
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
+
+            int maxSpeed = wp.MaxSpeedAfterRefueling;
+            if (maxSpeed == 0) maxSpeed = 35;
+            ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
+        }
+
+        public void SetCarLoaderSequencerWantsLoading(ManagedWaypoint waypoint, bool value)
+        {
+            CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
+            if (loaderTarget == null)
+            {
+                Loader.LogError($"Cannot find CarLoadTargetLoader at point {waypoint.RefuelPoint} for waypoint {waypoint.Id}");
+                return;
+            }
+            CarLoaderSequencer sequencer = WaypointQueueController.Shared.CarLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
+            if (sequencer != null)
+            {
+                sequencer.keyValueObject[sequencer.readWantsLoadingKey] = value;
+            }
+            else
+            {
+                Loader.LogError($"Cannot find CarLoaderSequencer for loader target {loaderTarget.name} for waypoint {waypoint.Id}");
+            }
+        }
+
+        private CarLoadTargetLoader FindCarLoadTargetLoader(ManagedWaypoint waypoint)
+        {
+            WaypointQueueController.Shared.InitCarLoaders();
+            Vector3 worldPosition = WorldTransformer.GameToWorld(waypoint.RefuelPoint);
+            //Loader.LogDebug($"Starting search for target loader matching world point {worldPosition}");
+            CarLoadTargetLoader loader = WaypointQueueController.Shared.CarLoadTargetLoaders.Find(l => l.transform.position == worldPosition);
+            //Loader.LogDebug($"Found matching {loader.load.name} loader at game point {waypoint.RefuelPoint}");
+            return loader;
+        }
     }
 }
