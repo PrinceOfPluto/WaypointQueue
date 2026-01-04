@@ -15,11 +15,10 @@ using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.Services;
 using WaypointQueue.UUM;
-using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService)
+    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, CarService carService)
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         public static readonly string NoDestinationString = "No destination";
@@ -328,7 +327,7 @@ namespace WaypointQueue
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            (_, Location furthestCarLocation) = GetTrainEndLocations(waypoint, out _, out _, out _);
+            (_, Location furthestCarLocation) = carService.GetTrainEndLocations(waypoint, out _, out _, out _);
 
             float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
 
@@ -373,7 +372,7 @@ namespace WaypointQueue
                 //Loader.LogDebug($"Resolving coupling orders on {car.Ident}");
                 if (waypoint.ConnectAirOnCouple)
                 {
-                    ConnectAir(car);
+                    carService.ConnectAir(car);
                 }
 
                 if (waypoint.ReleaseHandbrakesOnCouple)

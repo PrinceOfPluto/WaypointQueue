@@ -11,7 +11,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CouplingService
+    internal class CouplingService(CarService carService)
     {
         private static readonly float AverageCarLengthMeters = 12.2f;
 
@@ -23,7 +23,7 @@ namespace WaypointQueue.Services
         public bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.LogDebug($"Starting search for nearby coupling in straight line");
-            (Location closestTrainEnd, Location furthestTrainEnd) = CarUtils.GetTrainEndLocations(wp, out float closestDistance, out Car closestCar, out Car furthestCar);
+            (Location closestTrainEnd, Location furthestTrainEnd) = carService.GetTrainEndLocations(wp, out float closestDistance, out Car closestCar, out Car furthestCar);
             Location orientedClosestTrainEnd = Graph.Shared.LocationOrientedToward(closestTrainEnd, furthestTrainEnd);
 
             float checkDistanceInterval = AverageCarLengthMeters / 2;
@@ -53,7 +53,7 @@ namespace WaypointQueue.Services
 
             if (targetCar != null)
             {
-                LogicalEnd nearestEnd = CarUtils.ClosestLogicalEndTo(targetCar, closestTrainEnd);
+                LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(targetCar, closestTrainEnd);
                 Location bestLocation;
                 if (!targetCar[nearestEnd].IsCoupled)
                 {
@@ -105,7 +105,7 @@ namespace WaypointQueue.Services
                         continue;
                     }
 
-                    LogicalEnd nearestEnd = CarUtils.ClosestLogicalEndTo(car, wp.Location);
+                    LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(car, wp.Location);
                     Graph.Shared.TryFindDistance(wp.Location, car.LocationFor(nearestEnd), out float totalDistance, out float traverseTimeSeconds);
                     if (totalDistance < bestMatchDistance)
                     {
@@ -147,7 +147,7 @@ namespace WaypointQueue.Services
                 return false;
             }
 
-            LogicalEnd nearestEnd = CarUtils.ClosestLogicalEndTo(targetCar, waypoint.Locomotive.OpsLocation);
+            LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(targetCar, waypoint.Locomotive.OpsLocation);
 
             Location bestLocation;
 
@@ -156,10 +156,10 @@ namespace WaypointQueue.Services
                 Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
                 bestLocation = GetCouplerLocation(targetCar, nearestEnd);
             }
-            else if (!targetCar[CarUtils.GetOppositeEnd(nearestEnd)].IsCoupled)
+            else if (!targetCar[carService.GetOppositeEnd(nearestEnd)].IsCoupled)
             {
                 Loader.Log($"Furthest end of {targetCar.Ident} is available to couple");
-                bestLocation = GetCouplerLocation(targetCar, CarUtils.GetOppositeEnd(nearestEnd));
+                bestLocation = GetCouplerLocation(targetCar, carService.GetOppositeEnd(nearestEnd));
             }
             else
             {

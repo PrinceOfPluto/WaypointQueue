@@ -31,6 +31,7 @@ namespace WaypointQueue
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
+        private CarService _carService;
 
         private static WaypointQueueController _shared;
 
@@ -53,6 +54,7 @@ namespace WaypointQueue
             Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
+            _carService = Loader.ServiceProvider.GetService<CarService>();
         }
 
         private void OnMapWillUnload(MapWillUnloadEvent @event)
@@ -542,7 +544,7 @@ namespace WaypointQueue
         {
             try
             {
-                (Location closest, Location furthest) = CarUtils.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
+                (Location closest, Location furthest) = _carService.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
                 return closestDistance < 10;
             }
             catch (InvalidOperationException)

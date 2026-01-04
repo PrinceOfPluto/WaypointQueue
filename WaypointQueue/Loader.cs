@@ -85,6 +85,7 @@ namespace WaypointQueue.UUM
             services.AddSingleton<UncouplingService>();
             services.AddSingleton<RefuelService>();
             services.AddSingleton<CouplingService>();
+            services.AddSingleton<CarService>();
             ServiceProvider = services.BuildServiceProvider();
         }
 

@@ -16,7 +16,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class RefuelService
+    internal class RefuelService(CarService carService)
     {
         private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
         private List<CarLoaderSequencer> _carLoaderSequencers = [];
@@ -42,7 +42,7 @@ namespace WaypointQueue.Services
             int speedWhileRefueling = waypoint.RefuelingSpeedLimit;
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: speedWhileRefueling, null, null);
             // Make sure AE knows how many cars in case we coupled just before this
-            CarUtils.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
+            carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
 
             Location locationToMove = new();
             try
@@ -81,12 +81,12 @@ namespace WaypointQueue.Services
                 throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
             }
 
-            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = CarUtils.GetTrainEndLocations(waypoint, out _, out _, out _);
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(waypoint, out _, out _, out _);
 
-            LogicalEnd furthestFuelCarEnd = CarUtils.ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
-            LogicalEnd closestFuelCarEnd = CarUtils.GetOppositeEnd(furthestFuelCarEnd);
+            LogicalEnd furthestFuelCarEnd = carService.ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
+            LogicalEnd closestFuelCarEnd = carService.GetOppositeEnd(furthestFuelCarEnd);
 
-            List<Car> coupledCarsToEnd = CarUtils.EnumerateCoupledToEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
+            List<Car> coupledCarsToEnd = carService.EnumerateCoupledToEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
             float distanceFromFurthestEndOfTrainToFuelCarInclusive = CalculateTotalLength(coupledCarsToEnd);
 
             float distanceFromClosestFuelCarEndToSlot = Vector3.Distance(fuelCar.LocationFor(closestFuelCarEnd).GetPosition().ZeroY(), loadSlotPosition.ZeroY());
