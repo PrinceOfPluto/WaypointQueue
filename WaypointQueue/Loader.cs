@@ -9,6 +9,7 @@ using UI.Common;
 using UnityEngine;
 using UnityModManagerNet;
 using WaypointQueue.Services;
+using WaypointQueue.UI;
 
 namespace WaypointQueue.UUM
 {

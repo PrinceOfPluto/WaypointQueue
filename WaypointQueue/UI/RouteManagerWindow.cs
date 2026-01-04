@@ -8,7 +8,7 @@ using UnityEngine.UI;
 using WaypointQueue.UUM;
 
 
-namespace WaypointQueue
+namespace WaypointQueue.UI
 {
     [RequireComponent(typeof(Window))]
     public class RouteManagerWindow : WindowBase

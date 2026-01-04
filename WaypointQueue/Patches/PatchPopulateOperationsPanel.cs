@@ -6,6 +6,7 @@ using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
 using UI.Common;
+using WaypointQueue.UI;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue

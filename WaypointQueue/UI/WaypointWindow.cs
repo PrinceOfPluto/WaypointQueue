@@ -16,10 +16,9 @@ using UI.Common;
 using UI.CompanyWindow;
 using UnityEngine;
 using UnityEngine.UI;
-using WaypointQueue.UI;
 using WaypointQueue.UUM;
 
-namespace WaypointQueue
+namespace WaypointQueue.UI
 {
     [RequireComponent(typeof(Window))]
     public class WaypointWindow : WindowBase

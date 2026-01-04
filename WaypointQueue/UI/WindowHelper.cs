@@ -3,7 +3,7 @@ using UI;
 using UI.Common;
 using UnityEngine;
 
-namespace WaypointQueue
+namespace WaypointQueue.UI
 {
     internal class WindowHelper
     {

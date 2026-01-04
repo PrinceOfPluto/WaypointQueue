@@ -3,7 +3,7 @@ using UI.Builder;
 using UI.Common;
 using UnityEngine;
 
-namespace WaypointQueue
+namespace WaypointQueue.UI
 {
     public abstract class WindowBase : MonoBehaviour, IProgrammaticWindow
     {
