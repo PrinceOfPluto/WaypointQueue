@@ -15,6 +15,7 @@ using Track;
 using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
+using WaypointQueue.Services;
 using WaypointQueue.UUM;
 using static WaypointQueue.ModSaveManager;
 
@@ -34,6 +35,7 @@ namespace WaypointQueue
         public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = [];
 
         private WaypointResolver _waypointResolver;
+        private RefuelService _refuelService;
 
         private static WaypointQueueController _shared;
 
@@ -55,6 +57,7 @@ namespace WaypointQueue
         {
             Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
+            _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
         }
 
         private void OnMapWillUnload(MapWillUnloadEvent @event)
@@ -233,7 +236,7 @@ namespace WaypointQueue
             LocoWaypointState entry = GetOrAddLocoWaypointState(loco);
 
             ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
-            _waypointResolver.CheckNearbyFuelLoaders(waypoint);
+            _refuelService.CheckNearbyFuelLoaders(waypoint);
 
             if (isReplacing && entry.Waypoints.Count > 0)
             {
@@ -560,7 +563,7 @@ namespace WaypointQueue
         {
             try
             {
-                (Location closest, Location furthest) = _waypointResolver.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
+                (Location closest, Location furthest) = CarUtils.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
                 return closestDistance < 10;
             }
             catch (InvalidOperationException)

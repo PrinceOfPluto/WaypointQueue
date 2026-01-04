@@ -136,8 +136,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CarUtils.cs" />
+    <Compile Include="Services\RefuelService.cs" />
     <Compile Include="UI\DropdownOption.cs" />
-    <Compile Include="UncouplingHandler.cs" />
+    <Compile Include="Services\UncouplingService.cs" />
     <Compile Include="WaypointCarPicker.cs" />
     <Compile Include="Patches\PatchCarPickable.cs" />
     <Compile Include="Patches\PatchAutoEngineerDestinationPicker.cs" />

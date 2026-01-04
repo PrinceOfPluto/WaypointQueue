@@ -8,6 +8,7 @@ using System.Reflection;
 using UI.Common;
 using UnityEngine;
 using UnityModManagerNet;
+using WaypointQueue.Services;
 
 namespace WaypointQueue.UUM
 {
@@ -80,7 +81,8 @@ namespace WaypointQueue.UUM
         {
             var services = new ServiceCollection();
             services.AddSingleton<WaypointResolver>();
-            services.AddSingleton<UncouplingHandler>();
+            services.AddSingleton<UncouplingService>();
+            services.AddSingleton<RefuelService>();
             ServiceProvider = services.BuildServiceProvider();
         }
 

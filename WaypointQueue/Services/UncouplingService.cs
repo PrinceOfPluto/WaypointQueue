@@ -15,7 +15,7 @@ using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal class UncouplingHandler
+    internal class UncouplingService
     {
         public void UncoupleByCount(ManagedWaypoint waypoint)
         {
