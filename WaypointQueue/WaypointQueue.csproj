@@ -48,6 +48,9 @@
   </ItemGroup>
   <!-- Mod Loader -->
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection">
+      <Version>10.0.1</Version>
+    </PackageReference>
     <PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <!-- Null Checking -->

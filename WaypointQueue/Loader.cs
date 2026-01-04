@@ -1,6 +1,7 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
 using Game.Events;
 using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Reflection;
@@ -20,6 +21,11 @@ namespace WaypointQueue.UUM
         public static RouteManagerWindow RouteManagerWindow { get; private set; }
 
         public static WaypointQueueSettings Settings { get; private set; }
+
+        /** This intentionally implements a service locator pattern against the recommendations for using Microsoft Dependency Injection because the normal usage doesn't integrate DI easily into Unity game objects
+        */
+        public static ServiceProvider ServiceProvider { get; private set; }
+
         private static bool MapHasLoaded = false;
 
         private static bool Load(UnityModManager.ModEntry modEntry)
@@ -33,6 +39,8 @@ namespace WaypointQueue.UUM
 
             ModEntry = modEntry;
             Settings = UnityModManager.ModSettings.Load<WaypointQueueSettings>(modEntry);
+
+            ConfigureServices();
 
             Messenger.Default.Register<MapDidLoadEvent>(modEntry, OnMapDidLoad);
 
@@ -66,6 +74,14 @@ namespace WaypointQueue.UUM
             }
 
             return true;
+        }
+
+        private static void ConfigureServices()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<WaypointResolver>();
+            services.AddSingleton<UncouplingHandler>();
+            ServiceProvider = services.BuildServiceProvider();
         }
 
         private static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)

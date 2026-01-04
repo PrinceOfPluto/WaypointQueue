@@ -25,7 +25,7 @@ using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal static class WaypointResolver
+    internal class WaypointResolver(UncouplingHandler uncouplingHandler)
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         private static readonly float AverageCarLengthMeters = 12.2f;
@@ -35,7 +35,7 @@ namespace WaypointQueue
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
-        public static bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action<ManagedWaypoint> onWaypointDidUpdate)
+        public bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action<ManagedWaypoint> onWaypointDidUpdate)
         {
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
@@ -214,14 +214,14 @@ namespace WaypointQueue
             return true;
         }
 
-        private static void ResolveChangeMaxSpeed(ManagedWaypoint wp)
+        private void ResolveChangeMaxSpeed(ManagedWaypoint wp)
         {
             var ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(wp.Locomotive);
             int maxSpeedToSet = Mathf.Clamp(wp.MaxSpeedForChange, 0, 45);
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeedToSet, null, null);
         }
 
-        public static bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
+        public bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
         {
             if (wp.RefuelLoaderAnimated)
             {
@@ -230,7 +230,7 @@ namespace WaypointQueue
             return true;
         }
 
-        private static bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Reposition to refuel
             if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.HasAnyCouplingOrders && !wp.MoveTrainPastWaypoint)
@@ -266,7 +266,7 @@ namespace WaypointQueue
             return true;
         }
 
-        internal static bool IsTrainStopped(ManagedWaypoint wp)
+        internal bool IsTrainStopped(ManagedWaypoint wp)
         {
             List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
             Car firstCar = coupled.First();
@@ -276,7 +276,7 @@ namespace WaypointQueue
             return firstCar.IsStopped(2) && lastCar.IsStopped(2);
         }
 
-        private static bool TryEndWaiting(ManagedWaypoint wp)
+        private bool TryEndWaiting(ManagedWaypoint wp)
         {
             if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
             {
@@ -288,12 +288,12 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool TryBeginWaiting(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaiting(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             return wp.WillWait && (TryBeginWaitingDuration(wp, onWaypointsUpdated) || TryBeginWaitingUntilTime(wp, onWaypointsUpdated));
         }
 
-        private static bool TryBeginWaitingDuration(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaitingDuration(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
@@ -307,7 +307,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
             {
@@ -329,12 +329,12 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool FindNearbyCoupling(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             return wp.OnlySeekNearbyOnTrackAhead ? FindNearbyCouplingInStraightLine(wp, ordersHelper) : FindNearbyCouplingInRadius(wp, ordersHelper);
         }
 
-        private static bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.LogDebug($"Starting search for nearby coupling in straight line");
             (Location closestTrainEnd, Location furthestTrainEnd) = GetTrainEndLocations(wp, out float closestDistance, out Car closestCar, out Car furthestCar);
@@ -397,7 +397,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool FindNearbyCouplingInRadius(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool FindNearbyCouplingInRadius(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.LogDebug($"Starting search for nearby coupling in radius");
             float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
@@ -452,7 +452,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Car targetCar = waypoint.CouplingSearchResultCar;
             if (targetCar == null && !waypoint.TryResolveCouplingSearchText(out targetCar))
@@ -504,7 +504,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static Location GetCouplerLocation(Car car, LogicalEnd logicalEnd)
+        private Location GetCouplerLocation(Car car, LogicalEnd logicalEnd)
         {
             End carEnd = car.LogicalToEnd(logicalEnd);
             if (carEnd == End.F)
@@ -517,7 +517,7 @@ namespace WaypointQueue
             }
         }
 
-        private static bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private bool OrderClearBeyondWaypoint(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             waypoint.StopAtWaypoint = true;
             waypoint.MoveTrainPastWaypoint = false;
@@ -552,7 +552,7 @@ namespace WaypointQueue
             return true;
         }
 
-        private static void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident}");
             waypoint.CurrentlyRefueling = true;
@@ -588,7 +588,7 @@ namespace WaypointQueue
             WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
         }
 
-        private static void CleanupAfterRefuel(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private void CleanupAfterRefuel(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Done refueling {wp.Locomotive.Ident}");
             wp.WillRefuel = false;
@@ -601,7 +601,7 @@ namespace WaypointQueue
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeed, null, null);
         }
 
-        private static void SetCarLoaderSequencerWantsLoading(ManagedWaypoint waypoint, bool value)
+        private void SetCarLoaderSequencerWantsLoading(ManagedWaypoint waypoint, bool value)
         {
             CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
             if (loaderTarget == null)
@@ -620,7 +620,7 @@ namespace WaypointQueue
             }
         }
 
-        private static CarLoadTargetLoader FindCarLoadTargetLoader(ManagedWaypoint waypoint)
+        private CarLoadTargetLoader FindCarLoadTargetLoader(ManagedWaypoint waypoint)
         {
             WaypointQueueController.Shared.InitCarLoaders();
             Vector3 worldPosition = WorldTransformer.GameToWorld(waypoint.RefuelPoint);
@@ -630,7 +630,7 @@ namespace WaypointQueue
             return loader;
         }
 
-        private static Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Car fuelCar = GetFuelCar((BaseLocomotive)waypoint.Locomotive);
 
@@ -698,7 +698,7 @@ namespace WaypointQueue
             return locationToMove;
         }
 
-        private static bool TryGetOpenEndForCar(Car car, out LogicalEnd logicalEnd)
+        private bool TryGetOpenEndForCar(Car car, out LogicalEnd logicalEnd)
         {
             if (!car.TryGetAdjacentCar(LogicalEnd.A, out _))
             {
@@ -714,7 +714,7 @@ namespace WaypointQueue
             return false;
         }
 
-        internal static (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance, out Car closestCar, out Car furthestCar)
+        internal (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance, out Car closestCar, out Car furthestCar)
         {
             Location closestLocation;
             Location furthestLocation;
@@ -784,7 +784,7 @@ namespace WaypointQueue
             return (closestLocation, furthestLocation);
         }
 
-        private static float GetTrainLength(BaseLocomotive locomotive)
+        private float GetTrainLength(BaseLocomotive locomotive)
         {
             MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
             float totalTrainLength = (float)calculateTotalLengthMI.Invoke(locomotive.AutoEngineerPlanner, []);
@@ -792,7 +792,7 @@ namespace WaypointQueue
         }
 
         // Copied from AutoEngineerPlanner.CalculateTotalLength
-        private static float CalculateTotalLength(List<Car> cars)
+        private float CalculateTotalLength(List<Car> cars)
         {
             float num = 0f;
             foreach (Car item in cars)
@@ -803,7 +803,7 @@ namespace WaypointQueue
             return num + 1.04f * (float)(cars.Count - 1);
         }
 
-        private static Vector3 GetFuelCarLoadSlotPosition(Car fuelCar, string refuelLoadName, out float maxCapacity)
+        private Vector3 GetFuelCarLoadSlotPosition(Car fuelCar, string refuelLoadName, out float maxCapacity)
         {
             LoadSlot loadSlot = fuelCar.Definition.LoadSlots.Find(slot => slot.RequiredLoadIdentifier == refuelLoadName);
 
@@ -819,7 +819,7 @@ namespace WaypointQueue
             return loadSlotPosition;
         }
 
-        private static bool IsTargetBetween(Vector3 target, Vector3 positionA, Vector3 positionB)
+        private bool IsTargetBetween(Vector3 target, Vector3 positionA, Vector3 positionB)
         {
             // If target is in the middle, the distance between either end to the target will always be less than the length from one end to the other
             float distanceAToTarget = Vector3.Distance(positionA.ZeroY(), target.ZeroY());
@@ -840,7 +840,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static Vector3 CalculatePositionFromLoadTarget(Car fuelCar, CarLoadTarget loadTarget)
+        private Vector3 CalculatePositionFromLoadTarget(Car fuelCar, CarLoadTarget loadTarget)
         {
             // This logic is based on CarLoadTargetLoader.LoadSlotFromCar
             Matrix4x4 transformMatrix = fuelCar.GetTransformMatrix(Graph.Shared);
@@ -849,7 +849,7 @@ namespace WaypointQueue
             return vector;
         }
 
-        private static List<string> GetValidLoadsForLoco(BaseLocomotive locomotive)
+        private List<string> GetValidLoadsForLoco(BaseLocomotive locomotive)
         {
             if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveSteam)
             {
@@ -862,7 +862,7 @@ namespace WaypointQueue
             return null;
         }
 
-        internal static void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
+        public void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
             WaypointQueueController.Shared.InitCarLoaders();
             List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
@@ -930,7 +930,7 @@ namespace WaypointQueue
             }
         }
 
-        private static Car GetFuelCar(BaseLocomotive locomotive)
+        private Car GetFuelCar(BaseLocomotive locomotive)
         {
             Car fuelCar = locomotive;
             if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveSteam)
@@ -940,12 +940,12 @@ namespace WaypointQueue
             return fuelCar;
         }
 
-        private static bool IsDoneRefueling(ManagedWaypoint waypoint)
+        private bool IsDoneRefueling(ManagedWaypoint waypoint)
         {
             return IsLocoFull(waypoint) || IsLoaderEmpty(waypoint);
         }
 
-        private static bool IsLocoFull(ManagedWaypoint waypoint)
+        private bool IsLocoFull(ManagedWaypoint waypoint)
         {
             Car fuelCar = GetFuelCar((BaseLocomotive)waypoint.Locomotive);
             CarLoadInfo? carLoadInfo = fuelCar.GetLoadInfo(waypoint.RefuelLoadName, out int slotIndex);
@@ -960,7 +960,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static bool IsLoaderEmpty(ManagedWaypoint waypoint)
+        private bool IsLoaderEmpty(ManagedWaypoint waypoint)
         {
             string industryId = waypoint.RefuelIndustryId;
             string loadId = waypoint.RefuelLoadName;
@@ -994,7 +994,7 @@ namespace WaypointQueue
             return false;
         }
 
-        private static void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
+        private void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
             Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
@@ -1014,35 +1014,35 @@ namespace WaypointQueue
             }
         }
 
-        private static void ResolvePostCouplingCut(ManagedWaypoint waypoint)
+        private void ResolvePostCouplingCut(ManagedWaypoint waypoint)
         {
-            UncouplingHandler.PostCouplingCutByCount(waypoint);
+            uncouplingHandler.PostCouplingCutByCount(waypoint);
         }
 
-        private static void ResolveUncouplingOrders(ManagedWaypoint waypoint)
+        private void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
             if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
             {
-                UncouplingHandler.UncoupleByCount(waypoint);
+                uncouplingHandler.UncoupleByCount(waypoint);
             }
 
             if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
-                UncouplingHandler.UncoupleByDestination(waypoint);
+                uncouplingHandler.UncoupleByDestination(waypoint);
             }
 
             if (waypoint.WillUncoupleBySpecificCar)
             {
-                UncouplingHandler.UncoupleBySpecificCar(waypoint);
+                uncouplingHandler.UncoupleBySpecificCar(waypoint);
             }
 
             if (waypoint.WillUncoupleAllExceptLocomotives)
             {
-                UncouplingHandler.UncoupleAllExceptLocomotives(waypoint);
+                uncouplingHandler.UncoupleAllExceptLocomotives(waypoint);
             }
         }
 
-        internal static void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
+        internal void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
         {
             if (waypoint.TimetableSymbol == null) return;
 

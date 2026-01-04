@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using Model;
 using Model.AI;
 using System.Collections.Generic;
@@ -81,9 +82,10 @@ namespace WaypointQueue
         [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
         static bool ClearWaypointPrefix(ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
+            WaypointResolver resolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             if (WaypointQueueController.Shared.TryGetActiveWaypointFor(____locomotive, out ManagedWaypoint waypoint))
             {
-                WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
+                resolver.CleanupBeforeRemovingWaypoint(waypoint);
             }
             return true;
         }

@@ -15,9 +15,9 @@ using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal static class UncouplingHandler
+    internal class UncouplingHandler
     {
-        public static void UncoupleByCount(ManagedWaypoint waypoint)
+        public void UncoupleByCount(ManagedWaypoint waypoint)
         {
             if (!waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut <= 0) return;
             Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
@@ -54,7 +54,7 @@ namespace WaypointQueue
             PerformCut(carsToCut, allCarsFromEnd, waypoint);
         }
 
-        public static void UncoupleByDestination(ManagedWaypoint waypoint)
+        public void UncoupleByDestination(ManagedWaypoint waypoint)
         {
             Loader.Log($"Resolving uncouple by destination for {waypoint.Locomotive.Ident}");
             LogicalEnd directionToCountCars = GetEndRelativeToWapoint(waypoint.Locomotive, waypoint.Location, useFurthestEnd: !waypoint.CountUncoupledFromNearestToWaypoint);
@@ -107,7 +107,7 @@ namespace WaypointQueue
             PerformCut(carsToCut, allCarsFromEnd, waypoint);
         }
 
-        private static List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool excludeMatchingCarsFromCut)
+        private List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -145,7 +145,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool excludeMatchingCarsFromCut)
+        private List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -183,7 +183,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool excludeMatchingCarsFromCut)
+        private List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -225,7 +225,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        private static List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool excludeMatchingCarsFromCut)
+        private List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool excludeMatchingCarsFromCut)
         {
             List<Car> carsToCut = [];
 
@@ -267,7 +267,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        public static void UncoupleBySpecificCar(ManagedWaypoint waypoint)
+        public void UncoupleBySpecificCar(ManagedWaypoint waypoint)
         {
             if (!waypoint.TryResolveUncouplingSearchText(out Car carToUncouple))
             {
@@ -293,7 +293,7 @@ namespace WaypointQueue
             PerformCut(carsToCut, consist, waypoint);
         }
 
-        public static void UncoupleAllExceptLocomotives(ManagedWaypoint waypoint)
+        public void UncoupleAllExceptLocomotives(ManagedWaypoint waypoint)
         {
             Loader.Log($"Resolving uncoupling all except locomotives for {waypoint.Locomotive.Ident}");
             List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(LogicalEnd.A)];
@@ -346,7 +346,7 @@ namespace WaypointQueue
             UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
         }
 
-        public static void PostCouplingCutByCount(ManagedWaypoint waypoint)
+        public void PostCouplingCutByCount(ManagedWaypoint waypoint)
         {
             if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
@@ -417,7 +417,7 @@ namespace WaypointQueue
             }
         }
 
-        private static void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
+        private void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
         {
             carsToCut = FilterAnySplitLocoTenderPairs(carsToCut);
             List<Car> carsRemaining = [.. allCars.Where(c => !carsToCut.Contains(c))];
@@ -476,7 +476,7 @@ namespace WaypointQueue
             }
         }
 
-        private static void UncoupleCar(Car car, LogicalEnd endToUncouple)
+        private void UncoupleCar(Car car, LogicalEnd endToUncouple)
         {
             LogicalEnd oppositeEnd = endToUncouple == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
             Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {(endToUncouple == LogicalEnd.A ? "A" : "B")}");
@@ -504,9 +504,7 @@ namespace WaypointQueue
             }
         }
 
-
-
-        private static List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut)
+        private List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut)
         {
             if (carsToCut.Count == 0)
             {

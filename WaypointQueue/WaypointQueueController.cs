@@ -2,6 +2,7 @@
 using Game.Events;
 using Game.Messages;
 using Game.State;
+using Microsoft.Extensions.DependencyInjection;
 using Model;
 using Model.AI;
 using RollingStock;
@@ -32,6 +33,8 @@ namespace WaypointQueue
 
         public List<CarLoaderSequencer> CarLoaderSequencers { get; private set; } = [];
 
+        private WaypointResolver _waypointResolver;
+
         private static WaypointQueueController _shared;
 
         public static WaypointQueueController Shared
@@ -51,6 +54,7 @@ namespace WaypointQueue
         private void Awake()
         {
             Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
+            _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
         }
 
         private void OnMapWillUnload(MapWillUnloadEvent @event)
@@ -144,7 +148,7 @@ namespace WaypointQueue
                  */
                 if (entry.UnresolvedWaypoint != null)
                 {
-                    if (!WaypointResolver.TryHandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper, WaypointDidUpdate))
+                    if (!_waypointResolver.TryHandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper, WaypointDidUpdate))
                     {
                         continue;
                     }
@@ -198,7 +202,7 @@ namespace WaypointQueue
             {
                 return false;
             }
-            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint) && WaypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
+            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint) && _waypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
             bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry);
             return needsEndOfTrackResolve || needsAlreadyCoupledResolve;
         }
@@ -229,13 +233,13 @@ namespace WaypointQueue
             LocoWaypointState entry = GetOrAddLocoWaypointState(loco);
 
             ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
-            WaypointResolver.CheckNearbyFuelLoaders(waypoint);
+            _waypointResolver.CheckNearbyFuelLoaders(waypoint);
 
             if (isReplacing && entry.Waypoints.Count > 0)
             {
                 if (entry.Waypoints[0].Id == entry.UnresolvedWaypoint.Id)
                 {
-                    WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
+                    _waypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
@@ -347,7 +351,7 @@ namespace WaypointQueue
             {
                 if (entry.UnresolvedWaypoint != null)
                 {
-                    WaypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
+                    _waypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
                 }
 
                 WaypointStateMap.Remove(loco.id);
@@ -377,7 +381,7 @@ namespace WaypointQueue
             {
                 string waypointId = waypoint.Id;
 
-                WaypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
+                _waypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
 
                 if (entry.Waypoints.Remove(waypoint))
                 {
@@ -448,7 +452,7 @@ namespace WaypointQueue
 
                 if (state.Waypoints[0].Id != state.UnresolvedWaypoint.Id)
                 {
-                    WaypointResolver.CleanupBeforeRemovingWaypoint(state.UnresolvedWaypoint);
+                    _waypointResolver.CleanupBeforeRemovingWaypoint(state.UnresolvedWaypoint);
                     Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
                     state.UnresolvedWaypoint = waypoint;
                     SendToWaypointFromQueue(waypoint, GetOrdersHelper(waypoint.Locomotive));
@@ -556,7 +560,7 @@ namespace WaypointQueue
         {
             try
             {
-                (Location closest, Location furthest) = WaypointResolver.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
+                (Location closest, Location furthest) = _waypointResolver.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
                 return closestDistance < 10;
             }
             catch (InvalidOperationException)
@@ -568,7 +572,7 @@ namespace WaypointQueue
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
-            WaypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
+            _waypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
             waypoint.StatusLabel = "Running to waypoint";
             UpdateWaypoint(waypoint);
             SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
