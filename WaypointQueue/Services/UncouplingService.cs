@@ -108,19 +108,16 @@ namespace WaypointQueue
             PerformCut(carsToCut, allCarsFromEnd, waypoint);
         }
 
-        private List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool excludeMatchingCarsFromCut)
+        private List<Car> FindMatchingCarBlock(List<Car> allCars, Func<Car, bool> matchFunction, bool excludeMatchingCars)
         {
-            List<Car> carsToCut = [];
+            List<Car> result = [];
 
             bool foundBlock = false;
             for (int i = 0; i < allCars.Count; i++)
             {
                 Car car = allCars[i];
-                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out _);
 
-                bool carMatchesFilter = !hasDestination;
-
-                Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of no destination" : $"Car {car.Ident} does NOT match filter of no destination");
+                bool carMatchesFilter = matchFunction(car);
 
                 if (foundBlock && !carMatchesFilter)
                 {
@@ -130,68 +127,48 @@ namespace WaypointQueue
                 if (carMatchesFilter)
                 {
                     foundBlock = true;
-                    if (!excludeMatchingCarsFromCut)
+                    if (!excludeMatchingCars)
                     {
-                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
-                        carsToCut.Add(car);
+                        Loader.LogDebug($"Adding matching {car.Ident} to list");
+                        result.Add(car);
                     }
                 }
                 else
                 {
-                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
-                    carsToCut.Add(car);
+                    Loader.LogDebug($"Adding non-matching {car.Ident} to list");
+                    result.Add(car);
                 }
             }
 
-            return carsToCut;
+            return result;
+        }
+
+        private List<Car> FindMatchingCarsByNoDestination(List<Car> allCars, bool excludeMatchingCarsFromCut)
+        {
+            bool matchFunction(Car car)
+            {
+                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out _);
+                return !hasDestination;
+            }
+            return FindMatchingCarBlock(allCars, matchFunction, excludeMatchingCarsFromCut);
         }
 
         private List<Car> FindMatchingCarsByTrackDestination(List<Car> allCars, OpsCarPosition destinationMatch, bool excludeMatchingCarsFromCut)
         {
-            List<Car> carsToCut = [];
-
-            bool foundBlock = false;
-            for (int i = 0; i < allCars.Count; i++)
+            bool matchFunction(Car car)
             {
-                Car car = allCars[i];
                 bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination);
-
                 bool carMatchesFilter = hasDestination && carDestination.DisplayName == destinationMatch.DisplayName;
-
                 Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.DisplayName}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.DisplayName}");
-
-                if (foundBlock && !carMatchesFilter)
-                {
-                    break;
-                }
-
-                if (carMatchesFilter)
-                {
-                    foundBlock = true;
-                    if (!excludeMatchingCarsFromCut)
-                    {
-                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
-                        carsToCut.Add(car);
-                    }
-                }
-                else
-                {
-                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
-                    carsToCut.Add(car);
-                }
+                return carMatchesFilter;
             }
-
-            return carsToCut;
+            return FindMatchingCarBlock(allCars, matchFunction, excludeMatchingCarsFromCut);
         }
 
         private List<Car> FindMatchingCarsByIndustryDestination(List<Car> allCars, Industry destinationMatch, bool excludeMatchingCarsFromCut)
         {
-            List<Car> carsToCut = [];
-
-            bool foundBlock = false;
-            for (int i = 0; i < allCars.Count; i++)
+            bool matchFunction(Car car)
             {
-                Car car = allCars[i];
                 bool carMatchesFilter = false;
 
                 if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
@@ -199,41 +176,16 @@ namespace WaypointQueue
                     IndustryComponent industryComponent = Traverse.Create(OpsController.Shared).Method("IndustryComponentForPosition", [typeof(OpsCarPosition)], [carDestination]).GetValue<IndustryComponent>();
                     carMatchesFilter = industryComponent?.Industry?.identifier == destinationMatch.identifier;
                 }
-
                 Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.name}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.name}");
-
-                if (foundBlock && !carMatchesFilter)
-                {
-                    break;
-                }
-
-                if (carMatchesFilter)
-                {
-                    foundBlock = true;
-                    if (!excludeMatchingCarsFromCut)
-                    {
-                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
-                        carsToCut.Add(car);
-                    }
-                }
-                else
-                {
-                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
-                    carsToCut.Add(car);
-                }
+                return carMatchesFilter;
             }
-
-            return carsToCut;
+            return FindMatchingCarBlock(allCars, matchFunction, excludeMatchingCarsFromCut);
         }
 
         private List<Car> FindMatchingCarsByAreaDestination(List<Car> allCars, Area destinationMatch, bool excludeMatchingCarsFromCut)
         {
-            List<Car> carsToCut = [];
-
-            bool foundBlock = false;
-            for (int i = 0; i < allCars.Count; i++)
+            bool matchFunction(Car car)
             {
-                Car car = allCars[i];
                 bool carMatchesFilter = false;
 
                 if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
@@ -243,29 +195,9 @@ namespace WaypointQueue
                 }
 
                 Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.name}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.name}");
-
-                if (foundBlock && !carMatchesFilter)
-                {
-                    break;
-                }
-
-                if (carMatchesFilter)
-                {
-                    foundBlock = true;
-                    if (!excludeMatchingCarsFromCut)
-                    {
-                        Loader.LogDebug($"Adding matching {car.Ident} to cut list");
-                        carsToCut.Add(car);
-                    }
-                }
-                else
-                {
-                    Loader.LogDebug($"Adding non-matching {car.Ident} to cut list");
-                    carsToCut.Add(car);
-                }
+                return carMatchesFilter;
             }
-
-            return carsToCut;
+            return FindMatchingCarBlock(allCars, matchFunction, excludeMatchingCarsFromCut);
         }
 
         public void UncoupleBySpecificCar(ManagedWaypoint waypoint)
