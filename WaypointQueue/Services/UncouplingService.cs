@@ -31,26 +31,6 @@ namespace WaypointQueue
 
             carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
 
-            // This can happen if the user selected counting from nearest to waypoint and the locomotive backed up to the waypoint
-            if (carsToCut.Count == 0 && allCarsFromEnd.Count > 1)
-            {
-                // If the tender and locomotive are the "front" two cars that would be cut, we can treat that as 1 car to cut instead.
-                Car maybeLocoOrTenderA = allCarsFromEnd.ElementAtOrDefault(0);
-                Car maybeLocoOrTenderB = allCarsFromEnd.ElementAtOrDefault(1);
-                Car tender;
-
-                if (maybeLocoOrTenderA.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderA, out tender) && tender.id == maybeLocoOrTenderB.id)
-                {
-                    carsToCut.Add(maybeLocoOrTenderA);
-                    carsToCut.Add(maybeLocoOrTenderB);
-                }
-                if (maybeLocoOrTenderB.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(maybeLocoOrTenderB, out tender) && tender.id == maybeLocoOrTenderA.id)
-                {
-                    carsToCut.Add(maybeLocoOrTenderA);
-                    carsToCut.Add(maybeLocoOrTenderB);
-                }
-            }
-
             PerformCut(carsToCut, allCarsFromEnd, waypoint);
         }
 
