@@ -11,7 +11,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CouplingService(CarService carService)
+    internal class CouplingService(CarService carService, AutoEngineerService autoEngineerService)
     {
         private static readonly float AverageCarLengthMeters = 12.2f;
 
@@ -74,7 +74,7 @@ namespace WaypointQueue.Services
                 wp.OverwriteLocation(bestLocation);
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 Loader.Log($"Sending target coupling waypoint for {wp.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
-                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
+                autoEngineerService.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
                 return true;
             }
 
@@ -130,7 +130,7 @@ namespace WaypointQueue.Services
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
 
                 Loader.Log($"Sending nearby coupling waypoint for {wp.Locomotive.Ident} to {adjustedLocation} with coupling to {bestMatchCar.Ident}");
-                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, adjustedLocation, bestMatchCar.id);
+                autoEngineerService.SendToWaypoint(ordersHelper, adjustedLocation, bestMatchCar.id);
                 return true;
             }
             Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
@@ -180,7 +180,7 @@ namespace WaypointQueue.Services
                 waypoint.OverwriteLocation(bestLocation);
                 WaypointQueueController.Shared.UpdateWaypoint(waypoint);
                 Loader.Log($"Sending target coupling waypoint for {waypoint.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
-                WaypointQueueController.Shared.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
+                autoEngineerService.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
                 return true;
             }
 

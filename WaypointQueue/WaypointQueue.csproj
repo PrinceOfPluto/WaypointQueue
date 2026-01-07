@@ -136,6 +136,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CarUtils.cs" />
+    <Compile Include="Services\AutoEngineerService.cs" />
     <Compile Include="Services\CarService.cs" />
     <Compile Include="Services\CouplingService.cs" />
     <Compile Include="Services\RefuelService.cs" />

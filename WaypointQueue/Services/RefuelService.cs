@@ -16,7 +16,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class RefuelService(CarService carService)
+    internal class RefuelService(CarService carService, AutoEngineerService autoEngineerService)
     {
         private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
         private List<CarLoaderSequencer> _carLoaderSequencers = [];
@@ -64,7 +64,7 @@ namespace WaypointQueue.Services
             waypoint.OverwriteLocation(locationToMove);
             waypoint.StopAtWaypoint = true;
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-            WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
+            autoEngineerService.SendToWaypoint(ordersHelper, locationToMove);
         }
 
         private Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)

@@ -1,5 +1,6 @@
 ﻿using Game;
 using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using Model;
 using Model.Ops;
 using Model.Ops.Timetable;
@@ -16,6 +17,7 @@ using UI.Common;
 using UI.CompanyWindow;
 using UnityEngine;
 using UnityEngine.UI;
+using WaypointQueue.Services;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
@@ -32,7 +34,7 @@ namespace WaypointQueue.UI
 
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
 
-        public static WaypointWindow Shared {get; private set; }
+        public static WaypointWindow Shared { get; private set; }
 
         private static Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
@@ -315,7 +317,7 @@ namespace WaypointQueue.UI
 
                 builder.HStack(row =>
                 {
-                    BuildStopAtWaypointField(waypoint, row, onWaypointChange);
+                    BuildStopAtWaypointField(waypoint, row, onWaypointChange, isRouteWindow);
 
                     BuildSendPastWaypointField(waypoint, row, onWaypointChange);
                 });
@@ -601,14 +603,16 @@ namespace WaypointQueue.UI
             return builder;
         }
 
-        private UIPanelBuilder BuildStopAtWaypointField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildStopAtWaypointField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange, bool isRouteWindow)
         {
             var stopAtWaypointField = builder.AddField($"Stop at waypoint", builder.AddToggle(() => waypoint.StopAtWaypoint || waypoint.IsCoupling, delegate (bool value)
             {
                 waypoint.StopAtWaypoint = value;
-                if (!waypoint.StopAtWaypoint)
+                if (!waypoint.StopAtWaypoint && !isRouteWindow)
                 {
-                    waypoint.SetTargetSpeedToOrdersMax();
+                    AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                    int maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    waypoint.WaypointTargetSpeed = maxSpeed;
                 }
                 onWaypointChange(waypoint);
             }, interactable: !waypoint.IsCoupling));
@@ -624,8 +628,9 @@ namespace WaypointQueue.UI
                 waypoint.WillChangeMaxSpeed = value;
                 if (value && !isRouteWindow)
                 {
-                    var ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(waypoint.Locomotive);
-                    waypoint.MaxSpeedForChange = ordersHelper.Orders.MaxSpeedMph;
+                    AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                    int maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    waypoint.WaypointTargetSpeed = maxSpeed;
                 }
                 onWaypointChange(waypoint);
             }));

@@ -6,7 +6,6 @@ using System;
 using System.Linq;
 using System.Runtime.Serialization;
 using Track;
-using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
 using static Model.Ops.OpsController;
@@ -468,15 +467,6 @@ namespace WaypointQueue
                 return false;
             }
             return true;
-        }
-
-        public void SetTargetSpeedToOrdersMax()
-        {
-            if (Locomotive != null)
-            {
-                AutoEngineerOrdersHelper ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(Locomotive);
-                WaypointTargetSpeed = ordersHelper.Orders.MaxSpeedMph;
-            }
         }
 
         public void SetWaitUntilByMinutes(int inputMinutesAfterMidnight, out GameDateTime waitUntilTime)

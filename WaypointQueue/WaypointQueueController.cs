@@ -4,12 +4,10 @@ using Game.Messages;
 using Game.State;
 using Microsoft.Extensions.DependencyInjection;
 using Model;
-using Model.AI;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Track;
 using UI.Common;
 using UI.EngineControls;
@@ -32,6 +30,7 @@ namespace WaypointQueue
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
         private CarService _carService;
+        private AutoEngineerService _autoEngineerService;
 
         private static WaypointQueueController _shared;
 
@@ -55,6 +54,7 @@ namespace WaypointQueue
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
             _carService = Loader.ServiceProvider.GetService<CarService>();
+            _autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
         }
 
         private void OnMapWillUnload(MapWillUnloadEvent @event)
@@ -107,9 +107,9 @@ namespace WaypointQueue
             foreach (LocoWaypointState entry in WaypointStateMap.Values)
             {
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
-                AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(entry.Locomotive);
+                AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(entry.Locomotive);
 
-                bool readyToResolve = !HasActiveWaypoint(ordersHelper) && IsInWaypointMode(ordersHelper);
+                bool readyToResolve = !_autoEngineerService.HasActiveWaypoint(ordersHelper) && _autoEngineerService.IsInWaypointMode(ordersHelper);
 
                 // Let loco continue if it has active waypoint orders
                 // or skip if not in waypoint mode
@@ -186,14 +186,19 @@ namespace WaypointQueue
             {
                 return false;
             }
-            bool needsEndOfTrackResolve = AtEndOfTrack(entry.Locomotive as BaseLocomotive) && IsNearWaypoint(entry.UnresolvedWaypoint) && _waypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
-            bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry);
+
+            bool atEndOfTrack = _autoEngineerService.AtEndOfTrack(entry.Locomotive as BaseLocomotive);
+            bool isNearWaypoint = _autoEngineerService.IsNearWaypoint(entry.UnresolvedWaypoint);
+            bool isTrainStopped = _waypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
+            bool needsEndOfTrackResolve = atEndOfTrack && isNearWaypoint && isTrainStopped;
+
+            bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry.UnresolvedWaypoint);
+
             return needsEndOfTrackResolve || needsAlreadyCoupledResolve;
         }
 
-        private bool IsUnresolvedWaypointAlreadyCoupled(LocoWaypointState entry)
+        private bool IsUnresolvedWaypointAlreadyCoupled(ManagedWaypoint wp)
         {
-            ManagedWaypoint wp = entry.UnresolvedWaypoint;
             if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car car))
             {
                 List<Car> consist = [.. wp.Locomotive.EnumerateCoupled()];
@@ -227,7 +232,7 @@ namespace WaypointQueue
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
-                RefreshCurrentWaypoint(loco, GetOrdersHelper(loco));
+                RefreshCurrentWaypoint(loco, _autoEngineerService.GetOrdersHelper(loco));
             }
             else if (isInsertingNext && entry.Waypoints.Count > 0)
             {
@@ -341,20 +346,9 @@ namespace WaypointQueue
                 WaypointStateMap.Remove(loco.id);
                 Loader.Log($"Removed waypoint state entry for {loco.Ident}");
             }
-            CancelActiveOrders(loco);
+            _autoEngineerService.CancelActiveOrders(loco);
             Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in ClearWaypointState");
             LocoWaypointStateDidUpdate.Invoke(loco.id);
-        }
-
-        private void CancelActiveOrders(Car loco)
-        {
-            Loader.Log($"Canceling active orders for {loco.Ident}");
-            AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(loco);
-
-            if (ordersHelper.Mode == AutoEngineerMode.Waypoint)
-            {
-                ordersHelper.ClearWaypoint();
-            }
         }
 
         public void RemoveWaypoint(ManagedWaypoint waypoint)
@@ -380,7 +374,7 @@ namespace WaypointQueue
                 {
                     Loader.LogDebug($"Removed waypoint was unresolved. Resetting unresolved to null");
                     entry.UnresolvedWaypoint = null;
-                    CancelActiveOrders(entry.Locomotive);
+                    _autoEngineerService.CancelActiveOrders(entry.Locomotive);
                 }
 
                 Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in RemoveWaypoint");
@@ -439,7 +433,7 @@ namespace WaypointQueue
                     _waypointResolver.CleanupBeforeRemovingWaypoint(state.UnresolvedWaypoint);
                     Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
                     state.UnresolvedWaypoint = waypoint;
-                    SendToWaypointFromQueue(waypoint, GetOrdersHelper(waypoint.Locomotive));
+                    SendToWaypointFromQueue(waypoint, _autoEngineerService.GetOrdersHelper(waypoint.Locomotive));
                 }
 
                 Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in ReorderWaypoint");
@@ -449,8 +443,8 @@ namespace WaypointQueue
 
         public void RerouteCurrentWaypoint(Car locomotive)
         {
-            AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(locomotive);
-            if (HasActiveWaypoint(ordersHelper))
+            AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(locomotive);
+            if (_autoEngineerService.HasActiveWaypoint(ordersHelper))
             {
                 StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locomotive.id));
             }
@@ -479,12 +473,6 @@ namespace WaypointQueue
             return state?.Waypoints ?? [];
         }
 
-        public bool HasAnyWaypoints(Car loco)
-        {
-            List<ManagedWaypoint> waypoints = GetWaypointList(loco);
-            return waypoints != null && waypoints.Count > 0;
-        }
-
         public bool TryGetActiveWaypointFor(Car loco, out ManagedWaypoint waypoint)
         {
             waypoint = null;
@@ -505,67 +493,13 @@ namespace WaypointQueue
             return true;
         }
 
-        private bool HasActiveWaypoint(AutoEngineerOrdersHelper ordersHelper)
-        {
-            //Loader.LogDebug($"Locomotive {locomotive} ready for next waypoint");
-            return ordersHelper.Orders.Waypoint.HasValue;
-        }
-
-        private bool IsInWaypointMode(AutoEngineerOrdersHelper ordersHelper)
-        {
-            return ordersHelper.Orders.Mode == Game.Messages.AutoEngineerMode.Waypoint;
-        }
-
-        internal AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
-        {
-            Type plannerType = typeof(AutoEngineerPlanner);
-            FieldInfo fieldInfo = plannerType.GetField("_persistence", BindingFlags.NonPublic | BindingFlags.Instance);
-            AutoEngineerPersistence persistence = (AutoEngineerPersistence)fieldInfo.GetValue((locomotive as BaseLocomotive).AutoEngineerPlanner);
-            AutoEngineerOrdersHelper ordersHelper = new AutoEngineerOrdersHelper(locomotive, persistence);
-            return ordersHelper;
-        }
-
-        internal string GetPlannerStatus(BaseLocomotive locomotive)
-        {
-            Type plannerType = typeof(AutoEngineerPlanner);
-            FieldInfo fieldInfo = plannerType.GetField("_persistence", BindingFlags.NonPublic | BindingFlags.Instance);
-            AutoEngineerPersistence persistence = (AutoEngineerPersistence)fieldInfo.GetValue((locomotive as BaseLocomotive).AutoEngineerPlanner);
-            return persistence.PlannerStatus;
-        }
-
-        private bool AtEndOfTrack(BaseLocomotive loco)
-        {
-            string plannerStatus = GetPlannerStatus(loco);
-            //Loader.LogDebug($"{loco.Ident} current AE planner status is {plannerStatus}");
-            return plannerStatus == "End of Track";
-        }
-
-        private bool IsNearWaypoint(ManagedWaypoint waypoint)
-        {
-            try
-            {
-                (Location closest, Location furthest) = _carService.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
-                return closestDistance < 10;
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
-            }
-        }
-
         private void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
             _waypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
             waypoint.StatusLabel = "Running to waypoint";
             UpdateWaypoint(waypoint);
-            SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
-        }
-
-        internal void SendToWaypoint(AutoEngineerOrdersHelper ordersHelper, Location location, string coupleToCarId = null)
-        {
-            (Location, string)? maybeWaypoint = (location, coupleToCarId);
-            ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
+            _autoEngineerService.SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
         }
 
         internal void LoadWaypointSaveState(WaypointSaveState saveState)

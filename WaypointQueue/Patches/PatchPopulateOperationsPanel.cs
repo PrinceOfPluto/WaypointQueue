@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
-using UI.Common;
 using WaypointQueue.UI;
 using WaypointQueue.UUM;
 

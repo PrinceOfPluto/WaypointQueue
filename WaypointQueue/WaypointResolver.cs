@@ -18,7 +18,7 @@ using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
-    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, CarService carService)
+    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, CarService carService, AutoEngineerService autoEngineerService)
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         public static readonly string NoDestinationString = "No destination";
@@ -208,7 +208,7 @@ namespace WaypointQueue
 
         private void ResolveChangeMaxSpeed(ManagedWaypoint wp)
         {
-            var ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(wp.Locomotive);
+            var ordersHelper = autoEngineerService.GetOrdersHelper(wp.Locomotive);
             int maxSpeedToSet = Mathf.Clamp(wp.MaxSpeedForChange, 0, 45);
             ordersHelper.SetOrdersValue(null, null, maxSpeedMph: maxSpeedToSet, null, null);
         }
@@ -352,7 +352,7 @@ namespace WaypointQueue
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
 
             Loader.Log($"Sending train of {waypoint.Locomotive.Ident} to {locationToMove} past the waypoint");
-            WaypointQueueController.Shared.SendToWaypoint(ordersHelper, locationToMove);
+            autoEngineerService.SendToWaypoint(ordersHelper, locationToMove);
             return true;
         }
 

@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using Model;
 using Model.AI;
 using System;
@@ -7,6 +8,7 @@ using System.Reflection;
 using Track;
 using UI.EngineControls;
 using UnityEngine;
+using WaypointQueue.Services;
 using WaypointQueue.UUM;
 using static Model.AI.AutoEngineer;
 
@@ -19,6 +21,7 @@ namespace WaypointQueue
         [HarmonyPatch("UpdateTargets")]
         static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, float direction, ref AutoEngineer ____engineer)
         {
+            AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
             try
             {
                 if (____engineer == null)
@@ -35,7 +38,7 @@ namespace WaypointQueue
                     return;
                 }
 
-                AutoEngineerOrdersHelper ordersHelper = WaypointQueueController.Shared.GetOrdersHelper(loco);
+                AutoEngineerOrdersHelper ordersHelper = autoEngineerService.GetOrdersHelper(loco);
                 if (!ordersHelper.Orders.Waypoint.HasValue)
                 {
                     //Loader.LogDebug($"Update targets has no current order waypoint");
