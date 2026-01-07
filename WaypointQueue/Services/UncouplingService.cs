@@ -15,7 +15,7 @@ using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal class UncouplingService(CarService carService, OpsControllerWrapper opsControllerWrapper)
+    internal class UncouplingService(CarService carService, OpsControllerWrapper opsControllerWrapper, TrainControllerWrapper trainControllerWrapper)
     {
         public void UncoupleByCount(ManagedWaypoint waypoint)
         {
@@ -279,7 +279,7 @@ namespace WaypointQueue
 
         public void PostCouplingCutByCount(ManagedWaypoint waypoint)
         {
-            if (waypoint.NumberOfCarsToCut > 0 && TrainController.Shared.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
+            if (waypoint.NumberOfCarsToCut > 0 && trainControllerWrapper.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
             {
                 bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
                 Loader.Log($"Resolving post-coupling cut of type: " + (isTake ? "Take" : "Leave"));

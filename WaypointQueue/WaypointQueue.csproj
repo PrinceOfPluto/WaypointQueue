@@ -167,6 +167,7 @@
     <Compile Include="WaypointQueueSettings.cs" />
     <Compile Include="UI\WindowBase.cs" />
     <Compile Include="UI\WindowHelper.cs" />
+    <Compile Include="Wrappers\TrainControllerWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />

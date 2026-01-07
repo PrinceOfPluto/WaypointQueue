@@ -7,11 +7,12 @@ using Track.Search;
 using UI.Common;
 using UI.EngineControls;
 using WaypointQueue.UUM;
+using WaypointQueue.Wrappers;
 using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CouplingService(CarService carService, AutoEngineerService autoEngineerService)
+    internal class CouplingService(CarService carService, AutoEngineerService autoEngineerService, TrainControllerWrapper trainControllerWrapper)
     {
         private static readonly float AverageCarLengthMeters = 12.2f;
 
@@ -39,7 +40,7 @@ namespace WaypointQueue.Services
                 {
                     Loader.LogDebug($"Checking for coupling ahead by moving {totalDistanceChecked}");
                     Location checkLocation = Graph.Shared.LocationByMoving(orientedClosestTrainEnd, totalDistanceChecked, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
-                    targetCar = TrainController.Shared.CheckForCarAtPoint(Graph.Shared.GetPosition(checkLocation));
+                    targetCar = trainControllerWrapper.CheckForCarAtLocation(checkLocation);
                     if (targetCar != null && !consist.Contains(targetCar))
                     {
                         break;
@@ -88,8 +89,8 @@ namespace WaypointQueue.Services
             Loader.LogDebug($"Starting search for nearby coupling in radius");
             float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
             List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
-            List<string> nearbyCarIds = [.. TrainController.Shared
-                .CarIdsInRadius(wp.Location.GetPosition(), searchRadius)
+            List<string> nearbyCarIds = [.. trainControllerWrapper
+                .GetNearbyCarIds(wp.Location, searchRadius)
                 .Where(cid => !alreadyCoupledIds.Contains(cid))];
 
             Car bestMatchCar = null;
@@ -98,7 +99,7 @@ namespace WaypointQueue.Services
 
             foreach (var carId in nearbyCarIds)
             {
-                if (TrainController.Shared.TryGetCarForId(carId, out Car car))
+                if (trainControllerWrapper.TryGetCarForId(carId, out Car car))
                 {
                     if (car.EndGearA.IsCoupled && car.EndGearB.IsCoupled)
                     {

@@ -1,5 +1,4 @@
-﻿using Game.Messages;
-using Game.State;
+﻿using Game.State;
 using HarmonyLib;
 using Model;
 using Model.AI;
@@ -9,16 +8,17 @@ using System.Linq;
 using System.Reflection;
 using Track;
 using WaypointQueue.UUM;
+using WaypointQueue.Wrappers;
 using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CarService
+    internal class CarService(TrainControllerWrapper trainControllerWrapper)
     {
         public void SetHandbrakesOnCut(List<Car> cars)
         {
             Loader.LogDebug($"Setting handbrakes on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
-            Traverse.Create(TrainController.Shared).Method("ApplyHandbrakesAsNeeded", [typeof(List<Car>), typeof(PlaceTrainHandbrakes)], [cars, PlaceTrainHandbrakes.Automatic]).GetValue();
+            trainControllerWrapper.ApplyHandbrakesAsNeeded(cars);
         }
 
         public void BleedAirOnCut(List<Car> cars)
