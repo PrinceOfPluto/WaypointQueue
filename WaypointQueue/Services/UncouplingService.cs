@@ -1,5 +1,4 @@
 ﻿using Game.State;
-using HarmonyLib;
 using Model;
 using Model.Definition;
 using Model.Ops;
@@ -10,13 +9,13 @@ using UI.Common;
 using UnityEngine;
 using WaypointQueue.Services;
 using WaypointQueue.UUM;
+using WaypointQueue.Wrappers;
 using static Model.Car;
-using static Model.Ops.OpsController;
 using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal class UncouplingService(CarService carService)
+    internal class UncouplingService(CarService carService, OpsControllerWrapper opsControllerWrapper)
     {
         public void UncoupleByCount(ManagedWaypoint waypoint)
         {
@@ -70,12 +69,11 @@ namespace WaypointQueue
             }
             if (waypoint.WillUncoupleByDestinationTrack)
             {
-                try
+                if (opsControllerWrapper.TryResolveOpsCarPosition(waypoint.UncoupleDestinationId, out OpsCarPosition destinationMatch))
                 {
-                    OpsCarPosition destinationMatch = OpsController.Shared.ResolveOpsCarPosition(waypoint.UncoupleDestinationId);
                     carsToCut = FindMatchingCarsByTrackDestination(allCarsFromEnd, destinationMatch, waypoint.ExcludeMatchingCarsFromCut);
                 }
-                catch (InvalidOpsCarPositionException)
+                else
                 {
                     Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown track destination.");
                     Loader.LogError($"Failed to resolve track destination by id {waypoint.UncoupleDestinationId}");
@@ -84,7 +82,7 @@ namespace WaypointQueue
             }
             if (waypoint.WillUncoupleByDestinationIndustry)
             {
-                Industry industryMatch = OpsController.Shared.AllIndustries.Where(i => i.identifier == waypoint.UncoupleDestinationId).FirstOrDefault();
+                Industry industryMatch = opsControllerWrapper.GetIndustryById(waypoint.UncoupleDestinationId);
                 if (industryMatch == null)
                 {
                     Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown industry.");
@@ -95,7 +93,7 @@ namespace WaypointQueue
             }
             if (waypoint.WillUncoupleByDestinationArea)
             {
-                Area areaMatch = OpsController.Shared.Areas.Where(i => i.identifier == waypoint.UncoupleDestinationId).FirstOrDefault();
+                Area areaMatch = opsControllerWrapper.GetAreaById(waypoint.UncoupleDestinationId);
                 if (areaMatch == null)
                 {
                     Toast.Present($"{waypoint.Locomotive.Ident} failed to resolve unknown area.");
@@ -147,7 +145,7 @@ namespace WaypointQueue
         {
             bool matchFunction(Car car)
             {
-                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out _);
+                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out _);
                 return !hasDestination;
             }
             return FindMatchingCarBlock(allCars, matchFunction, excludeMatchingCarsFromCut);
@@ -157,7 +155,7 @@ namespace WaypointQueue
         {
             bool matchFunction(Car car)
             {
-                bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination);
+                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination);
                 bool carMatchesFilter = hasDestination && carDestination.DisplayName == destinationMatch.DisplayName;
                 Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.DisplayName}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.DisplayName}");
                 return carMatchesFilter;
@@ -171,9 +169,9 @@ namespace WaypointQueue
             {
                 bool carMatchesFilter = false;
 
-                if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
+                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination))
                 {
-                    IndustryComponent industryComponent = Traverse.Create(OpsController.Shared).Method("IndustryComponentForPosition", [typeof(OpsCarPosition)], [carDestination]).GetValue<IndustryComponent>();
+                    IndustryComponent industryComponent = opsControllerWrapper.IndustryComponentForPosition(carDestination);
                     carMatchesFilter = industryComponent?.Industry?.identifier == destinationMatch.identifier;
                 }
                 Loader.LogDebug(carMatchesFilter ? $"Car {car.Ident} matches filter of {destinationMatch.name}" : $"Car {car.Ident} does NOT match filter of {destinationMatch.name}");
@@ -188,9 +186,9 @@ namespace WaypointQueue
             {
                 bool carMatchesFilter = false;
 
-                if (OpsController.Shared.TryGetDestinationInfo(car, out _, out _, out _, out OpsCarPosition carDestination))
+                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination))
                 {
-                    Area carArea = OpsController.Shared.AreaForCarPosition(carDestination);
+                    Area carArea = opsControllerWrapper.AreaForCarPosition(carDestination);
                     carMatchesFilter = carArea?.identifier == destinationMatch.identifier;
                 }
 

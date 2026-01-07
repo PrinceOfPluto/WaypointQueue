@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityModManagerNet;
 using WaypointQueue.Services;
 using WaypointQueue.UI;
+using WaypointQueue.Wrappers;
 
 namespace WaypointQueue.UUM
 {
@@ -87,6 +88,7 @@ namespace WaypointQueue.UUM
             services.AddSingleton<CouplingService>();
             services.AddSingleton<CarService>();
             services.AddSingleton<AutoEngineerService>();
+            services.AddSingleton<OpsControllerWrapper>();
             ServiceProvider = services.BuildServiceProvider();
         }
 

@@ -12,11 +12,12 @@ using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.UUM;
+using WaypointQueue.Wrappers;
 using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class RefuelService(CarService carService, AutoEngineerService autoEngineerService)
+    internal class RefuelService(CarService carService, AutoEngineerService autoEngineerService, OpsControllerWrapper opsControllerWrapper)
     {
         private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
         private List<CarLoaderSequencer> _carLoaderSequencers = [];
@@ -309,7 +310,7 @@ namespace WaypointQueue.Services
             string industryId = waypoint.RefuelIndustryId;
             string loadId = waypoint.RefuelLoadName;
 
-            Industry industry = OpsController.Shared.AllIndustries.ToList().Find(x => x.identifier == industryId);
+            Industry industry = opsControllerWrapper.GetIndustryById(industryId);
             if (industry == null)
             {
                 // Water towers are unlimited and have a null industry
