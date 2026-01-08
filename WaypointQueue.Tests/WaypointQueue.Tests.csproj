@@ -37,92 +37,92 @@
 	<ItemGroup>
 		<Reference Include="Assembly-CSharp">
 			<HintPath>$(RrManagedDir)\Assembly-CSharp.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 	</ItemGroup>
 	<!-- Mod Loader -->
 	<ItemGroup>
-		<PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
+		<PackageReference Include="UnityModManager" Version="0.32.4" />
 	</ItemGroup>
 	<!-- Null Checking -->
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
+		<PackageReference Include="Nullable" Version="1.3.1" />
 	</ItemGroup>
 	<!-- Unity -->
 	<ItemGroup>
 		<Reference Include="Definition">
 			<HintPath>$(RrManagedDir)\Definition.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="KeyValue.Runtime">
 			<HintPath>$(RrManagedDir)\KeyValue.Runtime.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="MessagePack">
 			<HintPath>$(RrManagedDir)\MessagePack.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="MessagePack.Annotations">
 			<HintPath>$(RrManagedDir)\MessagePack.Annotations.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="Newtonsoft.Json">
 			<HintPath>$(RrManagedDir)\Newtonsoft.Json.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="System" />
 		<Reference Include="UnityEngine">
 			<HintPath>$(RrManagedDir)\UnityEngine.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.CoreModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.CoreModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.IMGUIModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.InputModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.InputModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.JSONSerializeModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.PhysicsModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.PhysicsModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.UI">
 			<HintPath>$(RrManagedDir)\UnityEngine.UI.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.UIModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.UIModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.ImageConversionModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="UnityEngine.InputLegacyModule">
 			<HintPath>$(RrManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="Unity.InputSystem">
 			<HintPath>$(RrManagedDir)\Unity.InputSystem.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="Unity.RenderPipelines.Universal.Runtime">
 			<HintPath>$(RrManagedDir)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="Unity.TextMeshPro">
 			<HintPath>$(RrManagedDir)\Unity.TextMeshPro.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 	</ItemGroup>
 

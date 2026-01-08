@@ -135,6 +135,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Services\ICarService.cs" />
+    <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />
     <Compile Include="CarUtils.cs" />
     <Compile Include="Model\RouteAssignment.cs" />

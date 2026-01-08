@@ -15,7 +15,7 @@ using static WaypointQueue.CarUtils;
 
 namespace WaypointQueue
 {
-    internal class UncouplingService(CarService carService, OpsControllerWrapper opsControllerWrapper, TrainControllerWrapper trainControllerWrapper)
+    internal class UncouplingService(ICarService carService, IOpsControllerWrapper opsControllerWrapper)
     {
         public void UncoupleByCount(ManagedWaypoint waypoint)
         {
@@ -257,129 +257,142 @@ namespace WaypointQueue
             carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
         }
 
-        public void PostCouplingCutByCount(ManagedWaypoint waypoint)
+        public void PostCouplingCutByCount(ManagedWaypoint wp)
         {
-            if (waypoint.NumberOfCarsToCut > 0 && trainControllerWrapper.TryGetCarForId(waypoint.CoupleToCarId, out Car carCoupledTo))
+            if (wp.NumberOfCarsToCut <= 0)
             {
-                bool isTake = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take;
-                Loader.Log($"Resolving post-coupling cut of type: " + (isTake ? "Take" : "Leave"));
-                LogicalEnd closestEnd = carService.ClosestLogicalEndTo(carCoupledTo, waypoint.Location);
-                LogicalEnd furthestEnd = carService.GetOppositeEnd(closestEnd);
-
-                // If we're taking cars, we are counting cars past the waypoint
-                // If we're leaving cars, we are counting cars before the waypoint
-                // Direction to count cars is relative to the car coupled to
-                LogicalEnd directionToCountCars = isTake ? furthestEnd : closestEnd;
-                LogicalEnd oppositeDirection = directionToCountCars == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
-
-                List<Car> coupledToOriginal = carService.EnumerateCoupledToEnd(carCoupledTo, directionToCountCars);
-
-                // If we are taking, then we need to include original at index 0
-                if (isTake)
-                {
-                    coupledToOriginal.Insert(0, carCoupledTo);
-                }
-
-                int clampedNumberOfCarsToCut = Mathf.Clamp(waypoint.NumberOfCarsToCut, 0, coupledToOriginal.Count);
-
-                Loader.Log($"Cars coupled to original coupled car: " + String.Join("-", coupledToOriginal.Select(c => $"[{c.Ident}]")));
-                Car targetCar = coupledToOriginal.ElementAt(clampedNumberOfCarsToCut - 1);
-                Loader.Log($"Target car is {targetCar.Ident}");
-
-                List<Car> carsLeftBehind = [];
-                if (!isTake)
-                {
-                    carsLeftBehind.Add(targetCar);
-                }
-
-                // This is always furthest end because it is still relative to the original car coupled to
-                // On takes, we add the remaining cars further from the waypoint than the target car
-                // On leaves, we find our target car by stepping through the end closest to the waypoint,
-                // but then have to reverse direction to furthest end in order to add the rest of the cut
-                carsLeftBehind.AddRange(carService.EnumerateCoupledToEnd(targetCar, furthestEnd));
-
-                carsLeftBehind = carService.FilterAnySplitLocoTenderPairs(carsLeftBehind);
-
-                Loader.Log("Post-couple cutting " + String.Join("-", carsLeftBehind.Select(c => $"[{c.Ident}]")) + " from " + String.Join("-", waypoint.Locomotive.EnumerateCoupled(directionToCountCars).Select(c => $"[{c.Ident}]")));
-
-                // Only apply handbrakes and bleed air on cars we leave behind
-                if (waypoint.ApplyHandbrakesOnUncouple)
-                {
-                    carService.SetHandbrakesOnCut(carsLeftBehind);
-                }
-
-                Car carToUncouple = carsLeftBehind.FirstOrDefault();
-
-                if (carToUncouple != null)
-                {
-                    Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {clampedNumberOfCarsToCut} cars with {carsLeftBehind.Count} total left behind ");
-                    UncoupleCar(carToUncouple, closestEnd);
-                    carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
-
-                    if (waypoint.BleedAirOnUncouple)
-                    {
-                        Loader.LogDebug($"Bleeding air on {carsLeftBehind.Count} cars");
-                        foreach (Car car in carsLeftBehind)
-                        {
-                            car.air.BleedBrakeCylinder();
-                        }
-                    }
-                }
+                Loader.Log($"Number of cars to cut is zero for a post coupling cut by count");
+                return;
             }
+
+            Loader.Log($"Handling pickup by count for locomotive {wp.Locomotive.Ident}");
+            if (!wp.TryResolveCoupleToCar(out Car carCoupledTo))
+            {
+                throw new InvalidOperationException("Cannot pickup by count due to unresolved CoupledToCarId");
+            }
+
+            (LogicalEnd _, LogicalEnd farEnd) = carService.GetEndsRelativeToLocation(carCoupledTo, wp.Location);
+
+            List<Car> fullConsist = [.. carCoupledTo.EnumerateCoupled(fromEnd: farEnd)];
+
+            int indexOfCoupledCar = fullConsist.IndexOf(carCoupledTo);
+
+            List<Car> carsToCut = [];
+
+            if (wp.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take)
+            {
+                carsToCut = CalculateCutForPickupByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
+                Loader.LogDebug($"Pickup seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+            }
+            if (wp.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Leave)
+            {
+                carsToCut = CalculateCutForDropoffByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
+                Loader.LogDebug($"Dropoff seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+            }
+
+            PerformCut(carsToCut, fullConsist, wp);
+        }
+
+        internal List<Car> CalculateCutForPickupByCount(List<Car> consist, int indexOfCoupledCar, int carsToPickup)
+        {
+            int maxCarsAvailableToPickup = indexOfCoupledCar + 1;
+
+            int clampedNumberOfCarsToCut = Mathf.Clamp(carsToPickup, 0, maxCarsAvailableToPickup);
+            Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
+
+            int lowestIndexToPickup = indexOfCoupledCar - clampedNumberOfCarsToCut + 1;
+
+            List<Car> carsToCut = consist.GetRange(0, lowestIndexToPickup);
+            return carsToCut;
+        }
+
+        internal List<Car> CalculateCutForDropoffByCount(List<Car> consist, int indexOfCoupledCar, int carsToDropoff)
+        {
+            int maxCarsAvailableToDropoff = consist.Count - indexOfCoupledCar - 1;
+
+            int clampedNumberOfCarsToCut = Mathf.Clamp(carsToDropoff, 0, maxCarsAvailableToDropoff);
+            Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
+
+            int highestIndexToDropoff = indexOfCoupledCar + clampedNumberOfCarsToCut;
+            List<Car> carsToCut = consist.GetRange(0, highestIndexToDropoff + 1);
+            return carsToCut;
+        }
+
+        internal (Car carToUncouple, LogicalEnd endToUncouple) FindCarToUncouple(List<Car> carsToCut, List<Car> consistFromEndA)
+        {
+            if (carsToCut == null || carsToCut.Count == 0)
+            {
+                throw new InvalidOperationException("Cannot calculate uncoupling point for empty cut list");
+            }
+
+            if (carsToCut.Count >= consistFromEndA.Count)
+            {
+                throw new InvalidOperationException("Cannot uncouple full consist");
+            }
+
+            int startIndex = consistFromEndA.FindIndex(c => c.id == carsToCut.First().id);
+            int endIndex = consistFromEndA.FindIndex(c => c.id == carsToCut.Last().id);
+
+            if (startIndex == -1 || endIndex == -1)
+            {
+                throw new InvalidOperationException("Cars to cut are not a subset of consist");
+            }
+
+            // Ensure indices are sorted the same way as the full consist
+            if (startIndex > endIndex)
+            {
+                (endIndex, startIndex) = (startIndex, endIndex);
+            }
+
+            Car carToUncouple;
+            if (startIndex == 0)
+            {
+                // Uncouple car at end index on side B
+                carToUncouple = consistFromEndA[endIndex];
+                return (carToUncouple, LogicalEnd.B);
+            }
+            else if (endIndex == consistFromEndA.Count - 1)
+            {
+                // Uncouple car at start index on side A
+                carToUncouple = consistFromEndA[startIndex];
+                return (carToUncouple, LogicalEnd.A);
+            }
+
+            Loader.LogError($"Cannot determine car to uncouple from cut list {CarListToString(carsToCut)} within the full consist {CarListToString(consistFromEndA)}");
+            throw new InvalidOperationException("Failed to find valid car to uncouple");
         }
 
         private void PerformCut(List<Car> carsToCut, List<Car> allCars, ManagedWaypoint waypoint)
         {
+            Loader.LogDebug($"Entering PerformCut before filtering split tenders");
             carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
-            List<Car> carsRemaining = [.. allCars.Where(c => !carsToCut.Contains(c))];
-
-            List<Car> activeCut = carsRemaining;
-            List<Car> inactiveCut = carsToCut;
-
-            Loader.Log($"Seeking to uncouple {carsToCut.Count} cars from train of {allCars.Count} total cars with {carsRemaining.Count} cars left behind");
-
-            Loader.Log($"TakeUncoupledCarsAsActiveCut is {waypoint.TakeUncoupledCarsAsActiveCut}");
-            if (waypoint.TakeUncoupledCarsAsActiveCut)
-            {
-                activeCut = carsToCut;
-                inactiveCut = carsRemaining;
-            }
 
             if (carsToCut.Count == 0)
             {
-                Loader.Log($"No valid cars to cut found for uncoupling");
-                // Should probably send an alert to the player
+                Toast.Present($"{waypoint.Locomotive.Ident} found no valid cars to cut");
                 return;
             }
 
-            Loader.Log($"Cutting {CarUtils.CarListToString(carsToCut)} from {CarListToString(allCars)} as {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+            List<Car> fullConsistFromEndA = [.. carsToCut.First().EnumerateCoupled(fromEnd: LogicalEnd.A)];
 
+            Loader.Log($"Uncoupling {carsToCut.Count} cars from consist of {fullConsistFromEndA.Count} cars:\n" +
+                $"cutting: {CarListToString(carsToCut)}\n" +
+                $"from: {CarListToString(fullConsistFromEndA)}\n" +
+                $"as: {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
+
+            (Car carToUncouple, LogicalEnd endToUncouple) = FindCarToUncouple(carsToCut, fullConsistFromEndA);
+
+            Loader.Log($"Uncoupling {carToUncouple.Ident} on end {LogicalEndToString(endToUncouple)} for cut of {carsToCut.Count} cars");
+            UncoupleCar(carToUncouple, endToUncouple);
+
+            carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
+
+            List<Car> carsRemaining = [.. fullConsistFromEndA.Where(c => !carsToCut.Contains(c))];
+            List<Car> inactiveCut = waypoint.TakeUncoupledCarsAsActiveCut ? carsToCut : carsRemaining;
             if (waypoint.ApplyHandbrakesOnUncouple)
             {
                 carService.SetHandbrakesOnCut(inactiveCut);
             }
-
-            // The car from the cut that is adjacent to the rest of the uncut train
-            Car carToUncouple = carsToCut.Last();
-
-            /**
-             * Uncouple 2 cars closest to the waypoint.
-             * x is where we uncouple
-             * v is the waypoint
-             * A and B are the car logical ends
-             * (AB) is the reference car to uncouple
-             * [loco]-[AB]-[AB]-[AB]x(AB)-[AB] v
-             * (AB)'s B end is closest to v, so uncouple on (AB)'s A end which is further from waypoint than B
-             * 
-             * Uncouple 2 cars furthest from the waypoint
-             * [AB]-(AB)x[AB]-[AB]-[AB]-[loco] v
-             * (AB)'s A end is closest to v, so uncouple on (AB)'s B end which is closer to waypoint than A
-             */
-            LogicalEnd endToUncouple = carService.GetEndRelativeToWaypoint(carToUncouple, waypoint.Location, useFurthestEnd: waypoint.CountUncoupledFromNearestToWaypoint);
-
-            Loader.Log($"Uncoupling {carToUncouple.Ident} for cut of {carsToCut.Count} cars");
-            UncoupleCar(carToUncouple, endToUncouple);
-            carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
 
             if (waypoint.BleedAirOnUncouple)
             {
@@ -390,7 +403,7 @@ namespace WaypointQueue
         private void UncoupleCar(Car car, LogicalEnd endToUncouple)
         {
             LogicalEnd oppositeEnd = endToUncouple == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
-            Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {(endToUncouple == LogicalEnd.A ? "A" : "B")}");
+            Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {LogicalEndToString(endToUncouple)}");
 
             if (StateManager.IsHost && car.set != null)
             {
@@ -410,7 +423,7 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.LogError($"No adjacent car to {car.Ident} on logical end {(endToUncouple == LogicalEnd.A ? "A" : "B")}");
+                    Loader.LogError($"No adjacent car to {car.Ident} on logical end {LogicalEndToString(endToUncouple)}");
                 }
             }
         }

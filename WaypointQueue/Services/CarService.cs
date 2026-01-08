@@ -13,7 +13,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CarService(TrainControllerWrapper trainControllerWrapper)
+    internal class CarService(TrainControllerWrapper trainControllerWrapper) : ICarService
     {
         public void SetHandbrakesOnCut(List<Car> cars)
         {
@@ -186,7 +186,7 @@ namespace WaypointQueue.Services
             return useFurthestEnd ? furthestEnd : closestEnd;
         }
 
-        public static (LogicalEnd closest, LogicalEnd furthest) GetEndsRelativeToLocation(Car car, Location location)
+        public (LogicalEnd closest, LogicalEnd furthest) GetEndsRelativeToLocation(Car car, Location location)
         {
             LogicalEnd closestEnd = car.ClosestLogicalEndTo(location, Graph.Shared);
             LogicalEnd furthestEnd = closestEnd == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;

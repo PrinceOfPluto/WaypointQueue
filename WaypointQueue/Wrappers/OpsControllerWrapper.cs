@@ -7,7 +7,7 @@ using static Model.Ops.OpsController;
 namespace WaypointQueue.Wrappers
 {
     // Wrapped for easier test mocking
-    internal class OpsControllerWrapper
+    internal class OpsControllerWrapper : IOpsControllerWrapper
     {
         public bool TryGetCarDesination(Car car, out OpsCarPosition destination)
         {
