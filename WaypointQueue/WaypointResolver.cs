@@ -393,81 +393,29 @@ namespace WaypointQueue
             // Take active cut not allowed for pickups or dropoffs
             waypoint.TakeUncoupledCarsAsActiveCut = false;
 
+            bool isPickup = waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup;
+
             List<Car> carsToCut = [];
             if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
             {
                 carsToCut = uncouplingService.FindPickupOrDropoffByCount(waypoint, carCoupledTo);
             }
-            if (waypoint.WillUncoupleByNoDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupByNoDestination(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffByNoDestination(waypoint, carCoupledTo);
-                }
-            }
-
-            if (waypoint.WillUncoupleByDestinationTrack && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupByDestinationTrack(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffByDestinationTrack(waypoint, carCoupledTo);
-                }
-            }
-
-            if (waypoint.WillUncoupleByDestinationIndustry && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupByDestinationIndustry(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffByDestinationIndustry(waypoint, carCoupledTo);
-                }
-            }
-
-            if (waypoint.WillUncoupleByDestinationArea && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupByDestinationArea(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffByDestinationArea(waypoint, carCoupledTo);
-                }
+                carsToCut = isPickup 
+                    ? uncouplingService.FindPickupByDestination(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleBySpecificCar)
             {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffBySpecificCar(waypoint, carCoupledTo);
-                }
+                carsToCut = isPickup 
+                    ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleAllExceptLocomotives)
             {
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
-                {
-                    carsToCut = uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo);
-                }
-                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
-                {
-                    carsToCut = uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
-                }
+                carsToCut = isPickup
+                    ? uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo) : uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
             }
 
             uncouplingService.PerformCut(carsToCut, waypoint);
@@ -482,24 +430,9 @@ namespace WaypointQueue
                 carsToCut = uncouplingService.FindCutByCount(waypoint);
             }
 
-            if (waypoint.WillUncoupleByNoDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
-                carsToCut = uncouplingService.FindCutByNoDestination(waypoint);
-            }
-
-            if (waypoint.WillUncoupleByDestinationTrack && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                carsToCut = uncouplingService.FindCutByDestinationTrack(waypoint);
-            }
-
-            if (waypoint.WillUncoupleByDestinationIndustry && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                carsToCut = uncouplingService.FindCutByDestinationIndustry(waypoint);
-            }
-
-            if (waypoint.WillUncoupleByDestinationArea && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
-            {
-                carsToCut = uncouplingService.FindCutByDestinationArea(waypoint);
+                carsToCut = uncouplingService.FindCutByDestination(waypoint);
             }
 
             if (waypoint.WillUncoupleBySpecificCar)

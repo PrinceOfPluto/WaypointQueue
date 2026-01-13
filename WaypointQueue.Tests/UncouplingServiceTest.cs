@@ -204,9 +204,14 @@ namespace WaypointQueue.Tests
             mockedWaypoint.Setup(wp => wp.ExcludeMatchingCarsFromCut).Returns(excludeMatchFromCut);
             mockedWaypoint.Setup(wp => wp.CountUncoupledFromNearestToWaypoint).Returns(closestBlock);
 
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByNoDestination).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationTrack).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationIndustry).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationArea).Returns(true);
+
             _carServiceMock.Setup(s => s.GetEndsRelativeToLocation(It.IsAny<Car>(), It.IsAny<Location>())).Returns((Car.LogicalEnd.A, Car.LogicalEnd.B));
 
-            var result = _sut.FindCutByDestinationArea(mockedWaypoint.Object);
+            var result = _sut.FindCutByDestination(mockedWaypoint.Object);
 
             Assert.Equal(expectedCount, result.Count);
 
@@ -243,12 +248,17 @@ namespace WaypointQueue.Tests
             mockedWaypoint.Setup(wp => wp.ExcludeMatchingCarsFromCut).Returns(excludeMatchFromCut);
             mockedWaypoint.Setup(wp => wp.CountUncoupledFromNearestToWaypoint).Returns(closestBlock);
 
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByNoDestination).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationTrack).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationIndustry).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationArea).Returns(true);
+
             _carServiceMock.Setup(s => s.GetEndsRelativeToLocation(It.IsAny<Car>(), It.IsAny<Location>())).Returns((Car.LogicalEnd.A, Car.LogicalEnd.B));
 
             Car carCoupledTo = consist[indexOfCoupled];
             _carServiceMock.Setup(cs => cs.EnumerateCoupled(carCoupledTo, It.IsAny<Car.LogicalEnd>())).Returns(consist);
 
-            var result = _sut.FindPickupByDestinationArea(mockedWaypoint.Object, carCoupledTo);
+            var result = _sut.FindPickupByDestination(mockedWaypoint.Object, carCoupledTo);
 
             Assert.Equal(expectedCount, result.Count);
 
@@ -285,6 +295,11 @@ namespace WaypointQueue.Tests
             mockedWaypoint.Setup(wp => wp.ExcludeMatchingCarsFromCut).Returns(excludeMatchFromCut);
             mockedWaypoint.Setup(wp => wp.CountUncoupledFromNearestToWaypoint).Returns(closestBlock);
 
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByNoDestination).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationTrack).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationIndustry).Returns(false);
+            mockedWaypoint.Setup(wp => wp.WillUncoupleByDestinationArea).Returns(true);
+
             _carServiceMock.Setup(s => s.GetEndsRelativeToLocation(It.IsAny<Car>(), It.IsAny<Location>())).Returns((Car.LogicalEnd.A, Car.LogicalEnd.B));
 
             Car carCoupledTo = consist[indexOfCoupled];
@@ -293,7 +308,7 @@ namespace WaypointQueue.Tests
             _carServiceMock.Setup(cs => cs.EnumerateCoupled(carCoupledTo, Car.LogicalEnd.A)).Returns(reversedConsist);
             _carServiceMock.Setup(cs => cs.EnumerateCoupled(carCoupledTo, Car.LogicalEnd.B)).Returns(consist);
 
-            var result = _sut.FindDropoffByDestinationArea(mockedWaypoint.Object, carCoupledTo);
+            var result = _sut.FindDropoffByDestination(mockedWaypoint.Object, carCoupledTo);
 
             Assert.Equal(expectedCount, result.Count);
 

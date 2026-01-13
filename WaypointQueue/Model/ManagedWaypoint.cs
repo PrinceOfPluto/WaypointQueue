@@ -200,13 +200,13 @@ namespace WaypointQueue
         [JsonIgnore]
         public bool WillUncoupleByDestination { get { return WillUncoupleByDestinationTrack || WillUncoupleByDestinationIndustry || WillUncoupleByDestinationArea; } }
         [JsonIgnore]
-        public bool WillUncoupleByNoDestination => UncoupleDestinationId == WaypointResolver.NoDestinationString;
+        public virtual bool WillUncoupleByNoDestination => UncoupleDestinationId == WaypointResolver.NoDestinationString;
         [JsonIgnore]
-        public bool WillUncoupleByDestinationTrack { get { return UncouplingMode == UncoupleMode.ByDestinationTrack; } }
+        public virtual bool WillUncoupleByDestinationTrack { get { return UncouplingMode == UncoupleMode.ByDestinationTrack; } }
         [JsonIgnore]
-        public bool WillUncoupleByDestinationIndustry { get { return UncouplingMode == UncoupleMode.ByDestinationIndustry; } }
+        public virtual bool WillUncoupleByDestinationIndustry { get { return UncouplingMode == UncoupleMode.ByDestinationIndustry; } }
         [JsonIgnore]
-        public bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
+        public virtual bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
         [JsonIgnore]
         public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
         [JsonIgnore]
