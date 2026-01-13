@@ -18,7 +18,7 @@ using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
-    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, CarService carService, AutoEngineerService autoEngineerService)
+    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, ICarService carService, AutoEngineerService autoEngineerService)
     {
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         public static readonly string NoDestinationString = "No destination";
@@ -182,7 +182,7 @@ namespace WaypointQueue
                 }
             }
 
-            if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car _) && wp.NumberOfCarsToCut > 0)
+            if (wp.IsCoupling && wp.HasAnyPostCouplingCutOrders)
             {
                 ResolvePostCouplingCut(wp);
             }
@@ -385,30 +385,135 @@ namespace WaypointQueue
 
         private void ResolvePostCouplingCut(ManagedWaypoint waypoint)
         {
-            uncouplingService.PostCouplingCutByCount(waypoint);
-        }
-
-        private void ResolveUncouplingOrders(ManagedWaypoint waypoint)
-        {
-            if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
+            if (!waypoint.TryResolveCoupleToCar(out Car carCoupledTo))
             {
-                uncouplingService.UncoupleByCount(waypoint);
+                throw new InvalidOperationException("Cannot resolve post coupling cut due to unresolved CoupledToCarId");
             }
 
-            if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            // Take active cut not allowed for pickups or dropoffs
+            waypoint.TakeUncoupledCarsAsActiveCut = false;
+
+            List<Car> carsToCut = [];
+            if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
             {
-                uncouplingService.UncoupleByDestination(waypoint);
+                carsToCut = uncouplingService.FindPickupOrDropoffByCount(waypoint, carCoupledTo);
+            }
+            if (waypoint.WillUncoupleByNoDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupByNoDestination(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffByNoDestination(waypoint, carCoupledTo);
+                }
+            }
+
+            if (waypoint.WillUncoupleByDestinationTrack && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupByDestinationTrack(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffByDestinationTrack(waypoint, carCoupledTo);
+                }
+            }
+
+            if (waypoint.WillUncoupleByDestinationIndustry && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupByDestinationIndustry(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffByDestinationIndustry(waypoint, carCoupledTo);
+                }
+            }
+
+            if (waypoint.WillUncoupleByDestinationArea && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupByDestinationArea(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffByDestinationArea(waypoint, carCoupledTo);
+                }
             }
 
             if (waypoint.WillUncoupleBySpecificCar)
             {
-                uncouplingService.UncoupleBySpecificCar(waypoint);
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffBySpecificCar(waypoint, carCoupledTo);
+                }
+            }
+
+            if (waypoint.WillUncoupleAllExceptLocomotives)
+            {
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
+                {
+                    carsToCut = uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo);
+                }
+                if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
+                {
+                    carsToCut = uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
+                }
+            }
+
+            uncouplingService.PerformCut(carsToCut, waypoint);
+        }
+
+        private void ResolveUncouplingOrders(ManagedWaypoint waypoint)
+        {
+            Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
+            List<Car> carsToCut = [];
+            if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
+            {
+                carsToCut = uncouplingService.FindCutByCount(waypoint);
+            }
+
+            if (waypoint.WillUncoupleByNoDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                carsToCut = uncouplingService.FindCutByNoDestination(waypoint);
+            }
+
+            if (waypoint.WillUncoupleByDestinationTrack && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                carsToCut = uncouplingService.FindCutByDestinationTrack(waypoint);
+            }
+
+            if (waypoint.WillUncoupleByDestinationIndustry && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                carsToCut = uncouplingService.FindCutByDestinationIndustry(waypoint);
+            }
+
+            if (waypoint.WillUncoupleByDestinationArea && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
+            {
+                carsToCut = uncouplingService.FindCutByDestinationArea(waypoint);
+            }
+
+            if (waypoint.WillUncoupleBySpecificCar)
+            {
+                carsToCut = uncouplingService.FindCutBySpecificCar(waypoint);
             }
 
             if (waypoint.WillUncoupleAllExceptLocomotives)
             {
                 uncouplingService.UncoupleAllExceptLocomotives(waypoint);
+                return;
             }
+
+            uncouplingService.PerformCut(carsToCut, waypoint);
         }
 
         internal void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)

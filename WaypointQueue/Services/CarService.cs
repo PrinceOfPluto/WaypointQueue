@@ -69,7 +69,12 @@ namespace WaypointQueue.Services
             updateCarsMI.Invoke(locomotive.AutoEngineerPlanner, parameters);
         }
 
-        public List<Car> EnumerateCoupledToEnd(Car car, LogicalEnd directionToCount, bool inclusive = false)
+        public List<Car> EnumerateCoupled(Car car, LogicalEnd fromEnd)
+        {
+            return [.. car.EnumerateCoupled(fromEnd)];
+        }
+
+        public List<Car> EnumerateAdjacentCarsTowardEnd(Car car, LogicalEnd directionToCount, bool inclusive = false)
         {
             List<Car> result = [];
             if (inclusive) result.Add(car);
@@ -215,6 +220,11 @@ namespace WaypointQueue.Services
                 }
             }
             return carsToCut;
+        }
+
+        public bool IsCarLocomotiveType(Car car)
+        {
+            return car.Archetype == Model.Definition.CarArchetype.LocomotiveDiesel || car.Archetype == Model.Definition.CarArchetype.LocomotiveSteam || car.Archetype == Model.Definition.CarArchetype.Tender;
         }
     }
 }

@@ -383,7 +383,14 @@ namespace WaypointQueue.UI
 
                 if (waypoint.HasAnyCouplingOrders && !waypoint.CurrentlyWaiting)
                 {
-                    BuildPostCouplingCutSection(waypoint, builder, onWaypointChange);
+                    if (waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.None)
+                    {
+                        BuildThenPerformCutToggle(waypoint, builder, onWaypointChange);
+                    }
+                    else
+                    {
+                        BuildPostCouplingCutSection(waypoint, builder, onWaypointChange);
+                    }
                 }
 
                 if (waypoint.CanRefuelNearby && !waypoint.CurrentlyWaiting && waypoint.StopAtWaypoint && !waypoint.HasAnyCouplingOrders && !waypoint.MoveTrainPastWaypoint)
@@ -776,7 +783,17 @@ namespace WaypointQueue.UI
 
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var uncouplingModeField = builder.AddField($"Then uncouple", builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car", "All except locomotives"], (int)waypoint.UncouplingMode, (int value) =>
+            string label = "Then uncouple";
+            if (waypoint.WillPostCoupleCutPickup)
+            {
+                label = "Then pickup";
+            }
+            if (waypoint.WillPostCoupleCutDropoff)
+            {
+                label = "Then dropoff";
+            }
+
+            var uncouplingModeField = builder.AddField(label, builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car", "All except locomotives"], (int)waypoint.UncouplingMode, (int value) =>
                 {
                     waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
                     _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
@@ -800,7 +817,7 @@ namespace WaypointQueue.UI
         {
             builder.HStack(delegate (UIPanelBuilder builder)
             {
-                builder.AddField($"Uncouple", builder.HStack(delegate (UIPanelBuilder field)
+                builder.AddField("Cars to cut", builder.HStack(delegate (UIPanelBuilder field)
                 {
                     AddCarCutButtons(waypoint, field, onWaypointChange, null);
                 }));
@@ -808,12 +825,16 @@ namespace WaypointQueue.UI
 
             if (waypoint.NumberOfCarsToCut > 0)
             {
-                builder.AddField($"Count cars from",
-                builder.AddDropdown(new List<string> { "Closest to waypoint", "Furthest from waypoint" }, waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+                // Pickup and dropoff already have an implicit direction
+                if (!waypoint.WillPostCoupleCutDropoff && !waypoint.WillPostCoupleCutPickup)
                 {
-                    waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
-                    onWaypointChange(waypoint);
-                }));
+                    builder.AddField($"Count cars from",
+                    builder.AddDropdown(["Closest to waypoint", "Furthest from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+                    {
+                        waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
+                        onWaypointChange(waypoint);
+                    }));
+                }
 
                 if (Loader.Settings.UseCompactLayout)
                 {
@@ -827,7 +848,10 @@ namespace WaypointQueue.UI
                     AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
                 }
 
-                BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                {
+                    BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+                }
             }
 
             return builder;
@@ -887,13 +911,22 @@ namespace WaypointQueue.UI
                 "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by a mix of non-Whittier cars at the end. You want to uncouple all non-Whittier cars without counting the individual cars." +
                 "\n\nTo do that, you can select the matching destination as Whittier, exclude this match from the cut, and choose to cut the block from the furthest train end from waypoint. When uncoupling, the mod will begin checking cars from that end to add to the list of cars to cut and stop once it finds a matching Whittier car. If this option were not enabled, then the matching Whittier cars would also be included in this uncoupled cut.");
 
-            var cutBlockFromField = builder.AddField($"Cut block from",
-            builder.AddDropdown(["Closest end to waypoint", "Furthest end from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+            string cutBlockLabel = "Cut block from";
+            List<string> cutBlockFromOptions = ["Closest end to waypoint", "Furthest end from waypoint"];
+
+            if (waypoint.WillPostCoupleCutDropoff || waypoint.WillPostCoupleCutPickup)
+            {
+                cutBlockLabel = "Block to match";
+                cutBlockFromOptions = ["Closest block", "Furthest block"];
+            }
+
+            var cutBlockFromField = builder.AddField(cutBlockLabel,
+            builder.AddDropdown(cutBlockFromOptions, waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
             {
                 waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
                 onWaypointChange(waypoint);
             }));
-            AddLabelOnlyTooltip(cutBlockFromField, "Cut block from", "This option determines which end of the train the matching block cut starts from. This is needed to determine your intent particularly if the matching block is in the middle of the consist." +
+            AddLabelOnlyTooltip(cutBlockFromField, cutBlockLabel, "This option determines which end of the train the matching block cut starts from. This is needed to determine your intent particularly if the matching block is in the middle of the consist." +
                 "\n\nWhen uncoupling, the mod will check cars starting from the train end you selected. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars which are included in the uncoupled cut by default, but you can choose to exclude the match with a different option." +
                 "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by non-Whittier cars. You want to dropoff the Whittier cars without counting how many cars you have." +
                 "\n\nTo do that, you can select the matching Whittier destination, cut the block from closest end to the waypoint which will include the locomotive since that it at the closest end, and in this case very importantly also select make uncoupled cars active.");
@@ -903,7 +936,10 @@ namespace WaypointQueue.UI
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
 
-            BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+            if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+            {
+                BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+            }
 
             return builder;
         }
@@ -959,28 +995,35 @@ namespace WaypointQueue.UI
             }
             var labelField = builder.AddField("Search result", builder.AddLabel(searchResult));
 
-            builder.AddField($"Direction to cut",
-            builder.AddDropdown(["Toward waypoint", "Away from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+            // Pickup and dropoff already have an implicit direction
+            if (!waypoint.WillPostCoupleCutDropoff && !waypoint.WillPostCoupleCutPickup)
             {
-                waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
-                onWaypointChange(waypoint);
-            }));
+                builder.AddField($"Direction to cut",
+                builder.AddDropdown(["Toward waypoint", "Away from waypoint"], waypoint.CountUncoupledFromNearestToWaypoint ? 0 : 1, (int value) =>
+                {
+                    waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
+                    onWaypointChange(waypoint);
+                }));
 
-            var excludeMatchingCarsFromCutField = builder.AddField("Exclude car from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, value =>
-            {
-                waypoint.ExcludeMatchingCarsFromCut = value;
-                onWaypointChange(waypoint);
-            }));
+                var excludeMatchingCarsFromCutField = builder.AddField("Exclude car from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, value =>
+                {
+                    waypoint.ExcludeMatchingCarsFromCut = value;
+                    onWaypointChange(waypoint);
+                }));
 
-            AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude car from cut", "If this is enabled, the selected car will NOT be included in the uncoupled cut." +
-                "\n\nThis can be useful to uncouple all cars past the locomotive tender by selecting the tender, excluding it from the cut, and choosing the appropriate direction to cut the cars.");
+                AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude car from cut", "If this is enabled, the selected car will NOT be included in the uncoupled cut." +
+                    "\n\nThis can be useful to uncouple all cars past the locomotive tender by selecting the tender, excluding it from the cut, and choosing the appropriate direction to cut the cars.");
+            }
 
             builder.HStack(delegate (UIPanelBuilder builder)
             {
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
 
-            BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+            if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+            {
+                BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+            }
 
             return builder;
         }
@@ -1015,41 +1058,58 @@ namespace WaypointQueue.UI
 
         private void BuildPostCouplingCutSection(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            if (!waypoint.ShowPostCouplingCut)
+            BuildPostCouplingCutModeField(waypoint, builder, onWaypointChange);
+
+            BuildUncouplingModeField(waypoint, builder, onWaypointChange);
+
+            if (waypoint.WillUncoupleByCount)
             {
-                BuildThenPerformCutField(waypoint, builder, onWaypointChange);
+                BuildUncoupleByCountField(waypoint, builder, onWaypointChange);
             }
-            else
+
+            if (waypoint.WillUncoupleByDestination)
             {
-                BuildPostCouplingCutField(waypoint, builder, onWaypointChange);
+                BuildUncoupleByDestinationField(waypoint, builder, onWaypointChange);
+            }
+
+            if (waypoint.WillUncoupleBySpecificCar)
+            {
+                BuildUncoupleBySpecificCarField(waypoint, builder, onWaypointChange);
+            }
+
+            if (waypoint.WillUncoupleAllExceptLocomotives)
+            {
+                BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
             }
         }
 
-        private UIPanelBuilder BuildThenPerformCutField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildThenPerformCutToggle(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var thenPerformCutField = builder.AddField($"Then perform cut", builder.AddToggle(() => waypoint.ShowPostCouplingCut, delegate (bool value)
+            var thenPerformCutField = builder.AddField($"Then perform cut", builder.AddToggle(() => waypoint.PostCouplingCutMode != ManagedWaypoint.PostCoupleCutType.None, delegate (bool value)
             {
-                waypoint.ShowPostCouplingCut = value;
-                onWaypointChange(waypoint);
+                if (value)
+                {
+                    waypoint.PostCouplingCutMode = (ManagedWaypoint.PostCoupleCutType)Loader.Settings.DefaultPostCouplingCutMode;
+                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+                    onWaypointChange(waypoint);
+                }
             }));
 
             AddLabelOnlyTooltip(thenPerformCutField, "Pickup or dropoff", "Enabling this advanced option allows you to perform a cut immediately after coupling in order to pickup or dropoff cars.");
             return builder;
         }
 
-        private UIPanelBuilder BuildPostCouplingCutField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildPostCouplingCutModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var postCouplingCutField = builder.AddField($"After coupling", builder.HStack(delegate (UIPanelBuilder field)
-            {
-                string prefix = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? "Pickup " : "Dropoff ";
-                AddCarCutButtons(waypoint, field, onWaypointChange, prefix);
-                field.AddButtonCompact("Swap", () =>
-                {
-                    waypoint.TakeOrLeaveCut = waypoint.TakeOrLeaveCut == ManagedWaypoint.PostCoupleCutType.Take ? ManagedWaypoint.PostCoupleCutType.Leave : ManagedWaypoint.PostCoupleCutType.Take;
-                    onWaypointChange(waypoint);
+            List<ManagedWaypoint.PostCoupleCutType> postCoupleCutTypesOrdered = [
+                ManagedWaypoint.PostCoupleCutType.None,
+                ManagedWaypoint.PostCoupleCutType.Pickup,
+                ManagedWaypoint.PostCoupleCutType.Dropoff];
 
-                });
-                field.Spacer(8f);
+            var postCouplingCutField = builder.AddField($"After coupling", builder.AddDropdown(["Remove post-coupling cut", "Pickup", "Dropoff"], postCoupleCutTypesOrdered.IndexOf(waypoint.PostCouplingCutMode), index =>
+            {
+                waypoint.PostCouplingCutMode = postCoupleCutTypesOrdered[index];
+                onWaypointChange(waypoint);
             }));
 
             AddLabelOnlyTooltip(postCouplingCutField, "Pickup or dropoff", "After coupling, you can \"Pickup\" or \"Dropoff\" a number of cars relative to the car you are coupling to. " +
@@ -1059,37 +1119,6 @@ namespace WaypointQueue.UI
             "\n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Dropoff\" 2 cars and continue to the next queued waypoint. " +
             "You \"Dropoff\" cars from your current consist." +
             "\n\nIf you Pickup or Dropoff 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to all cars.");
-
-            if (waypoint.NumberOfCarsToCut > 0)
-            {
-                if (Loader.Settings.UseCompactLayout)
-                {
-                    builder.HStack(delegate (UIPanelBuilder builder)
-                    {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                    });
-                }
-                else
-                {
-                    AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                }
-            }
-
-            if (waypoint.NumberOfCarsToCut == 0)
-            {
-                builder.AddField("", builder.HStack((UIPanelBuilder field) =>
-                {
-                    field.AddLabel("Will remain coupled to ALL cars", (TMP_Text text) =>
-                    {
-                        text.fontStyle = FontStyles.Bold;
-                    });
-                }));
-            }
-
-            if (waypoint.CurrentlyWaitingBeforeCutting)
-            {
-                BuildWaitingBeforeCuttingField(builder);
-            }
 
             return builder;
         }

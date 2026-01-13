@@ -34,14 +34,16 @@ namespace WaypointQueue.Wrappers
             return OpsController.Shared.AreaForCarPosition(position);
         }
 
-        public Industry GetIndustryById(string id)
+        public bool TryGetIndustryById(string id, out Industry industry)
         {
-            return OpsController.Shared.AllIndustries.Where(i => i.identifier == id).FirstOrDefault();
+            industry = OpsController.Shared.AllIndustries.Where(i => i.identifier == id).FirstOrDefault();
+            return industry != null;
         }
 
-        public Area GetAreaById(string id)
+        public bool TryGetAreaById(string id, out Area area)
         {
-            return OpsController.Shared.Areas.Where(i => i.identifier == id).FirstOrDefault();
+            area = OpsController.Shared.Areas.Where(i => i.identifier == id).FirstOrDefault();
+            return area != null;
         }
 
         public IndustryComponent IndustryComponentForPosition(OpsCarPosition position)

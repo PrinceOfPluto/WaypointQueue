@@ -12,7 +12,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class CouplingService(CarService carService, AutoEngineerService autoEngineerService, TrainControllerWrapper trainControllerWrapper)
+    internal class CouplingService(ICarService carService, AutoEngineerService autoEngineerService, TrainControllerWrapper trainControllerWrapper)
     {
         private static readonly float AverageCarLengthMeters = 12.2f;
 

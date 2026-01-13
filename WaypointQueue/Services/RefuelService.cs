@@ -17,7 +17,7 @@ using static Model.Car;
 
 namespace WaypointQueue.Services
 {
-    internal class RefuelService(CarService carService, AutoEngineerService autoEngineerService, OpsControllerWrapper opsControllerWrapper)
+    internal class RefuelService(ICarService carService, AutoEngineerService autoEngineerService, IOpsControllerWrapper opsControllerWrapper)
     {
         private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
         private List<CarLoaderSequencer> _carLoaderSequencers = [];
@@ -87,7 +87,7 @@ namespace WaypointQueue.Services
             LogicalEnd furthestFuelCarEnd = carService.ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
             LogicalEnd closestFuelCarEnd = carService.GetOppositeEnd(furthestFuelCarEnd);
 
-            List<Car> coupledCarsToEnd = carService.EnumerateCoupledToEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
+            List<Car> coupledCarsToEnd = carService.EnumerateAdjacentCarsTowardEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
             float distanceFromFurthestEndOfTrainToFuelCarInclusive = CalculateTotalLength(coupledCarsToEnd);
 
             float distanceFromClosestFuelCarEndToSlot = Vector3.Distance(fuelCar.LocationFor(closestFuelCarEnd).GetPosition().ZeroY(), loadSlotPosition.ZeroY());
@@ -310,8 +310,7 @@ namespace WaypointQueue.Services
             string industryId = waypoint.RefuelIndustryId;
             string loadId = waypoint.RefuelLoadName;
 
-            Industry industry = opsControllerWrapper.GetIndustryById(industryId);
-            if (industry == null)
+            if (!opsControllerWrapper.TryGetIndustryById(industryId, out Industry industry))
             {
                 // Water towers are unlimited and have a null industry
                 return false;

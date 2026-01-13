@@ -19,6 +19,12 @@ namespace WaypointQueue
         AllExceptLocomotives = ManagedWaypoint.UncoupleMode.AllExceptLocomotives,
     }
 
+    public enum PostCoupleCutModeDefaultOptions
+    {
+        Pickup = ManagedWaypoint.PostCoupleCutType.Pickup,
+        Dropoff = ManagedWaypoint.PostCoupleCutType.Dropoff,
+    }
+
     public class WaypointQueueSettings : UnityModManager.ModSettings, IDrawable
     {
         [Header("Keybindings")]
@@ -31,7 +37,7 @@ namespace WaypointQueue
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
-        [Draw("Enable post-coupling cut options by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Enable post-coupling cut by default")] public bool ShowPostCouplingCutByDefault = false;
         [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
 
         [Header("Coupling settings")]
@@ -46,6 +52,8 @@ namespace WaypointQueue
         [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
         [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
         [Draw("Default uncoupling mode", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
+        [Draw("Default post-coupling cut mode", DrawType.ToggleGroup)] public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
+        [Draw("Default uncoupling mode when performing post-coupling cuts", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
 
         [Header("Custom Defaults")]
         [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;

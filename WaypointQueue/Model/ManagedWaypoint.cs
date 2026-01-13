@@ -32,8 +32,12 @@ namespace WaypointQueue
             ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
-            ShowPostCouplingCut = Loader.Settings.ShowPostCouplingCutByDefault;
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
+
+            if (Loader.Settings.ShowPostCouplingCutByDefault)
+            {
+                PostCouplingCutMode = (PostCoupleCutType)Loader.Settings.DefaultPostCouplingCutMode;
+            }
 
             if (Loader.Settings.EnableThenUncoupleByDefault)
             {
@@ -48,8 +52,9 @@ namespace WaypointQueue
         }
         public enum PostCoupleCutType
         {
-            Take,
-            Leave
+            Pickup,
+            Dropoff,
+            None
         }
         public enum TodayOrTomorrow
         {
@@ -82,13 +87,13 @@ namespace WaypointQueue
         public string LocomotiveId { get; private set; }
 
         [JsonIgnore]
-        public Car Locomotive { get; private set; }
+        public virtual Car Locomotive { get; private set; }
 
         [JsonProperty]
         public string LocationString { get; private set; }
 
         [JsonIgnore]
-        public Location Location { get; internal set; }
+        public virtual Location Location { get; internal set; }
 
         [JsonProperty]
         public string CoupleToCarId { get; internal set; }
@@ -110,11 +115,12 @@ namespace WaypointQueue
         public bool ApplyHandbrakesOnUncouple { get; set; }
         public bool BleedAirOnUncouple { get; set; }
 
-        public int NumberOfCarsToCut { get; set; }
-        public bool CountUncoupledFromNearestToWaypoint { get; set; } = true;
-        public PostCoupleCutType TakeOrLeaveCut { get; set; } = PostCoupleCutType.Leave;
+        public virtual int NumberOfCarsToCut { get; set; }
+        public virtual bool CountUncoupledFromNearestToWaypoint { get; set; } = true;
+
+        [JsonProperty("TakeOrLeaveCut")]
+        public virtual PostCoupleCutType PostCouplingCutMode { get; set; } = PostCoupleCutType.None;
         public bool TakeUncoupledCarsAsActiveCut { get; set; }
-        public bool ShowPostCouplingCut { get; set; }
 
         [JsonIgnore]
         public bool CanRefuelNearby
@@ -163,7 +169,7 @@ namespace WaypointQueue
         private CoupleSearchMode _couplingSearchMode = CoupleSearchMode.None;
 
         [JsonIgnore]
-        public CoupleSearchMode CouplingSearchMode
+        public virtual CoupleSearchMode CouplingSearchMode
         {
             get { return _couplingSearchMode; }
             set
@@ -180,7 +186,7 @@ namespace WaypointQueue
         private UncoupleMode _uncouplingMode = UncoupleMode.None;
 
         [JsonIgnore]
-        public UncoupleMode UncouplingMode
+        public virtual UncoupleMode UncouplingMode
         {
             get { return _uncouplingMode; }
             set
@@ -193,6 +199,8 @@ namespace WaypointQueue
         public bool WillUncoupleByCount { get { return UncouplingMode == UncoupleMode.ByCount; } }
         [JsonIgnore]
         public bool WillUncoupleByDestination { get { return WillUncoupleByDestinationTrack || WillUncoupleByDestinationIndustry || WillUncoupleByDestinationArea; } }
+        [JsonIgnore]
+        public bool WillUncoupleByNoDestination => UncoupleDestinationId == WaypointResolver.NoDestinationString;
         [JsonIgnore]
         public bool WillUncoupleByDestinationTrack { get { return UncouplingMode == UncoupleMode.ByDestinationTrack; } }
         [JsonIgnore]
@@ -209,6 +217,11 @@ namespace WaypointQueue
         [JsonIgnore]
         public bool WillSeekSpecificCarCoupling { get { return CouplingSearchMode == CoupleSearchMode.SpecificCar; } }
 
+        [JsonIgnore]
+        public bool WillPostCoupleCutPickup => HasAnyCouplingOrders && PostCouplingCutMode == PostCoupleCutType.Pickup;
+        [JsonIgnore]
+        public bool WillPostCoupleCutDropoff => HasAnyCouplingOrders && PostCouplingCutMode == PostCoupleCutType.Dropoff;
+
         public bool CurrentlyCouplingNearby { get; set; }
         public bool CurrentlyCouplingSpecificCar { get; set; }
 
@@ -217,7 +230,9 @@ namespace WaypointQueue
         [JsonIgnore]
         public bool HasAnyUncouplingOrders { get { return UncouplingMode != UncoupleMode.None; } }
         [JsonIgnore]
-        public bool HasAnyCutOrders { get { return HasAnyUncouplingOrders || (IsCoupling && NumberOfCarsToCut > 0); } }
+        public bool HasAnyCutOrders => HasAnyUncouplingOrders || (HasAnyCouplingOrders && HasAnyPostCouplingCutOrders);
+        [JsonIgnore]
+        public bool HasAnyPostCouplingCutOrders => HasAnyCouplingOrders && PostCouplingCutMode != PostCoupleCutType.None;
 
         [Obsolete("Use CouplingSearchMode instead")]
         [JsonProperty]
@@ -234,8 +249,8 @@ namespace WaypointQueue
 
         [JsonIgnore]
         public string DestinationSearchText { get; set; } = "";
-        public string UncoupleDestinationId { get; set; } = "";
-        public bool ExcludeMatchingCarsFromCut { get; set; }
+        public virtual string UncoupleDestinationId { get; set; } = "";
+        public virtual bool ExcludeMatchingCarsFromCut { get; set; }
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
@@ -285,10 +300,10 @@ namespace WaypointQueue
             }
 #pragma warning restore 0618
 
-            if (HasAnyCouplingOrders && NumberOfCarsToCut > 0)
+            if (HasAnyCouplingOrders && NumberOfCarsToCut == 0 && (PostCouplingCutMode == PostCoupleCutType.Pickup || PostCouplingCutMode == PostCoupleCutType.Dropoff))
             {
-                Loader.LogDebug($"Setting waypoint id {Id} ShowPostCouplingCut to true since there are coupling orders with {NumberOfCarsToCut} cars to cut");
-                ShowPostCouplingCut = true;
+                Loader.LogDebug($"Setting waypoint id {Id} PostCouplingCutMode to none since there are coupling orders with zero cars to cut for a pickup or dropoff");
+                PostCouplingCutMode = PostCoupleCutType.None;
             }
 
             if (!HasAnyCouplingOrders && UncouplingMode == UncoupleMode.None && NumberOfCarsToCut > 0)

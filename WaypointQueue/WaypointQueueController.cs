@@ -29,7 +29,7 @@ namespace WaypointQueue
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
-        private CarService _carService;
+        private ICarService _carService;
         private AutoEngineerService _autoEngineerService;
 
         private static WaypointQueueController _shared;
@@ -53,7 +53,7 @@ namespace WaypointQueue
             Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
-            _carService = Loader.ServiceProvider.GetService<CarService>();
+            _carService = Loader.ServiceProvider.GetService<ICarService>();
             _autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
         }
 
@@ -63,6 +63,7 @@ namespace WaypointQueue
             {
                 Loader.LogDebug($"OnMapWillUnload stopping coroutine in WaypointQueueController OnMapWillUnload");
                 StopCoroutine(_coroutine);
+                _coroutine = null;
                 WaypointStateMap.Clear();
             }
         }

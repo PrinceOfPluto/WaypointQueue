@@ -9,7 +9,7 @@ using WaypointQueue.UUM;
 
 namespace WaypointQueue.Services
 {
-    internal class AutoEngineerService(CarService carService)
+    internal class AutoEngineerService(ICarService carService)
     {
         public void SendToWaypoint(AutoEngineerOrdersHelper ordersHelper, Location location, string coupleToCarId = null)
         {
