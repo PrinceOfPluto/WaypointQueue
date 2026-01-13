@@ -2,7 +2,6 @@
 using Game.Events;
 using Game.Messages;
 using Game.State;
-using Microsoft.Extensions.DependencyInjection;
 using Model;
 using System;
 using System.Collections;

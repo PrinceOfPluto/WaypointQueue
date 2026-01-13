@@ -1,7 +1,6 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
 using Game.Events;
 using HarmonyLib;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Reflection;
@@ -27,7 +26,7 @@ namespace WaypointQueue.UUM
 
         /** This intentionally implements a service locator pattern against the recommendations for using Microsoft Dependency Injection because the normal usage doesn't integrate DI easily into Unity game objects
         */
-        public static ServiceProvider ServiceProvider { get; private set; }
+        internal static ServiceProvider ServiceProvider { get; private set; }
 
         private static bool MapHasLoaded = false;
 
@@ -81,16 +80,45 @@ namespace WaypointQueue.UUM
 
         private static void ConfigureServices()
         {
-            var services = new ServiceCollection();
-            services.AddSingleton<WaypointResolver>();
-            services.AddSingleton<UncouplingService>();
-            services.AddSingleton<RefuelService>();
-            services.AddSingleton<CouplingService>();
-            services.AddSingleton<ICarService, CarService>();
-            services.AddSingleton<AutoEngineerService>();
-            services.AddSingleton<IOpsControllerWrapper, OpsControllerWrapper>();
-            services.AddSingleton<TrainControllerWrapper>();
-            ServiceProvider = services.BuildServiceProvider();
+            // This is a bit ugly but it provides the benefit of dependency injection
+            // without the overhead of requiring an extra DI package
+            ServiceProvider = new ServiceProvider();
+
+            ServiceProvider.AddSingleton<IOpsControllerWrapper>(() => new OpsControllerWrapper());
+
+            ServiceProvider.AddSingleton<TrainControllerWrapper>(() => new TrainControllerWrapper());
+
+            ServiceProvider.AddSingleton<ICarService>(() => new CarService(
+                ServiceProvider.GetService<TrainControllerWrapper>()
+                ));
+
+            ServiceProvider.AddSingleton<UncouplingService>(() => new UncouplingService(
+                ServiceProvider.GetService<ICarService>(),
+                ServiceProvider.GetService<IOpsControllerWrapper>()
+                ));
+            ServiceProvider.AddSingleton<AutoEngineerService>(() => new AutoEngineerService(
+                ServiceProvider.GetService<ICarService>()
+                ));
+
+            ServiceProvider.AddSingleton<CouplingService>(() => new CouplingService(
+                ServiceProvider.GetService<ICarService>(),
+                ServiceProvider.GetService<AutoEngineerService>(),
+                ServiceProvider.GetService<TrainControllerWrapper>()
+                ));
+
+            ServiceProvider.AddSingleton<RefuelService>(() => new RefuelService(
+                ServiceProvider.GetService<ICarService>(),
+                ServiceProvider.GetService<AutoEngineerService>(),
+                ServiceProvider.GetService<IOpsControllerWrapper>()
+                ));
+
+            ServiceProvider.AddSingleton<WaypointResolver>(() => new WaypointResolver(
+                ServiceProvider.GetService<UncouplingService>(),
+                ServiceProvider.GetService<RefuelService>(),
+                ServiceProvider.GetService<CouplingService>(),
+                ServiceProvider.GetService<ICarService>(),
+                ServiceProvider.GetService<AutoEngineerService>()
+                ));
         }
 
         private static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)

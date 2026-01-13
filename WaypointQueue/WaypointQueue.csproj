@@ -48,9 +48,6 @@
   </ItemGroup>
   <!-- Mod Loader -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection">
-      <Version>10.0.1</Version>
-    </PackageReference>
     <PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <!-- Null Checking -->
@@ -135,6 +132,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ServiceProvider.cs" />
     <Compile Include="Services\ICarService.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />

@@ -402,13 +402,13 @@ namespace WaypointQueue
             }
             if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
-                carsToCut = isPickup 
+                carsToCut = isPickup
                     ? uncouplingService.FindPickupByDestination(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleBySpecificCar)
             {
-                carsToCut = isPickup 
+                carsToCut = isPickup
                     ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
             }
 

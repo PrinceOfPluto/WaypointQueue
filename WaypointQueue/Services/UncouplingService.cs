@@ -80,7 +80,7 @@ namespace WaypointQueue
             return carsToCut;
         }
 
-        
+
 
         public List<Car> FindCutByDestination(ManagedWaypoint wp)
         {
@@ -147,7 +147,7 @@ namespace WaypointQueue
                 // If using the furthest block on pickup or dropoff, invert the exclude
                 excludeMatchFromCut = !wp.ExcludeMatchingCarsFromCut;
             }
-            
+
             if (wp.WillUncoupleByNoDestination)
             {
                 return (cars) => GetMatchingCarsByNoDestination(cars, excludeMatchFromCut);
