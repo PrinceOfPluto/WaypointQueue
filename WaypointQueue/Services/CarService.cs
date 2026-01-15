@@ -2,7 +2,7 @@
 using HarmonyLib;
 using Model;
 using Model.AI;
-using System;
+using Model.Definition;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -94,13 +94,11 @@ namespace WaypointQueue.Services
             Location closestLocation;
             Location furthestLocation;
 
-            List<Car> allCoupled = [.. waypoint.Locomotive.EnumerateCoupled()];
+            List<Car> consistFromEndA = [.. waypoint.Locomotive.EnumerateCoupled(fromEnd: LogicalEnd.A)];
 
-            //Loader.Log("GetTrainEndLocations " + String.Join("-", allCoupled.Select(c => $"[{c.Ident}]")));
-
-            if (allCoupled.Count == 1)
+            if (consistFromEndA.Count == 1)
             {
-                Car onlyCar = allCoupled[0];
+                Car onlyCar = consistFromEndA[0];
                 LogicalEnd closestEnd = ClosestLogicalEndTo(onlyCar, waypoint.Location);
                 LogicalEnd furthestEnd = GetOppositeEnd(closestEnd);
 
@@ -114,29 +112,13 @@ namespace WaypointQueue.Services
                 return (closestLocation, furthestLocation);
             }
 
-            Car firstCar = allCoupled.First();
-            Car lastCar = allCoupled.Last();
-
-            if (!TryGetOpenEndForCar(firstCar, out LogicalEnd firstEnd))
-            {
-                throw new InvalidOperationException($"{firstCar.Ident} has no open end");
-            }
-            if (!TryGetOpenEndForCar(lastCar, out LogicalEnd lastEnd))
-            {
-                throw new InvalidOperationException($"{lastCar.Ident} has no open end");
-            }
-
-            Loader.LogDebug($"Furthest end on first is {(firstCar.LogicalToEnd(firstEnd) == End.R ? "R" : "F")}");
-            Location firstLocation = firstCar.LocationFor(firstEnd);
+            Car firstCar = consistFromEndA.First();
+            Location firstLocation = firstCar.LocationFor(LogicalEnd.A);
             float firstDistance = Graph.Shared.GetDistanceBetweenClose(firstLocation, waypoint.Location);
 
-            Loader.LogDebug($"Furthest end on last is {(lastCar.LogicalToEnd(lastEnd) == End.R ? "R" : "F")}");
-            Location lastLocation = lastCar.LocationFor(lastEnd);
+            Car lastCar = consistFromEndA.Last();
+            Location lastLocation = lastCar.LocationFor(LogicalEnd.B);
             float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, waypoint.Location);
-
-            closestDistance = firstDistance;
-            closestLocation = firstLocation;
-            furthestLocation = lastLocation;
 
             if (firstDistance > lastDistance)
             {
@@ -150,6 +132,9 @@ namespace WaypointQueue.Services
             }
             else
             {
+                closestDistance = firstDistance;
+                closestLocation = firstLocation;
+                furthestLocation = lastLocation;
                 closestCar = firstCar;
                 furthestCar = lastCar;
                 Loader.LogDebug($"Closest car is {firstCar.Ident}");
@@ -208,12 +193,12 @@ namespace WaypointQueue.Services
             List<Car> firstAndLastCars = [carsToCut.FirstOrDefault(), carsToCut.LastOrDefault()];
             foreach (Car car in firstAndLastCars)
             {
-                if (car.Archetype == Model.Definition.CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(car, out Car tender) && !carsToCut.Any(c => c.id == tender.id))
+                if (car.Archetype == CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(car, out Car tender) && !carsToCut.Any(c => c.id == tender.id))
                 {
                     // locomotive in cut without tender
                     carsToCut.Remove(car);
                 }
-                else if (car.Archetype == Model.Definition.CarArchetype.Tender && car.TryGetAdjacentCar(car.EndToLogical(End.F), out Car parentLoco) && !carsToCut.Any(c => c.id == parentLoco.id))
+                else if (car.Archetype == CarArchetype.Tender && car.TryGetAdjacentCar(car.EndToLogical(End.F), out Car parentLoco) && !carsToCut.Any(c => c.id == parentLoco.id))
                 {
                     // tender in cut without locomotive
                     carsToCut.Remove(car);
@@ -224,7 +209,7 @@ namespace WaypointQueue.Services
 
         public bool IsCarLocomotiveType(Car car)
         {
-            return car.Archetype == Model.Definition.CarArchetype.LocomotiveDiesel || car.Archetype == Model.Definition.CarArchetype.LocomotiveSteam || car.Archetype == Model.Definition.CarArchetype.Tender;
+            return car.Archetype == CarArchetype.LocomotiveDiesel || car.Archetype == CarArchetype.LocomotiveSteam || car.Archetype == CarArchetype.Tender;
         }
     }
 }
