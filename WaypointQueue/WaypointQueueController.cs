@@ -118,7 +118,7 @@ namespace WaypointQueue
                  */
                 if (entry.UnresolvedWaypoint != null)
                 {
-                    if (!_waypointResolver.HandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper))
+                    if (!_waypointResolver.HandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper, WaypointTickInterval))
                     {
                         continue;
                     }

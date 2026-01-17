@@ -24,11 +24,11 @@ namespace WaypointQueue
     {
         public static event Action<string> WaypointForLocoIdDidError;
 
-        private static readonly float WaitBeforeCuttingTimeout = 5f;
+        private static readonly float WaitBeforeCuttingTimeout = 15f;
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
-        public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             if (wp.Errors.Any())
             {
@@ -37,7 +37,7 @@ namespace WaypointQueue
 
             try
             {
-                return TryHandleUnresolvedWaypoint(wp, ordersHelper);
+                return TryHandleUnresolvedWaypoint(wp, ordersHelper, tickIntervalSeconds);
             }
             catch (UncouplingException e)
             {
@@ -74,7 +74,7 @@ namespace WaypointQueue
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
-        private bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
@@ -203,7 +203,7 @@ namespace WaypointQueue
 
                 if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
                 {
-                    wp.SecondsSpentWaitingBeforeCut += WaypointQueueController.WaypointTickInterval;
+                    wp.SecondsSpentWaitingBeforeCut += tickIntervalSeconds;
                 }
 
                 if (wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
