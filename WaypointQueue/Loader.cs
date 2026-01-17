@@ -2,9 +2,7 @@
 using Game.Events;
 using HarmonyLib;
 using System;
-using System.IO;
 using System.Reflection;
-using UI.Common;
 using UnityEngine;
 using UnityModManagerNet;
 using WaypointQueue.Services;
@@ -24,8 +22,6 @@ namespace WaypointQueue.UUM
 
         public static WaypointQueueSettings Settings { get; private set; }
 
-        /** This intentionally implements a service locator pattern against the recommendations for using Microsoft Dependency Injection because the normal usage doesn't integrate DI easily into Unity game objects
-        */
         internal static ServiceProvider ServiceProvider { get; private set; }
 
         private static bool MapHasLoaded = false;
@@ -61,6 +57,7 @@ namespace WaypointQueue.UUM
                 var waypointQueueGO = new GameObject("WaypointQueue");
                 Instance = waypointQueueGO.AddComponent<WaypointQueueController>();
                 waypointQueueGO.AddComponent<WaypointCarPicker>();
+                waypointQueueGO.AddComponent<ErrorModalController>();
                 UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
 
                 if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null))
@@ -192,58 +189,6 @@ namespace WaypointQueue.UUM
         public static void LogError(string str)
         {
             ModEntry?.Logger.Error(str);
-        }
-
-        public static void ShowErrorModal(string title, string message)
-        {
-            bool railloaderIsActive = IsRailloaderActive();
-            string attachLogFilePrompt = railloaderIsActive ? "both your Player.log and Railloader.log files" : "your Player.log file";
-            message = $"{message}\n\nPlease create a bug report on GitHub or Discord and attach {attachLogFilePrompt} to help this bug get resolved faster. Thank you!";
-
-            string playerLogFilePrompt = "Open Player.log file";
-
-            ModalAlertController.Present(title, message, [(0, playerLogFilePrompt), (1, "Close")], (int value) =>
-            {
-                if (value == 0)
-                {
-                    OpenPlayerLogFile();
-                }
-            });
-        }
-
-        private static bool IsRailloaderActive()
-        {
-            string assemblyName = "Railloader";
-            Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-            foreach (Assembly assembly in loadedAssemblies)
-            {
-                if (assembly.GetName().Name == assemblyName)
-                {
-                    Loader.LogDebug($"Assembly {assemblyName} is loaded");
-                    return true;
-                }
-            }
-            Loader.LogDebug($"Assembly {assemblyName} is NOT loaded");
-            return false;
-        }
-
-        private static void OpenPlayerLogFile()
-        {
-            string filePath = Path.Combine(Application.persistentDataPath, "Player.log");
-            if (File.Exists(filePath))
-            {
-                Application.OpenURL(filePath);
-            }
-        }
-
-        private static void OpenRailloaderLogFile()
-        {
-            string filePath = Path.Combine(AppContext.BaseDirectory, "Railloader.log");
-            if (File.Exists(filePath))
-            {
-                Application.OpenURL(filePath);
-            }
         }
     }
 }

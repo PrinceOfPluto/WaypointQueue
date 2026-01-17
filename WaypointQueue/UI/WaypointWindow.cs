@@ -16,6 +16,7 @@ using UI.Common;
 using UI.CompanyWindow;
 using UnityEngine;
 using UnityEngine.UI;
+using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.UUM;
 
@@ -35,7 +36,7 @@ namespace WaypointQueue.UI
 
         public static WaypointWindow Shared { get; private set; }
 
-        private static Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
+        private static readonly Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
         private static readonly Dictionary<string, List<DropdownOption>> _opsDestinationOptionsByWaypointId = [];
 
@@ -59,17 +60,14 @@ namespace WaypointQueue.UI
         {
             WaypointQueueController.LocoWaypointStateDidUpdate += OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate += OnWaypointDidUpdate;
+            WaypointResolver.WaypointForLocoIdDidError += OnLocoWaypointStateDidUpdate;
         }
 
         protected void OnDisable()
         {
             WaypointQueueController.LocoWaypointStateDidUpdate -= OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;
-        }
-        private void OnLocoWaypointStateUpdated()
-        {
-            Loader.LogDebug($"Rebuidling WaypointWindow in OnLocoWaypointStateUpdated");
-            RebuildWithScroll();
+            WaypointResolver.WaypointForLocoIdDidError -= OnLocoWaypointStateDidUpdate;
         }
 
         private void OnLocoWaypointStateDidUpdate(string id)
@@ -199,7 +197,8 @@ namespace WaypointQueue.UI
                     return;
                 }
 
-                List<ManagedWaypoint> waypointList = WaypointQueueController.Shared.GetWaypointList(selectedLocomotive);
+                LocoWaypointState locoWaypointState = WaypointQueueController.Shared.GetOrAddLocoWaypointState(selectedLocomotive);
+                List<ManagedWaypoint> waypointList = locoWaypointState.Waypoints;
 
                 if (waypointList == null || waypointList.Count == 0)
                 {
@@ -307,6 +306,11 @@ namespace WaypointQueue.UI
                     BuildStatusLabelField(waypoint, builder);
                 }
 
+                if (waypoint.Errors.Any())
+                {
+                    BuildErrorSection(waypoint, builder);
+                }
+
                 BuildDestinationField(waypoint, builder);
 
                 if (isRouteWindow || waypoint.Locomotive.TryGetTimetableTrainCrewId(out string trainCrewId))
@@ -411,6 +415,18 @@ namespace WaypointQueue.UI
                     builder.AddField("Notes", builder.AddLabel(waypoint.Notes));
                 }
             });
+        }
+
+        private void BuildErrorSection(ManagedWaypoint waypoint, UIPanelBuilder builder)
+        {
+            WaypointError error = waypoint.Errors.First();
+            builder.AddField("Error", builder.HStack(field =>
+            {
+                field.AddButton($"View error", () =>
+                {
+                    ErrorModalController.Shared.ShowProcessingErrorModal(error.Message, error.ErrorType, waypoint);
+                });
+            }));
         }
 
         private void BuildUncoupleAllExceptLocomotive(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)

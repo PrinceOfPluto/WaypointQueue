@@ -1,5 +1,6 @@
 ﻿using Helpers;
 using Model;
+using Model.Definition;
 using Model.Definition.Data;
 using Model.Ops;
 using Model.Ops.Definition;
@@ -8,9 +9,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Track;
-using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
@@ -45,20 +46,7 @@ namespace WaypointQueue.Services
             // Make sure AE knows how many cars in case we coupled just before this
             carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);
 
-            Location locationToMove = new();
-            try
-            {
-                locationToMove = GetRefuelLocation(waypoint, ordersHelper);
-            }
-            catch (InvalidOperationException ex)
-            {
-                Loader.Log(ex.Message);
-                Toast.Present($"Waypoint Queue encountered an error while refueling {waypoint.Locomotive.Ident}");
-                waypoint.WillRefuel = false;
-                waypoint.CurrentlyRefueling = false;
-                ordersHelper.SetOrdersValue(null, null, maxSpeedMph: waypoint.MaxSpeedAfterRefueling, null, null);
-                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-            }
+            Location locationToMove = GetRefuelLocation(waypoint);
 
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove}");
             waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
@@ -68,18 +56,16 @@ namespace WaypointQueue.Services
             autoEngineerService.SendToWaypoint(ordersHelper, locationToMove);
         }
 
-        private Location GetRefuelLocation(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        private Location GetRefuelLocation(ManagedWaypoint waypoint)
         {
             Car fuelCar = GetFuelCar((BaseLocomotive)waypoint.Locomotive);
-
-            Loader.LogDebug($"Finding {waypoint.RefuelLoadName} refuel location for {fuelCar.Ident}");
 
             Vector3 loadSlotPosition = GetFuelCarLoadSlotPosition(fuelCar, waypoint.RefuelLoadName, out float slotMaxCapacity);
             waypoint.RefuelMaxCapacity = slotMaxCapacity;
 
             if (!Graph.Shared.TryGetLocationFromGamePoint(waypoint.RefuelPoint, 10f, out Location targetLoaderLocation))
             {
-                throw new InvalidOperationException($"Cannot refuel at waypoint, failed to get graph location from refuel game point {waypoint.RefuelPoint}");
+                throw new RefuelException($"Failed to get track graph location from refuel game point {waypoint.RefuelPoint}.", waypoint);
             }
 
             (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(waypoint, out _, out _, out _);
@@ -94,9 +80,9 @@ namespace WaypointQueue.Services
 
             float totalTrainLength = CalculateTotalLength([.. waypoint.Locomotive.EnumerateCoupled()]);
 
-            Loader.LogDebug($"Total train length is {totalTrainLength}");
-            Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
-            Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
+            //Loader.LogDebug($"Total train length is {totalTrainLength}");
+            //Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
+            //Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
 
             Location locationToMoveToward = new();
             float distanceToMove = 0;
@@ -105,7 +91,7 @@ namespace WaypointQueue.Services
             if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition()))
             {
                 // need to move toward the far end
-                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
+                //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
                 distanceToMove = distanceFromFurthestEndOfTrainToFuelCarInclusive - distanceFromClosestFuelCarEndToSlot;
                 locationToMoveToward = furthestTrainEndLocation;
             }
@@ -114,7 +100,7 @@ namespace WaypointQueue.Services
             if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
             {
                 // need to move toward the near end
-                Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
+                //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
                 distanceToMove = totalTrainLength - distanceFromFurthestEndOfTrainToFuelCarInclusive + distanceFromClosestFuelCarEndToSlot;
                 locationToMoveToward = closestTrainEndLocation;
             }
@@ -122,17 +108,16 @@ namespace WaypointQueue.Services
             //Loader.LogDebug($"Checking if loader is in closest end and furthest end");
             if (IsTargetBetween(targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
             {
-                Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
+                //Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
                 distanceToMove = -distanceToMove;
             }
 
-            Loader.LogDebug($"distanceToMove is {distanceToMove}");
+            //Loader.LogDebug($"distanceToMove is {distanceToMove}");
 
             Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
 
             Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, true, true);
 
-            Loader.LogDebug($"Location to refuel {waypoint.RefuelLoadName} is {locationToMove}");
             return locationToMove;
         }
 
@@ -170,34 +155,28 @@ namespace WaypointQueue.Services
 
             float distanceAtoB = Vector3.Distance(positionA.ZeroY(), positionB.ZeroY());
 
-            //Loader.LogDebug($"Distance A to Target {distanceAToTarget}");
-            //Loader.LogDebug($"Distance B to Target {distanceBToTarget}");
-            //Loader.LogDebug($"Distance A to B {distanceAtoB}");
-
             if (distanceAToTarget < distanceAtoB && distanceBToTarget < distanceAtoB)
             {
                 return true;
             }
-            //Loader.LogDebug($"Target is NOT in between");
             return false;
         }
 
         private List<string> GetValidLoadsForLoco(BaseLocomotive locomotive)
         {
-            if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveSteam)
+            if (locomotive.Archetype == CarArchetype.LocomotiveSteam)
             {
-                return new List<string> { "water", "coal" };
+                return ["water", "coal"];
             }
-            if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveDiesel)
+            if (locomotive.Archetype == CarArchetype.LocomotiveDiesel)
             {
-                return new List<string> { "diesel-fuel" };
+                return ["diesel-fuel"];
             }
             return null;
         }
 
         public void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
-            RebuildCollections();
             List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
             CarLoadTargetLoader closestLoader = null;
             float shortestDistance = 0;
@@ -209,7 +188,6 @@ namespace WaypointQueue.Services
                 {
                     continue;
                 }
-                //Loader.LogDebug($"Checking if target {targetLoader.load?.name} loader transform is null");
 
                 bool hasLocation = false;
                 Location loaderLocation;
@@ -221,7 +199,6 @@ namespace WaypointQueue.Services
                 {
                     continue;
                 }
-                //Loader.LogDebug($"Target {targetLoader.load?.name} loader transform was not null");
 
                 if (hasLocation)
                 {
@@ -278,7 +255,7 @@ namespace WaypointQueue.Services
         private Car GetFuelCar(BaseLocomotive locomotive)
         {
             Car fuelCar = locomotive;
-            if (locomotive.Archetype == Model.Definition.CarArchetype.LocomotiveSteam)
+            if (locomotive.Archetype == CarArchetype.LocomotiveSteam)
             {
                 fuelCar = PatchSteamLocomotive.FuelCar(locomotive);
             }
@@ -356,8 +333,7 @@ namespace WaypointQueue.Services
             CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
             if (loaderTarget == null)
             {
-                Loader.LogError($"Cannot find CarLoadTargetLoader at point {waypoint.RefuelPoint} for waypoint {waypoint.Id}");
-                return;
+                throw new RefuelException($"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
             }
             CarLoaderSequencer sequencer = _carLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
             if (sequencer != null)
@@ -366,7 +342,7 @@ namespace WaypointQueue.Services
             }
             else
             {
-                Loader.LogError($"Cannot find CarLoaderSequencer for loader target {loaderTarget.name} for waypoint {waypoint.Id}");
+                throw new RefuelException($"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
             }
         }
 

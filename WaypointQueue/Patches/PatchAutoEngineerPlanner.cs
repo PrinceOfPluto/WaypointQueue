@@ -162,7 +162,7 @@ namespace WaypointQueue
                 }
                 catch (Exception ex)
                 {
-                    Loader.LogDebug($"High-speed waypoint distance calc failed: {ex.Message}");
+                    Loader.LogError($"High-speed waypoint distance calc failed: {ex}");
                     return;
                 }
 

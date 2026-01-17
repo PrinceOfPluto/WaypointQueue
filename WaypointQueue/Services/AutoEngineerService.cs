@@ -63,15 +63,8 @@ namespace WaypointQueue.Services
 
         public bool IsNearWaypoint(ManagedWaypoint waypoint)
         {
-            try
-            {
-                (Location closest, Location furthest) = carService.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
-                return closestDistance < 10;
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
-            }
+            (Location _, Location _) = carService.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
+            return closestDistance < 10;
         }
 
         public int GetOrdersMaxSpeed(Car locomotive)

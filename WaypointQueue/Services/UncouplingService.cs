@@ -5,8 +5,8 @@ using Model.Ops;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UI.Common;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
@@ -167,7 +167,7 @@ namespace WaypointQueue
                 Area areaMatch = TryGetDestinationAreaMatch(wp);
                 return (cars) => GetMatchingCarsByDestinationArea(cars, areaMatch, excludeMatchFromCut);
             }
-            throw new InvalidOperationException("Failed to find a valid destination match function");
+            throw new UncouplingException("Failed to find a valid destination match function.", wp);
         }
 
         private List<Car> GetMatchingCarsByNoDestination(List<Car> consist, bool excludeMatchFromCut)
@@ -227,7 +227,7 @@ namespace WaypointQueue
         {
             if (!opsControllerWrapper.TryResolveOpsCarPosition(wp.UncoupleDestinationId, out OpsCarPosition destinationMatch))
             {
-                throw new InvalidOperationException($"Failed to resolve unknown track destination by id {wp.UncoupleDestinationId}");
+                throw new UncouplingException($"Failed to resolve unknown track destination by id {wp.UncoupleDestinationId}", wp);
             }
             return destinationMatch;
         }
@@ -236,7 +236,7 @@ namespace WaypointQueue
         {
             if (!opsControllerWrapper.TryGetIndustryById(wp.UncoupleDestinationId, out Industry industryMatch))
             {
-                throw new InvalidOperationException($"Failed to resolve unknown industry destination by id {wp.UncoupleDestinationId}");
+                throw new UncouplingException($"Failed to resolve unknown industry destination by id {wp.UncoupleDestinationId}", wp);
             }
             return industryMatch;
         }
@@ -245,7 +245,7 @@ namespace WaypointQueue
         {
             if (!opsControllerWrapper.TryGetAreaById(wp.UncoupleDestinationId, out Area areaMatch))
             {
-                throw new InvalidOperationException($"Failed to resolve unknown area destination by id {wp.UncoupleDestinationId}");
+                throw new UncouplingException($"Failed to resolve unknown area destination by id {wp.UncoupleDestinationId}", wp);
             }
             return areaMatch;
         }
@@ -319,14 +319,14 @@ namespace WaypointQueue
         {
             if (!waypoint.TryResolveUncouplingSearchText(out Car carToUncouple))
             {
-                throw new InvalidOperationException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple");
+                throw new UncouplingException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple.", waypoint);
             }
 
             LogicalEnd closestEnd = carService.ClosestLogicalEndTo(carToUncouple, waypoint.Location);
             List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(closestEnd)];
             if (!consist.Any(c => c.id == carToUncouple.id))
             {
-                throw new InvalidOperationException($"{carToUncouple.Ident} cannot be uncoupled because it is not part of {waypoint.Locomotive.Ident}'s consist");
+                throw new UncouplingException($"{carToUncouple.Ident} cannot be uncoupled because it is not part of {waypoint.Locomotive.Ident}'s consist.", waypoint);
             }
 
             LogicalEnd endToUncouple = waypoint.CountUncoupledFromNearestToWaypoint ? closestEnd : carService.GetOppositeEnd(closestEnd);
@@ -342,7 +342,7 @@ namespace WaypointQueue
         {
             if (!waypoint.TryResolveUncouplingSearchText(out Car carToPickup))
             {
-                throw new InvalidOperationException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple");
+                throw new UncouplingException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to pickup as a post-coupling cut.", waypoint);
             }
 
             List<Car> carsAvailableForPickup = GetCarsAvailableForPickup(waypoint, carCoupledTo);
@@ -351,7 +351,7 @@ namespace WaypointQueue
 
             if (indexOfCarToPickup < 0)
             {
-                throw new InvalidOperationException($"{carToPickup.Ident} is not a valid car to pickup for {waypoint.Locomotive.Ident}");
+                throw new UncouplingException($"{carToPickup.Ident} is not a valid car to pickup for {waypoint.Locomotive.Ident}.", waypoint);
             }
 
             // Do not include picked up car
@@ -363,7 +363,7 @@ namespace WaypointQueue
         {
             if (!wp.TryResolveUncouplingSearchText(out Car carToDropoff))
             {
-                throw new InvalidOperationException($"Cannot find valid car matching \"{wp.UncouplingSearchText}\" for {wp.Locomotive.Ident} to uncouple");
+                throw new UncouplingException($"Cannot find valid car matching \"{wp.UncouplingSearchText}\" for {wp.Locomotive.Ident} to dropoff as post-coupling cut.", wp);
             }
 
             (LogicalEnd _, LogicalEnd farEnd) = carService.GetEndsRelativeToLocation(carCoupledTo, wp.Location);
@@ -374,7 +374,7 @@ namespace WaypointQueue
 
             if (indexOfCarToDropoff < 0)
             {
-                throw new InvalidOperationException($"{carToDropoff.Ident} is not a valid car to dropoff for {wp.Locomotive.Ident}");
+                throw new UncouplingException($"{carToDropoff.Ident} is not a valid car to dropoff for {wp.Locomotive.Ident}.", wp);
             }
 
             // Include dropped off car
@@ -483,7 +483,7 @@ namespace WaypointQueue
 
             if (carsToCut.Count >= consistFromEndA.Count)
             {
-                throw new InvalidOperationException("Cannot uncouple full consist");
+                throw new InvalidOperationException("Cannot uncouple more cars than exist in consist.");
             }
 
             int startIndex = consistFromEndA.FindIndex(c => c.id == carsToCut.First().id);
@@ -491,7 +491,7 @@ namespace WaypointQueue
 
             if (startIndex == -1 || endIndex == -1)
             {
-                throw new InvalidOperationException("Cars to cut are not a subset of consist");
+                throw new InvalidOperationException("The calculated list of cars to cut is not a valid contiguous sublist of consist.");
             }
 
             // Ensure indices are sorted the same way as the full consist
@@ -513,32 +513,62 @@ namespace WaypointQueue
                 carToUncouple = consistFromEndA[startIndex];
                 return (carToUncouple, LogicalEnd.A);
             }
-
-            Loader.LogError($"Cannot determine car to uncouple from cut list {CarListToString(carsToCut)} within the full consist {CarListToString(consistFromEndA)}");
-            throw new InvalidOperationException("Failed to find valid car to uncouple");
+            else
+            {
+                throw new InvalidOperationException("Cannot determine a valid car to uncouple.");
+            }
         }
 
         public List<Car> PerformCut(List<Car> carsToCut, ManagedWaypoint waypoint)
         {
             Loader.LogDebug($"Entering PerformCut before filtering split tenders");
+            int carsBeforeFilter = carsToCut.Count;
             carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
 
-            if (carsToCut.Count == 0)
+            if (carsBeforeFilter > 0 && carsToCut.Count == 0)
             {
-                Toast.Present($"No valid cars to cut for {waypoint.Locomotive.Ident}");
-                return [];
+                string errorMessage = $"No valid cars can be cut for {waypoint.Locomotive.Ident} due to a restriction on separating a locomotive from its tender.";
+                Loader.LogError($"{errorMessage} Car count before filter was {carsBeforeFilter}. Car count after filter was 0.");
+                throw new UncouplingException(errorMessage, waypoint);
+            }
+
+            if (carsToCut == null || carsToCut.Count == 0)
+            {
+                string errorMessage = $"No valid cars can be cut for {waypoint.Locomotive.Ident}.";
+                throw new UncouplingException(errorMessage, waypoint);
             }
 
             List<Car> fullConsistFromEndA = [.. carsToCut.First().EnumerateCoupled(fromEnd: LogicalEnd.A)];
+
+            if (carsToCut.Count >= fullConsistFromEndA.Count)
+            {
+                string errorMessage = $"Cannot uncouple more cars than exist in {waypoint.Locomotive.Ident}'s consist.";
+                Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                throw new UncouplingException(errorMessage, waypoint);
+            }
 
             Loader.Log($"Uncoupling {carsToCut.Count} cars from consist of {fullConsistFromEndA.Count} cars:\n" +
                 $"cutting: {CarListToString(carsToCut)}\n" +
                 $"from: {CarListToString(fullConsistFromEndA)}\n" +
                 $"as: {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
 
-            (Car carToUncouple, LogicalEnd endToUncouple) = FindCarToUncouple(carsToCut, fullConsistFromEndA);
+
+            Car carToUncouple;
+            LogicalEnd endToUncouple = LogicalEnd.A;
+
+            try
+            {
+                (carToUncouple, endToUncouple) = FindCarToUncouple(carsToCut, fullConsistFromEndA);
+            }
+            catch (Exception e)
+            {
+                Loader.LogError($"Error while attempting to uncouple car: {e}");
+                Loader.LogError($"Cars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                throw new UncouplingException(e.Message, waypoint, e);
+            }
 
             Loader.Log($"Uncoupling {carToUncouple.Ident} on end {LogicalEndToString(endToUncouple)} for cut of {carsToCut.Count} cars");
+
             UncoupleCar(carToUncouple, endToUncouple);
 
             carService.UpdateCarsForAE(waypoint.Locomotive as BaseLocomotive);

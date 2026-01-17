@@ -132,8 +132,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model\CouplingException.cs" />
+    <Compile Include="Model\RefuelException.cs" />
+    <Compile Include="Model\UncouplingException.cs" />
+    <Compile Include="Model\WaypointError.cs" />
+    <Compile Include="Model\WaypointProcessingException.cs" />
+    <Compile Include="Model\QueueTickException.cs" />
     <Compile Include="ServiceProvider.cs" />
     <Compile Include="Services\ICarService.cs" />
+    <Compile Include="UI\ErrorModalController.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />
     <Compile Include="CarUtils.cs" />

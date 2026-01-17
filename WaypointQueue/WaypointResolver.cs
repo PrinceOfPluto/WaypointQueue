@@ -13,21 +13,68 @@ using Track;
 using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.Services;
+using WaypointQueue.UI;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
     internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, ICarService carService, AutoEngineerService autoEngineerService)
     {
+        public static event Action<string> WaypointForLocoIdDidError;
+
         private static readonly float WaitBeforeCuttingTimeout = 5f;
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
+        public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        {
+            if (wp.Errors.Any())
+            {
+                return false;
+            }
+
+            try
+            {
+                return TryHandleUnresolvedWaypoint(wp, ordersHelper);
+            }
+            catch (UncouplingException e)
+            {
+                HandleProcessingError("Uncoupling", e, wp);
+                return false;
+            }
+            catch (CouplingException e)
+            {
+                HandleProcessingError("Coupling", e, wp);
+                return false;
+            }
+            catch (RefuelException e)
+            {
+                HandleProcessingError("Refueling", e, wp);
+                return false;
+            }
+            catch (Exception e)
+            {
+                HandleProcessingError("Waypoint", e, wp);
+                return false;
+            }
+        }
+
+        private void HandleProcessingError(string orderType, Exception exception, ManagedWaypoint wp)
+        {
+            Loader.LogError($"Exception while processing waypoint: {exception}");
+            wp.Errors.Add(new WaypointError(errorType: orderType, message: exception.Message));
+            wp.StatusLabel = "Paused due to error";
+            WaypointQueueController.Shared.UpdateWaypoint(wp);
+            ErrorModalController.Shared.ShowProcessingErrorModal(exception.Message, orderType, wp);
+            WaypointForLocoIdDidError.Invoke(wp.Locomotive.id);
+        }
+
         /**
          * Returns false when the waypoint is not yet resolved (i.e. needs to continue)
          */
-        public bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, Action<ManagedWaypoint> onWaypointDidUpdate)
+        private bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
@@ -57,7 +104,7 @@ namespace WaypointQueue
                     else
                     {
                         wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
-                        Toast.Present($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                        Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                     }
                 }
 
@@ -112,7 +159,7 @@ namespace WaypointQueue
                 else
                 {
                     wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
-                    Toast.Present($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                    Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                 }
             }
 
@@ -135,22 +182,9 @@ namespace WaypointQueue
                 ResolveBrakeSystemOnCouple(wp);
             }
 
-            try
+            if (!TryResolveFuelingOrders(wp, ordersHelper))
             {
-                if (!TryResolveFuelingOrders(wp, ordersHelper))
-                {
-                    return false;
-                }
-            }
-            catch (Exception e)
-            {
-                Loader.LogError(e.Message);
-                string errorModalTitle = "Refueling Error";
-                string errorModalMessage = $"Waypoint Queue encountered an unexpected error and cannot refuel locomotive {wp.Locomotive.Ident}.";
-                Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
-                wp.WillRefuel = false;
-                wp.CurrentlyRefueling = false;
-                WaypointQueueController.Shared.UpdateWaypoint(wp);
+                return false;
             }
 
             /*
@@ -196,7 +230,7 @@ namespace WaypointQueue
                 ResolveChangeMaxSpeed(wp);
             }
 
-            if (TryBeginWaiting(wp, onWaypointDidUpdate))
+            if (TryBeginWaiting(wp))
             {
                 wp.StatusLabel = "Waiting before continuing";
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
@@ -280,12 +314,12 @@ namespace WaypointQueue
             return false;
         }
 
-        private bool TryBeginWaiting(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaiting(ManagedWaypoint wp)
         {
-            return wp.WillWait && (TryBeginWaitingDuration(wp, onWaypointsUpdated) || TryBeginWaitingUntilTime(wp, onWaypointsUpdated));
+            return wp.WillWait && (TryBeginWaitingDuration(wp) || TryBeginWaitingUntilTime(wp));
         }
 
-        private bool TryBeginWaitingDuration(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaitingDuration(ManagedWaypoint wp)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
@@ -293,13 +327,13 @@ namespace WaypointQueue
                 wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
                 wp.CurrentlyWaiting = true;
                 Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
-                onWaypointsUpdated.Invoke(wp);
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
             }
             return false;
         }
 
-        private bool TryBeginWaitingUntilTime(ManagedWaypoint wp, Action<ManagedWaypoint> onWaypointsUpdated)
+        private bool TryBeginWaitingUntilTime(ManagedWaypoint wp)
         {
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
             {
@@ -308,7 +342,7 @@ namespace WaypointQueue
                     wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
                     wp.CurrentlyWaiting = true;
                     Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
-                    onWaypointsUpdated.Invoke(wp);
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
                     return true;
                 }
                 else
@@ -339,12 +373,9 @@ namespace WaypointQueue
                 locationToMove = Graph.Shared.LocationByMoving(orientedLocation, totalTrainLength, checkSwitchAgainstMovement: false, stopAtEndOfTrack: false);
                 locationToMove.AssertValid();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Toast.Present($"{waypoint.Locomotive.Ident} cannot fit train past the waypoint");
-
-                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                return false;
+                throw new WaypointProcessingException($"{waypoint.Locomotive.Ident} cannot fit train past the waypoint", waypoint, e);
             }
 
             waypoint.StatusLabel = "Sending train past waypoint";
@@ -387,7 +418,7 @@ namespace WaypointQueue
         {
             if (!waypoint.TryResolveCoupleToCar(out Car carCoupledTo))
             {
-                throw new InvalidOperationException("Cannot resolve post coupling cut due to unresolved CoupledToCarId");
+                throw new UncouplingException($"Cannot perform post coupling cut due to unresolvable CoupledToCarId {waypoint.CoupleToCarId}", waypoint);
             }
 
             // Take active cut not allowed for pickups or dropoffs
@@ -409,7 +440,7 @@ namespace WaypointQueue
             if (waypoint.WillUncoupleBySpecificCar)
             {
                 carsToCut = isPickup
-                    ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
+                    ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo) : uncouplingService.FindDropoffBySpecificCar(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleAllExceptLocomotives)

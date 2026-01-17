@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Track;
 using Track.Search;
-using UI.Common;
 using UI.EngineControls;
+using WaypointQueue.Model;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
@@ -63,8 +63,7 @@ namespace WaypointQueue.Services
                 }
                 else
                 {
-                    Loader.LogError($"Closest end of {targetCar.Ident} is NOT available to couple");
-                    return false;
+                    throw new CouplingException($"Closest end of {targetCar.Ident} is not available for {wp.Locomotive.Ident} to couple.", wp);
                 }
                 wp.StatusLabel = $"Moving to couple {targetCar.Ident}";
                 wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
@@ -79,9 +78,7 @@ namespace WaypointQueue.Services
                 return true;
             }
 
-            Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
-
-            return false;
+            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within straight line track search distance of {Loader.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
         }
 
         public bool FindNearbyCouplingInRadius(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
@@ -134,9 +131,8 @@ namespace WaypointQueue.Services
                 autoEngineerService.SendToWaypoint(ordersHelper, adjustedLocation, bestMatchCar.id);
                 return true;
             }
-            Loader.Log($"Found no nearby cars to couple for {wp.Locomotive.Ident}");
 
-            return false;
+            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within search radius of {Loader.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
         }
 
         public bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
@@ -144,8 +140,7 @@ namespace WaypointQueue.Services
             Car targetCar = waypoint.CouplingSearchResultCar;
             if (targetCar == null && !waypoint.TryResolveCouplingSearchText(out targetCar))
             {
-                Toast.Present($"Cannot find valid car matching \"{waypoint.CouplingSearchText}\" for {waypoint.Locomotive.Ident} to couple");
-                return false;
+                throw new CouplingException($"Cannot find valid car matching \"{waypoint.CouplingSearchText}\" for {waypoint.Locomotive.Ident} to couple", waypoint);
             }
 
             LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(targetCar, waypoint.Locomotive.OpsLocation);
@@ -165,13 +160,11 @@ namespace WaypointQueue.Services
             else
             {
                 Loader.Log($"Both ends of {targetCar.Ident} are unavailable to couple");
-                Toast.Present($"{waypoint.Locomotive.Ident} coupling to {targetCar.Ident} is blocked");
-                return false;
+                throw new CouplingException($"Both ends of {targetCar.Ident} are unavailable for {waypoint.Locomotive.Ident} to couple", waypoint);
             }
 
             if (bestLocation.IsValid)
             {
-
                 waypoint.StatusLabel = $"Moving to couple {targetCar.Ident}";
                 waypoint.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                 waypoint.CurrentlyCouplingSpecificCar = true;
@@ -185,10 +178,7 @@ namespace WaypointQueue.Services
                 return true;
             }
 
-            Loader.LogError($"Location {bestLocation} was not valid for {waypoint.Locomotive.Ident} to couple to {targetCar.Ident}");
-
-            Toast.Present($"{waypoint.Locomotive.Ident} failed to determine a valid location to couple {targetCar.Ident}");
-            return false;
+            throw new CouplingException($"Location {bestLocation} is not valid for {waypoint.Locomotive.Ident} to couple to {targetCar.Ident}.", waypoint);
         }
 
         private Location GetCouplerLocation(Car car, LogicalEnd logicalEnd)

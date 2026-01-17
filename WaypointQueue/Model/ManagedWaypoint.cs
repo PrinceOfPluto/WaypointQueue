@@ -3,10 +3,12 @@ using Model;
 using Model.Ops;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using Track;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.UUM;
 using static Model.Ops.OpsController;
 
@@ -260,6 +262,8 @@ namespace WaypointQueue
         public string StatusLabel { get; set; } = "Inactive";
         public string Name { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
+
+        public List<WaypointError> Errors { get; set; } = [];
 
         public bool IsValid()
         {

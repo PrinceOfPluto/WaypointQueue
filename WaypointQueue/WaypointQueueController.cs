@@ -11,7 +11,9 @@ using Track;
 using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.Services;
+using WaypointQueue.UI;
 using WaypointQueue.UUM;
 using static WaypointQueue.ModSaveManager;
 
@@ -24,7 +26,7 @@ namespace WaypointQueue
 
         private Coroutine _coroutine;
 
-        public Dictionary<string, LocoWaypointState> WaypointStateMap { get; private set; } = new();
+        public readonly Dictionary<string, LocoWaypointState> WaypointStateMap = [];
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
@@ -69,7 +71,7 @@ namespace WaypointQueue
 
         private IEnumerator Ticker()
         {
-            WaitForSeconds t = new WaitForSeconds(WaypointTickInterval);
+            WaitForSeconds t = new(WaypointTickInterval);
             while (true)
             {
                 yield return t;
@@ -85,44 +87,28 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.LogError(e.Message);
-                string errorModalTitle = "Waypoint Queue Error";
-                string errorModalMessage = $"Waypoint Queue encountered an unexpected error while handling game tick updates.";
-                Loader.ShowErrorModal(errorModalTitle, errorModalMessage);
+                Loader.LogError(e.ToString());
+                ErrorModalController.Shared.ShowTickErrorModal(e.Message);
                 StopCoroutine(_coroutine);
-                throw;
+                _coroutine = null;
             }
         }
 
         private void DoQueueTickUpdate()
         {
-            if (WaypointStateMap == null)
-            {
-                WaypointStateMap = [];
-            }
             HandleLoopingRoutes();
 
-            List<LocoWaypointState> listForRemoval = new List<LocoWaypointState>();
+            List<LocoWaypointState> listForRemoval = [];
 
             foreach (LocoWaypointState entry in WaypointStateMap.Values)
             {
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
                 AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(entry.Locomotive);
 
-                bool readyToResolve = !_autoEngineerService.HasActiveWaypoint(ordersHelper) && _autoEngineerService.IsInWaypointMode(ordersHelper);
-
-                // Let loco continue if it has active waypoint orders
-                // or skip if not in waypoint mode
-                if (readyToResolve || NeedsForceResolve(entry))
+                if (!IsReadyToResolve(entry, ordersHelper))
                 {
-                    //Loader.LogDebug($"Ready to resolve waypoint for {entry.Locomotive.Ident}");
-                }
-                else
-                {
-                    //Loader.LogDebug($"Loco {entry.Locomotive.Ident} is NOT ready to resolve waypoint");
                     continue;
                 }
-
 
                 // Resolve waypoint order
                 /**
@@ -132,7 +118,7 @@ namespace WaypointQueue
                  */
                 if (entry.UnresolvedWaypoint != null)
                 {
-                    if (!_waypointResolver.TryHandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper, WaypointDidUpdate))
+                    if (!_waypointResolver.HandleUnresolvedWaypoint(entry.UnresolvedWaypoint, ordersHelper))
                     {
                         continue;
                     }
@@ -177,6 +163,19 @@ namespace WaypointQueue
             foreach (var entry in listForRemoval)
             {
                 WaypointStateMap.Remove(entry.LocomotiveId);
+            }
+        }
+
+        private bool IsReadyToResolve(LocoWaypointState entry, AutoEngineerOrdersHelper ordersHelper)
+        {
+            try
+            {
+                bool readyToResolve = !_autoEngineerService.HasActiveWaypoint(ordersHelper) && _autoEngineerService.IsInWaypointMode(ordersHelper);
+                return readyToResolve || NeedsForceResolve(entry);
+            }
+            catch (Exception e)
+            {
+                throw new QueueTickException($"Exception while checking if waypoint for {entry.Locomotive.Ident} is ready to resolve: {e.Message}", e);
             }
         }
 
@@ -295,6 +294,18 @@ namespace WaypointQueue
         }
 
         private void HandleLoopingRoutes()
+        {
+            try
+            {
+                TryHandleLoopingRoutes();
+            }
+            catch (Exception e)
+            {
+                throw new QueueTickException("Failed to handle looping routes", e);
+            }
+        }
+
+        private void TryHandleLoopingRoutes()
         {
             List<RouteAssignment> assignmentList = RouteAssignmentRegistry
                 .All()
