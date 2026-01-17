@@ -138,6 +138,7 @@
     <Compile Include="Model\WaypointError.cs" />
     <Compile Include="Model\WaypointProcessingException.cs" />
     <Compile Include="Model\QueueTickException.cs" />
+    <Compile Include="Patches\PatchTrainController.cs" />
     <Compile Include="ServiceProvider.cs" />
     <Compile Include="Services\ICarService.cs" />
     <Compile Include="UI\ErrorModalController.cs" />

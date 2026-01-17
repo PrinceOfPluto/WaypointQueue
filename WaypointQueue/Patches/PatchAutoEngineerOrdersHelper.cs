@@ -43,14 +43,14 @@ namespace WaypointQueue
                     {
                         if (b)
                         {
-                            WaypointQueueController.Shared.ClearWaypointState(loco);
+                            WaypointQueueController.Shared.ClearWaypointState(loco.id);
                             HandleAddingWaypoint(existingWaypoint, loco, location, coupleToCarId, isReplacingWaypoint, isInsertingNext);
                         }
                     });
                 }
                 else
                 {
-                    WaypointQueueController.Shared.ClearWaypointState(____locomotive);
+                    WaypointQueueController.Shared.ClearWaypointState(____locomotive.id);
                     HandleAddingWaypoint(existingWaypoint, loco, location, coupleToCarId, isReplacingWaypoint, isInsertingNext);
                 }
             }

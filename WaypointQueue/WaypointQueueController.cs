@@ -160,7 +160,6 @@ namespace WaypointQueue
                             continue;
                         }
                     }
-                    Loader.Log($"Marking {entry.Locomotive.Ident} waypoint queue for removal");
                     listForRemoval.Add(entry);
                 }
             }
@@ -275,7 +274,7 @@ namespace WaypointQueue
 
             if (!append)
             {
-                ClearWaypointState(loco);
+                ClearWaypointState(loco.id);
             }
 
             Loader.LogDebug($"Adding waypoints from {route.Name} to {loco.Ident} queue");
@@ -349,23 +348,21 @@ namespace WaypointQueue
             }
         }
 
-        public void ClearWaypointState(Car loco)
+        public void ClearWaypointState(string locoId)
         {
-            Loader.Log($"Trying to clear waypoint state for {loco.Ident}");
-
-            if (WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState entry))
+            if (WaypointStateMap.TryGetValue(locoId, out LocoWaypointState entry))
             {
                 if (entry.UnresolvedWaypoint != null)
                 {
                     _waypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
                 }
 
-                WaypointStateMap.Remove(loco.id);
-                Loader.Log($"Removed waypoint state entry for {loco.Ident}");
+                WaypointStateMap.Remove(locoId);
+                Loader.Log($"Removed waypoint state entry for {entry.Locomotive}");
+                _autoEngineerService.CancelActiveOrders(entry.Locomotive);
+                Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in ClearWaypointState");
+                LocoWaypointStateDidUpdate.Invoke(locoId);
             }
-            _autoEngineerService.CancelActiveOrders(loco);
-            Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in ClearWaypointState");
-            LocoWaypointStateDidUpdate.Invoke(loco.id);
         }
 
         public void RemoveWaypoint(ManagedWaypoint waypoint)
@@ -482,6 +479,11 @@ namespace WaypointQueue
                 Loader.LogDebug($"Invoking LocoWaypointStateDidUpdate in RemoveCurrentWaypoint");
                 LocoWaypointStateDidUpdate.Invoke(locomotive.id);
             }
+        }
+
+        public bool HasWaypointState(string locoId)
+        {
+            return WaypointStateMap.ContainsKey(locoId);
         }
 
         public List<ManagedWaypoint> GetWaypointList(Car loco)

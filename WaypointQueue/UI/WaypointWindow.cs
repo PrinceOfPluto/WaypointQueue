@@ -274,7 +274,7 @@ namespace WaypointQueue.UI
                 {
                     if (b)
                     {
-                        WaypointQueueController.Shared.ClearWaypointState(selectedLocomotive);
+                        WaypointQueueController.Shared.ClearWaypointState(selectedLocomotive.id);
                     }
                 });
         }
