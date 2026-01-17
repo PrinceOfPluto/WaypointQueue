@@ -105,6 +105,12 @@ namespace WaypointQueue
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
                 AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(entry.Locomotive);
 
+                if (!_autoEngineerService.IsInWaypointMode(ordersHelper))
+                {
+                    entry.UnresolvedWaypoint = null;
+                    continue;
+                }
+
                 if (!IsReadyToResolve(entry, ordersHelper))
                 {
                     continue;
