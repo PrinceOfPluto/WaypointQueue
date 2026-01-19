@@ -1205,11 +1205,6 @@ namespace WaypointQueue.UI
             }
             var labelField = builder.AddField("Search result", builder.AddLabel(searchResult));
 
-            if (waypoint.CouplingSearchResultCar != null && waypoint.CouplingSearchResultCar[Car.LogicalEnd.A].IsCoupled && waypoint.CouplingSearchResultCar[Car.LogicalEnd.B].IsCoupled)
-            {
-                builder.AddField("Warning", builder.AddLabel("Warning! Neither end of the car is currently free to couple"));
-            }
-
             return builder;
         }
 

@@ -7,6 +7,8 @@ namespace WaypointQueue.Model
         public string WaypointId { get; set; }
         public string LocomotiveIdent { get; set; }
 
+        public WaypointProcessingException(string message) : base(message) { }
+
         public WaypointProcessingException(string message, ManagedWaypoint waypoint) : base(message)
         {
             LocomotiveIdent = waypoint.Locomotive.Ident.ToString();
