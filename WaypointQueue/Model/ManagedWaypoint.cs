@@ -114,6 +114,7 @@ namespace WaypointQueue
 
         public bool ConnectAirOnCouple { get; set; }
         public bool ReleaseHandbrakesOnCouple { get; set; }
+        public bool HasResolvedBrakeSystemOnCouple { get; set; }
         public bool ApplyHandbrakesOnUncouple { get; set; }
         public bool BleedAirOnUncouple { get; set; }
 

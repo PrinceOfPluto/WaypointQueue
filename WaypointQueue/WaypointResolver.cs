@@ -180,9 +180,11 @@ namespace WaypointQueue
             }
 
             // Connecting air and releasing handbrakes may be done before being completely stopped
-            if (wp.IsCoupling && !wp.CurrentlyRefueling && wp.TryResolveCoupleToCar(out Car _))
+            if (!wp.HasResolvedBrakeSystemOnCouple && wp.IsCoupling && !wp.CurrentlyRefueling && wp.TryResolveCoupleToCar(out Car _))
             {
                 ResolveBrakeSystemOnCouple(wp);
+                wp.HasResolvedBrakeSystemOnCouple = true;
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
             }
 
             if (!TryResolveFuelingOrders(wp, ordersHelper))
@@ -400,10 +402,9 @@ namespace WaypointQueue
         private void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
-            Loader.Log($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
+            Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
             {
-                //Loader.LogDebug($"Resolving coupling orders on {car.Ident}");
                 if (waypoint.ConnectAirOnCouple)
                 {
                     carService.ConnectAir(car);
@@ -411,7 +412,6 @@ namespace WaypointQueue
 
                 if (waypoint.ReleaseHandbrakesOnCouple)
                 {
-                    //Loader.LogDebug($"Releasing handbrake on {car.Ident}");
                     car.SetHandbrake(false);
                 }
             }
