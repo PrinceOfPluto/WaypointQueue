@@ -594,23 +594,20 @@ namespace WaypointQueue
 
             if (StateManager.IsHost && car.set != null)
             {
-                if (car.TryGetAdjacentCar(endToUncouple, out var adjacent))
+                Car adjacent = car.CoupledTo(endToUncouple);
+                if (adjacent != null)
                 {
                     Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
-                    // Close anglecocks on both sides to simplify uncoupling. Bleeding air is already a separate option
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
-                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsCoupled, boolValue: false);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
-                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.CutLever, 1f);
 
-                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.Anglecock, f: 0f);
-                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsCoupled, boolValue: false);
-                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);
+                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.Anglecock, f: 0f);
+                    adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.IsAirConnected, boolValue: false);
                 }
                 else
                 {
-                    Loader.LogError($"No adjacent car to {car.Ident} on logical end {LogicalEndToString(endToUncouple)}");
+                    throw new UncouplingException($"Cannot uncouple {car.Ident} on logical end {LogicalEndToString(endToUncouple)} because there is no adjacent car");
                 }
             }
         }
