@@ -121,7 +121,10 @@ namespace WaypointQueue
                     }
                 }
 
+                if (wp.HasAnyUncouplingOrders)
+                {
                 ResolveUncouplingOrders(wp);
+                }
                 if (wp.WillChangeMaxSpeed)
                 {
                     ResolveChangeMaxSpeed(wp);
