@@ -300,7 +300,7 @@ namespace WaypointQueue
             List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
             Car firstCar = coupled.First();
             Car lastCar = coupled.Last();
-            Loader.LogDebug($"First car {firstCar.Ident} is {(firstCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")} and last car {lastCar.Ident} is {(lastCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")}");
+            //Loader.LogDebug($"First car {firstCar.Ident} is {(firstCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")} and last car {lastCar.Ident} is {(lastCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")}");
 
             return firstCar.IsStopped(2) && lastCar.IsStopped(2);
         }

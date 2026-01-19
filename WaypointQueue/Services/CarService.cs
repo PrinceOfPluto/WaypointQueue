@@ -127,8 +127,6 @@ namespace WaypointQueue.Services
                 furthestLocation = firstLocation;
                 closestCar = lastCar;
                 furthestCar = firstCar;
-                Loader.LogDebug($"Closest car is {lastCar.Ident}");
-                Loader.LogDebug($"Furthest car is {firstCar.Ident}");
             }
             else
             {
@@ -137,8 +135,6 @@ namespace WaypointQueue.Services
                 furthestLocation = lastLocation;
                 closestCar = firstCar;
                 furthestCar = lastCar;
-                Loader.LogDebug($"Closest car is {firstCar.Ident}");
-                Loader.LogDebug($"Furthest car is {lastCar.Ident}");
             }
 
             return (closestLocation, furthestLocation);
