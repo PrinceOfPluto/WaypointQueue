@@ -24,7 +24,6 @@ namespace WaypointQueue
     {
         public static event Action<string> WaypointForLocoIdDidError;
 
-        private static readonly float WaitBeforeCuttingTimeout = 15f;
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
@@ -196,7 +195,7 @@ namespace WaypointQueue
              * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && wp.SecondsSpentWaitingBeforeCut < Loader.Settings.WaitBeforeCuttingTimeout)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
@@ -211,13 +210,13 @@ namespace WaypointQueue
                     wp.SecondsSpentWaitingBeforeCut += tickIntervalSeconds;
                 }
 
-                if (wp.SecondsSpentWaitingBeforeCut < WaitBeforeCuttingTimeout)
+                if (wp.SecondsSpentWaitingBeforeCut < Loader.Settings.WaitBeforeCuttingTimeout)
                 {
                     return false;
                 }
                 else
                 {
-                    Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
+                    Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {Loader.Settings.WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
                 }
             }
 
