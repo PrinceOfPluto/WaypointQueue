@@ -58,7 +58,7 @@ namespace WaypointQueue.Services
                 Location bestLocation;
                 if (!targetCar[nearestEnd].IsCoupled)
                 {
-                    Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
+                    //Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
                     bestLocation = GetCouplerLocation(targetCar, nearestEnd);
                 }
                 else
@@ -159,7 +159,7 @@ namespace WaypointQueue.Services
             }
             else
             {
-                Loader.Log($"Both ends of {targetCar.Ident} are unavailable to couple");
+                Loader.LogError($"Both ends of {targetCar.Ident} are unavailable to couple");
                 throw new CouplingException($"Both ends of {targetCar.Ident} are unavailable for {waypoint.Locomotive.Ident} to couple", waypoint);
             }
 

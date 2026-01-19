@@ -180,7 +180,6 @@ namespace WaypointQueue.Services
             List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
             CarLoadTargetLoader closestLoader = null;
             float shortestDistance = 0;
-            Loader.LogDebug($"Checking for nearby fuel loaders");
 
             foreach (CarLoadTargetLoader targetLoader in _carLoadTargetLoaders)
             {
@@ -233,10 +232,6 @@ namespace WaypointQueue.Services
                 waypoint.RefuelIndustryId = closestLoader.sourceIndustry?.identifier;
                 waypoint.RefuelLoadName = closestLoader.load.name;
                 waypoint.WillRefuel = true;
-            }
-            else
-            {
-                Loader.LogDebug($"No result found for fuel loader");
             }
         }
 

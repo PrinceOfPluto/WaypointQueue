@@ -130,7 +130,7 @@ namespace WaypointQueue
                     }
                     else
                     {
-                        Loader.Log($"Finish resolving waypoint {entry.UnresolvedWaypoint.Id} {entry.UnresolvedWaypoint.Location} for {entry.UnresolvedWaypoint.Locomotive.Ident}");
+                        //Loader.Log($"Finish resolving waypoint {entry.UnresolvedWaypoint.Id} {entry.UnresolvedWaypoint.Location} for {entry.UnresolvedWaypoint.Locomotive.Ident}");
                         RemoveWaypoint(entry.UnresolvedWaypoint);
                     }
                 }
@@ -325,14 +325,14 @@ namespace WaypointQueue
                     RouteDefinition route = RouteRegistry.GetById(ra.RouteId);
                     if (route == null)
                     {
-                        Loader.Log($"Failed to find route matching id {ra.RouteId}");
+                        Loader.LogError($"Failed to find route matching id {ra.RouteId}");
                         continue;
                     }
                     AddWaypointsFromRoute(loco, route, true);
                 }
                 else
                 {
-                    Loader.Log($"Failed to find loco matching id {ra.LocoId}");
+                    Loader.LogError($"Failed to find loco matching id {ra.LocoId}");
                     continue;
                 }
             }
@@ -382,7 +382,7 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.Log($"Failed to remove waypoint {waypointId}");
+                    Loader.LogError($"Failed to remove waypoint {waypointId}");
                 }
 
                 if (entry.UnresolvedWaypoint.Id == waypointId)

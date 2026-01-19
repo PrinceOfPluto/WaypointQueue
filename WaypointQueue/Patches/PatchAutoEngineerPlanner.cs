@@ -108,7 +108,7 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.Log($"UpdateTargetsPostfix exception: {e}");
+                Loader.LogError($"UpdateTargetsPostfix exception: {e}");
             }
         }
 
@@ -173,7 +173,7 @@ namespace WaypointQueue
             }
             catch (Exception ex)
             {
-                Loader.Log($"IsWaypointSatisfiedPostfix failed: {ex}");
+                Loader.LogError($"IsWaypointSatisfiedPostfix failed: {ex}");
             }
         }
     }

@@ -29,7 +29,7 @@ namespace WaypointQueue
                     }
                     catch (Exception ex)
                     {
-                        Loader.Log($"[Routes] Failed to hydrate waypoint {wp?.Id} for route '{route?.Name}': {ex}");
+                        Loader.LogError($"[Routes] Failed to hydrate waypoint {wp?.Id} for route '{route?.Name}': {ex}");
                     }
                 }
             }

@@ -293,7 +293,7 @@ namespace WaypointQueue.UI
             {
                 panelsByWaypointId[waypoint.Id] = builder;
 
-                Loader.Log($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
+                Loader.LogDebug($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
                 builder.AddHRule();
                 builder.Spacer(16f);
                 builder.HStack(delegate (UIPanelBuilder builder)
@@ -1367,7 +1367,7 @@ namespace WaypointQueue.UI
                                 }
                                 else
                                 {
-                                    Loader.Log($"Error parsing duration: \"{value}\"");
+                                    Loader.LogError($"Error parsing duration: \"{value}\"");
                                     Toast.Present("Duration must be in HH:MM, HH MM, or MM format");
                                 }
                             }, placeholder: "HH:MM").Width(80f);
@@ -1421,7 +1421,7 @@ namespace WaypointQueue.UI
                         }
                         else
                         {
-                            Loader.Log($"Error parsing time: \"{value}\"");
+                            Loader.LogError($"Error parsing time: \"{value}\"");
                             Toast.Present("Time must be in HH:MM 24-hour format.");
                         }
                     }, placeholder: "HH:MM", 5).Width(80f);
@@ -1532,7 +1532,7 @@ namespace WaypointQueue.UI
             }
             catch (Exception ex)
             {
-                Loader.Log($"[TimetableSymbolDropdown] Error building choices: {ex}");
+                Loader.LogError($"[TimetableSymbolDropdown] Error building choices: {ex}");
             }
 
             // Selected index: default to "No change" (0); if current is set, select it if present

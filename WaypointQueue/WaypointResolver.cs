@@ -87,7 +87,7 @@ namespace WaypointQueue
                     }
                     else
                     {
-                        Loader.Log($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                        Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
                     }
                 }
 
@@ -123,7 +123,7 @@ namespace WaypointQueue
 
                 if (wp.HasAnyUncouplingOrders)
                 {
-                ResolveUncouplingOrders(wp);
+                    ResolveUncouplingOrders(wp);
                 }
                 if (wp.WillChangeMaxSpeed)
                 {
@@ -148,7 +148,7 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.Log($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                    Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
                 }
             }
 
@@ -352,7 +352,7 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.Log($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
+                    Loader.LogError($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
                     Toast.Present("Waypoint wait time must be in HH:MM 24-hour format.");
                     return false;
                 }
