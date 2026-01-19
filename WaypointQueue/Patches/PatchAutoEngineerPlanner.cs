@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Track;
+using Track.Search;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.Services;
@@ -21,26 +22,19 @@ namespace WaypointQueue
         static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, float direction, ref AutoEngineer ____engineer)
         {
             AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+            ICarService carService = Loader.ServiceProvider.GetService<ICarService>();
             try
             {
-                if (____engineer == null)
+                if (____engineer == null || ____engineer?.Locomotive == null)
                 {
-                    Loader.LogDebug($"Update targets engineer was null");
                     return;
                 }
 
                 BaseLocomotive loco = ____engineer.Locomotive;
 
-                if (loco == null)
-                {
-                    Loader.LogDebug($"Update targets loco was null");
-                    return;
-                }
-
                 AutoEngineerOrdersHelper ordersHelper = autoEngineerService.GetOrdersHelper(loco);
                 if (!ordersHelper.Orders.Waypoint.HasValue)
                 {
-                    //Loader.LogDebug($"Update targets has no current order waypoint");
                     return;
                 }
 
@@ -86,9 +80,15 @@ namespace WaypointQueue
                     int indexOfWaypoint = updatedTargets.FindIndex(t => t.Reason == "Running to waypoint" || t.Reason == "At waypoint");
                     if (indexOfWaypoint != -1)
                     {
-                        //Loader.LogDebug($"Setting target speed to {signedSpeedToSet}");
+                        (Location closestTrainEnd, Location _) = carService.GetTrainEndLocations(waypointState.UnresolvedWaypoint, out float closestDistance, out var _, out var _);
+
+                        GraphRouteSearchExtension.TryFindDistance(Graph.Shared, closestTrainEnd, waypointState.UnresolvedWaypoint.Location, out float totalDistance, out float traverseTimeSeconds);
+
                         Targets.Target t = updatedTargets[indexOfWaypoint];
-                        updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
+                        if (Mathf.Abs(totalDistance - t.Distance) < 5f)
+                        {
+                            updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
+                        }
                     }
                     else
                     {
