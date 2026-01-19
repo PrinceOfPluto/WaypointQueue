@@ -216,16 +216,17 @@ namespace WaypointQueue
 
         public void AddWaypoint(Car loco, Location location, string coupleToCarId, bool isReplacing, bool isInsertingNext)
         {
+            Location clampedLocation = location.Clamped();
             bool isCoupling = coupleToCarId != null && coupleToCarId.Length > 0;
             string couplingLogSegment = isCoupling ? $"coupling to ${coupleToCarId}" : "no coupling";
             string actionName = "add";
             if (isReplacing) actionName = "replace";
             if (isInsertingNext) actionName = "insert next";
-            Loader.Log($"Trying to {actionName} waypoint for loco {loco.Ident} to {location} with {couplingLogSegment}");
+            Loader.Log($"Trying to {actionName} waypoint for loco {loco.Ident} to {clampedLocation} with {couplingLogSegment}");
 
             LocoWaypointState entry = GetOrAddLocoWaypointState(loco);
 
-            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupleToCarId);
+            ManagedWaypoint waypoint = new ManagedWaypoint(loco, clampedLocation, coupleToCarId);
             _refuelService.CheckNearbyFuelLoaders(waypoint);
 
             if (isReplacing && entry.Waypoints.Count > 0)

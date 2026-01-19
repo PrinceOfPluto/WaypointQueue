@@ -338,9 +338,9 @@ namespace WaypointQueue
             try
             {
                 loc = Graph.Shared.ResolveLocationString(LocationString);
-                Location = loc;
+                Location = loc.Clamped();
                 AreaName = OpsController.Shared.ClosestAreaForGamePosition(loc.GetPosition()).name;
-                Loader.LogDebug($"Loaded location {Location} with area {AreaName} for waypoint {Id}");
+                Loader.LogDebug($"Loaded clamped location {Location} with area {AreaName} for waypoint {Id}");
                 return true;
             }
             catch (Exception e)
@@ -511,8 +511,9 @@ namespace WaypointQueue
 
         public void OverwriteLocation(Location loc)
         {
-            Location = loc;
-            LocationString = Graph.Shared.LocationToString(loc);
+            Location clampedLocation = loc.Clamped();
+            Location = clampedLocation;
+            LocationString = Graph.Shared.LocationToString(clampedLocation);
         }
 
         public bool TryCopyForRoute(out ManagedWaypoint copy, Car loco = null)
