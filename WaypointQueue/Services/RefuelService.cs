@@ -325,6 +325,7 @@ namespace WaypointQueue.Services
             CarLoadTargetLoader loaderTarget = FindCarLoadTargetLoader(waypoint);
             if (loaderTarget == null)
             {
+                Loader.LogError($"CarLoadTargetLoaders: {String.Join("-", WaypointQueueController.Shared.CarLoadTargetLoaders.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} loader]"))}");
                 throw new RefuelException($"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
             }
             CarLoaderSequencer sequencer = WaypointQueueController.Shared.CarLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
@@ -334,6 +335,7 @@ namespace WaypointQueue.Services
             }
             else
             {
+                Loader.LogError($"CarLoaderSequencers: {String.Join("-", WaypointQueueController.Shared.CarLoaderSequencers.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} sequencer]"))}");
                 throw new RefuelException($"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
             }
         }
