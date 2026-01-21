@@ -409,13 +409,19 @@ namespace WaypointQueue
                 }
             }
 
-            foreach (List<Car> block in listOfCarBlocks)
+            for (int i = 0; i < listOfCarBlocks.Count; i++)
             {
+                List<Car> block = listOfCarBlocks[i];
+
                 if (block.Count > 0)
                 {
                     Car lastCar = block.Last();
-                    Loader.Log($"Uncoupling {lastCar.Ident} on logical end B for block {block.Count} cars");
-                    UncoupleCar(lastCar, LogicalEnd.B);
+
+                    if (i != listOfCarBlocks.Count - 1)
+                    {
+                        Loader.Log($"Uncoupling {lastCar.Ident} on logical end B for block {block.Count} cars");
+                        UncoupleCar(lastCar, LogicalEnd.B);
+                    }
 
                     if (!locoArchetypes.Contains(lastCar.Archetype))
                     {
