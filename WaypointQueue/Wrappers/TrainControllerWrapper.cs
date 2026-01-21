@@ -14,9 +14,9 @@ namespace WaypointQueue.Wrappers
             return TrainController.Shared.TryGetCarForId(carId, out car);
         }
 
-        public void ApplyHandbrakesAsNeeded(List<Car> cars)
+        public int CalculateNumHandbrakes(List<Car> cars, int minimumHandbrakes = 1, int maximumHandbrakes = 3)
         {
-            Traverse.Create(TrainController.Shared).Method("ApplyHandbrakesAsNeeded", [typeof(List<Car>), typeof(PlaceTrainHandbrakes)], [cars, PlaceTrainHandbrakes.Automatic]).GetValue();
+            return Traverse.Create(TrainController.Shared).Method("CalculateNumHandbrakes", [typeof(List<Car>), typeof(int), typeof(int)], [cars, minimumHandbrakes, maximumHandbrakes]).GetValue<int>();
         }
 
         public Car CheckForCarAtLocation(Location location)

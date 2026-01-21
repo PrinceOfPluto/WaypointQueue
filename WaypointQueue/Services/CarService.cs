@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Track;
+using UnityEngine;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
@@ -17,8 +18,40 @@ namespace WaypointQueue.Services
     {
         public void SetHandbrakesOnCut(List<Car> cars)
         {
-            Loader.LogDebug($"Setting handbrakes on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
-            trainControllerWrapper.ApplyHandbrakesAsNeeded(cars);
+            int vanillaBrakesToApply = trainControllerWrapper.CalculateNumHandbrakes(cars);
+
+            int playerPercentBrakesToApply = Mathf.CeilToInt(cars.Count * Loader.Settings.HandbrakePercentOnUncouple);
+            int playerGreaterMinimumBrakes = Mathf.Max(Loader.Settings.MinimumHandbrakesOnUncouple, playerPercentBrakesToApply);
+
+            int numBreaksToApply = Mathf.Max(vanillaBrakesToApply, playerGreaterMinimumBrakes);
+
+            Loader.Log($"Setting {numBreaksToApply} handbrakes on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
+            foreach (Car car in cars)
+            {
+                bool shouldApplyBrake = numBreaksToApply > 0;
+                if (car.Archetype == CarArchetype.Tender)
+                {
+                    shouldApplyBrake = false;
+                }
+
+                if (shouldApplyBrake)
+                {
+                    if (car is BaseLocomotive baseLocomotive)
+                    {
+                        baseLocomotive.ControlHelper.LocomotiveBrake = 1f;
+                    }
+                    else if (!car.air.handbrakeApplied)
+                    {
+                        car.SetHandbrake(apply: true);
+                    }
+
+                    numBreaksToApply--;
+                }
+                else if (car.air.handbrakeApplied)
+                {
+                    car.SetHandbrake(apply: false);
+                }
+            }
         }
 
         public void BleedAirOnCut(List<Car> cars)
