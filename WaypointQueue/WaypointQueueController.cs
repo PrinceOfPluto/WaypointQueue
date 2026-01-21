@@ -375,12 +375,14 @@ namespace WaypointQueue
 
             if (WaypointStateMap.TryGetValue(waypoint.Locomotive.id, out LocoWaypointState entry))
             {
-                string waypointId = waypoint.Id;
-
                 _waypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
 
-                if (entry.Waypoints.Remove(waypoint))
+                string waypointId = waypoint.Id;
+                int indexOfWaypoint = entry.Waypoints.FindIndex(w => w.Id == waypointId);
+
+                if (indexOfWaypoint >= 0)
                 {
+                    entry.Waypoints.RemoveAt(indexOfWaypoint);
                     Loader.Log($"Removed waypoint {waypointId}");
                 }
                 else
