@@ -255,7 +255,15 @@ namespace WaypointQueue
         {
             if (wp.RefuelLoaderAnimated)
             {
-                refuelService.SetCarLoaderSequencerWantsLoading(wp, false);
+                try
+                {
+                    refuelService.SetCarLoaderSequencerWantsLoading(wp, false);
+                }
+                catch (Exception e)
+                {
+                    Loader.LogError($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadName} loader equipment: {e}");
+                    Console.Log($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadName} loader equipment.");
+                }
             }
             return true;
         }
