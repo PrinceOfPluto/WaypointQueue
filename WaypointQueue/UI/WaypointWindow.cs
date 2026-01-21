@@ -799,13 +799,60 @@ namespace WaypointQueue.UI
         private UIPanelBuilder BuildUncouplingModeField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             string label = "Then uncouple";
+            string uncouplingModeTooltip = $"""
+                None - No cars will uncouple.
+
+                By count - Choose a number of cars to uncouple and which direction to count cars from.
+
+                By area destination - Choose an area to uncouple a block of cars with destinations for that area.
+
+                By industry destination - Choose an industry to uncouple a block of cars with destinations for that industry.
+
+                By track destination - Choose a specific industry track to uncouple a block of cars with destinations for that track.
+
+                By specific car - Choose a specific car to uncouple and which direction to cut the consist.
+
+                All except locomotives - Uncouples all cars except locomotives and tenders.
+                """;
+
             if (waypoint.WillPostCoupleCutPickup)
             {
                 label = "Then pickup";
+                uncouplingModeTooltip = $"""
+                None - No cars will be picked up.
+                
+                By count - Choose a number of cars to pickup.
+                
+                By area destination - Choose an area to pickup a block of cars with destinations for that area.
+                
+                By industry destination - Choose an industry to pickup a block of cars with destinations for that industry.
+                
+                By track destination - Choose a specific industry track to pickup a block of cars with destinations for that track.
+                
+                By specific car - Choose a specific car to pickup.
+                
+                All except locomotives - Pickup all cars except locomotives and tenders.
+                """;
             }
+
             if (waypoint.WillPostCoupleCutDropoff)
             {
                 label = "Then dropoff";
+                uncouplingModeTooltip = $"""
+                None - No cars will be dropped off.
+                
+                By count - Choose a number of cars to dropoff.
+                
+                By area destination - Choose an area to dropoff a block of cars with destinations for that area.
+                
+                By industry destination - Choose an industry to dropoff a block of cars with destinations for that industry.
+                
+                By track destination - Choose a specific industry track to dropoff a block of cars with destinations for that track.
+                
+                By specific car - Choose a specific car to dropoff.
+                
+                All except locomotives - Dropoff all cars except locomotives and tenders.
+                """;
             }
 
             var uncouplingModeField = builder.AddField(label, builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car", "All except locomotives"], (int)waypoint.UncouplingMode, (int value) =>
@@ -815,16 +862,8 @@ namespace WaypointQueue.UI
                     onWaypointChange(waypoint);
                 }));
 
-            string tooltipTitle = "Uncoupling mode";
-            string noneTooltipBody = "None - No cars will uncouple.";
-            string byCountTooltipBody = "By count - Pick a number of cars to uncouple and which direction to count cars from.";
-            string byAreaDestinationTooltipBody = "By area destination - Pick an area to uncouple a block of cars with destinations for that area.";
-            string byIndustryDestinationTooltipBody = "By industry destination - Pick an industry to uncouple a block of cars with destinations for that industry.";
-            string byTrackDestinationTooltipBody = "By track destination - Pick a specific industry track to uncouple a block of cars with destinations for that track.";
-            string bySpecificCarTooltipBody = "By specific car - Pick a specific car to uncouple and which direction to cut the consist.";
-            string allExceptLocomotiveTooltipBody = "All except locomotives - Uncouples all cars except locomotives and tenders.";
 
-            AddLabelOnlyTooltip(uncouplingModeField, tooltipTitle, $"{String.Join("\n\n", [noneTooltipBody, byCountTooltipBody, byAreaDestinationTooltipBody, byIndustryDestinationTooltipBody, byTrackDestinationTooltipBody, bySpecificCarTooltipBody, allExceptLocomotiveTooltipBody])}");
+            AddLabelOnlyTooltip(uncouplingModeField, "Uncoupling mode", uncouplingModeTooltip);
             return builder;
         }
 
@@ -915,16 +954,42 @@ namespace WaypointQueue.UI
                 waypoint.DestinationSearchText = choiceIsEmpty ? string.Empty : destinationChoices[index].Label;
                 onWaypointChange(waypoint);
             }));
-            AddLabelOnlyTooltip(matchingDestinationField, "Matching destination", "Select an option to uncouple a block of cars with matching destinations. When uncoupling, the mod will check cars starting from the train end you select to cut a block from. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars. The matching block is included in the uncoupled cut by default, but you can also choose to exclude the match.");
+
+            string matchingDestinationTooltip = """
+                Select an option to uncouple a block of cars with matching destinations. When uncoupling, the mod will check cars starting from the train end you select to cut a block from. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars. The matching block is included in the uncoupled cut by default, but you can also choose to exclude the match.
+                """;
+
+            if (waypoint.WillPostCoupleCutPickup)
+            {
+                matchingDestinationTooltip = """
+                    Select an option to pickup a block of cars with matching destinations. When picking up cars after coupling, the mod will start from the car you coupled to and search for a block of matching cars in the direction that you coupled. Each car will be picked up until it finds the end of the matching block, either the closest block or furthest block depending on your choice.
+                    """;
+            }
+
+            if (waypoint.WillPostCoupleCutDropoff)
+            {
+                matchingDestinationTooltip = """
+                    Select an option to dropoff a block of cars with matching destinations. When dropping off cars after coupling, the mod will start from your original consist car that coupled to the other car and search for a block of matching cars in the direction of your original consist before coupling. Each car will be dropped off until it finds the end of the matching block, either the closest block or furthest block depending on your choice.
+                    """;
+            }
+
+            AddLabelOnlyTooltip(matchingDestinationField, "Matching destination", matchingDestinationTooltip);
 
             var excludeMatchingCarsFromCutField = builder.AddField("Exclude match from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, (bool value) =>
             {
                 waypoint.ExcludeMatchingCarsFromCut = value;
                 onWaypointChange(waypoint);
             }));
-            AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude matching cars from cut", "If this is enabled, the matching cars won't be included in the uncoupled cut." +
-                "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by a mix of non-Whittier cars at the end. You want to uncouple all non-Whittier cars without counting the individual cars." +
-                "\n\nTo do that, you can select the matching destination as Whittier, exclude this match from the cut, and choose to cut the block from the furthest train end from waypoint. When uncoupling, the mod will begin checking cars from that end to add to the list of cars to cut and stop once it finds a matching Whittier car. If this option were not enabled, then the matching Whittier cars would also be included in this uncoupled cut.");
+
+            string excludeMatchingCarsFromCutTooltip = """
+                If this is enabled, the matching cars won't be included in the uncoupled cut.
+
+                Example: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by a mix of non-Whittier cars at the end. You want to uncouple all non-Whittier cars without counting the individual cars.
+
+                To do that, you can select the matching destination as Whittier, exclude this match from the cut, and choose to cut the block from the furthest train end from waypoint. When uncoupling, the mod will begin checking cars from that end to add to the list of cars to cut and stop once it finds a matching Whittier car. If this option were not enabled, then the matching Whittier cars would also be included in this uncoupled cut.
+                """;
+
+            AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude matching cars from cut", excludeMatchingCarsFromCutTooltip);
 
             string cutBlockLabel = "Cut block from";
             List<string> cutBlockFromOptions = ["Closest end to waypoint", "Furthest end from waypoint"];
@@ -941,10 +1006,54 @@ namespace WaypointQueue.UI
                 waypoint.CountUncoupledFromNearestToWaypoint = !waypoint.CountUncoupledFromNearestToWaypoint;
                 onWaypointChange(waypoint);
             }));
-            AddLabelOnlyTooltip(cutBlockFromField, cutBlockLabel, "This option determines which end of the train the matching block cut starts from. This is needed to determine your intent particularly if the matching block is in the middle of the consist." +
-                "\n\nWhen uncoupling, the mod will check cars starting from the train end you selected. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars which are included in the uncoupled cut by default, but you can choose to exclude the match with a different option." +
-                "\n\nExample: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by non-Whittier cars. You want to dropoff the Whittier cars without counting how many cars you have." +
-                "\n\nTo do that, you can select the matching Whittier destination, cut the block from closest end to the waypoint which will include the locomotive since that it at the closest end, and in this case very importantly also select make uncoupled cars active.");
+
+            string cutBlockFromTooltip = """
+                This option determines which end of the train the matching block cut starts from. This is needed to determine your intent particularly if the matching block is in the middle of the consist.
+
+                When uncoupling, the mod will check cars starting from the train end you selected. These cars will be added to the uncoupled cut until it finds the first matching contiguous block of cars which are included in the uncoupled cut by default, but you can choose to exclude the match with a different option.
+
+                Example: your train will arrive at a waypoint with the locomotive closest to the waypoint. Behind the locomotive, the consist has a large block of Whittier cars followed by non-Whittier cars. You want to dropoff the Whittier cars without counting how many cars you have.
+
+                To do that, you can select the matching Whittier destination, cut the block from closest end to the waypoint which will include the locomotive since that it at the closest end, and in this case very importantly also select make uncoupled cars active.
+                """;
+
+            if (waypoint.WillPostCoupleCutPickup)
+            {
+                cutBlockFromTooltip = """
+                This option determines whether to pickup the closest block of matching cars or the furthest block.
+
+                The matching block will always start from the car you coupled to and search for cars in the direction that you coupled.
+
+                Example: You want to pickup Whittier cars from a consist of Whittier (W) and Sylva (S) cars. The locomotive (L) just coupled to the right most Sylva car.
+                S-W-W-S-W-W-S-S-L
+
+                Picking up the closest block of Whittier cars will result in:
+                W-W-S-S-L
+
+                Picking up the furthest block of Whittier cars will result in:
+                W-W-S-W-W-S-S-L
+                """;
+            }
+
+            if (waypoint.WillPostCoupleCutDropoff)
+            {
+                cutBlockFromTooltip = """
+                This option determines whether to dropoff the closest block of matching cars or the furthest block.
+
+                The matching block will always start from your original consist car that coupled to the other car. It will search for matching cars in the direction of your original consist before coupling.
+
+                Example: You want to dropoff Whittier cars from your consist of Whittier (W) and Sylva (S) cars. The locomotive (L) couples its consist to the car (C).
+                C-W-W-S-W-W-S-S-L
+
+                Dropping off closest block of Whittier cars will cut:
+                C-W-W
+
+                Dropping off furthest block of Whittier cars will cut:
+                C-W-W-S-W-W
+                """;
+            }
+
+            AddLabelOnlyTooltip(cutBlockFromField, cutBlockLabel, cutBlockFromTooltip);
 
             builder.HStack(delegate (UIPanelBuilder builder)
             {
@@ -1127,13 +1236,21 @@ namespace WaypointQueue.UI
                 onWaypointChange(waypoint);
             }));
 
-            AddLabelOnlyTooltip(postCouplingCutField, "Pickup or dropoff", "After coupling, you can \"Pickup\" or \"Dropoff\" a number of cars relative to the car you are coupling to. " +
-            "This is very useful when queueing switching orders." +
-            "\n\nIf you couple to a cut of 3 cars and \"Pickup\" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind. " +
-            "You \"Pickup\" cars from the cut you are coupling to." +
-            "\n\nIf you are coupling 2 additional cars to 1 car already spotted, you can \"Dropoff\" 2 cars and continue to the next queued waypoint. " +
-            "You \"Dropoff\" cars from your current consist." +
-            "\n\nIf you Pickup or Dropoff 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to all cars.");
+            string postCouplingCutTooltip = """
+                After coupling, you can pickup or dropoff cars relative to the car you are coupling to. This is very useful when queueing switching orders.
+
+                If you couple to a cut of 3 cars and "Pickup by count" 2 cars, you will leave with the 2 closest cars and the 3rd car will be left behind.
+
+                You "Pickup" cars from the cut you are coupling to.
+
+                If you are coupling 2 additional cars to 1 car already spotted, you can "Dropoff" 2 cars and continue to the next queued waypoint.
+
+                You "Dropoff" cars from your current consist.
+
+                If you Pickup or Dropoff 0 cars, you will NOT perform a post-coupling cut. In other words, you will remain coupled to all cars.
+                """;
+
+            AddLabelOnlyTooltip(postCouplingCutField, "Pickup or dropoff", postCouplingCutTooltip);
 
             return builder;
         }
