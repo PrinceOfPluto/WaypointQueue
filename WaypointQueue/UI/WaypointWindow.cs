@@ -369,7 +369,7 @@ namespace WaypointQueue.UI
                     BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
+                if ((waypoint.HasAnyPostCouplingCutOrders || (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders)) && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
                 {
                     BuildCouplingModeField(waypoint, builder, onWaypointChange);
                 }
