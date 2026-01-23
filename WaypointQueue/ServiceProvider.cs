@@ -5,28 +5,21 @@ namespace WaypointQueue
 {
     internal class ServiceProvider
     {
-        private readonly Dictionary<Type, Func<object>> _serviceRegistry = [];
+        private readonly Dictionary<Type, object> _serviceRegistry = [];
 
-        public void AddSingleton<TService>(Func<TService> implementationFactory) where TService : class
+        public void AddSingleton<T>(T service)
         {
-            _serviceRegistry[typeof(TService)] = () =>
-            {
-                if (implementationFactory == null)
-                {
-                    throw new InvalidOperationException($"Service factory for type {typeof(TService).FullName} is null.");
-                }
-                return implementationFactory();
-            };
+            _serviceRegistry[typeof(T)] = service;
         }
 
-        public TService GetService<TService>() where TService : class
+        public T GetService<T>() where T : class
         {
-            if (_serviceRegistry.TryGetValue(typeof(TService), out var factory))
+            if (_serviceRegistry.TryGetValue(typeof(T), out object service))
             {
-                return (TService)factory();
+                return (T)service;
             }
 
-            throw new InvalidOperationException($"Service factory for type {typeof(TService).FullName} is not registered.");
+            throw new InvalidOperationException($"Service for type {typeof(T).FullName} is not registered.");
         }
     }
 }

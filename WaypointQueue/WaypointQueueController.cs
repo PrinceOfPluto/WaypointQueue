@@ -3,7 +3,6 @@ using Game.Events;
 using Game.Messages;
 using Game.State;
 using Model;
-using RollingStock;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -28,8 +27,6 @@ namespace WaypointQueue
         private Coroutine _coroutine;
 
         public readonly Dictionary<string, LocoWaypointState> WaypointStateMap = [];
-        public List<CarLoadTargetLoader> CarLoadTargetLoaders { get; set; } = [];
-        public List<CarLoaderSequencer> CarLoaderSequencers { get; set; } = [];
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;

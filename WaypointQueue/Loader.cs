@@ -81,35 +81,35 @@ namespace WaypointQueue.UUM
             // without the overhead of requiring an extra DI package
             ServiceProvider = new ServiceProvider();
 
-            ServiceProvider.AddSingleton<IOpsControllerWrapper>(() => new OpsControllerWrapper());
+            ServiceProvider.AddSingleton<IOpsControllerWrapper>(new OpsControllerWrapper());
 
-            ServiceProvider.AddSingleton<TrainControllerWrapper>(() => new TrainControllerWrapper());
+            ServiceProvider.AddSingleton<TrainControllerWrapper>(new TrainControllerWrapper());
 
-            ServiceProvider.AddSingleton<ICarService>(() => new CarService(
+            ServiceProvider.AddSingleton<ICarService>(new CarService(
                 ServiceProvider.GetService<TrainControllerWrapper>()
                 ));
 
-            ServiceProvider.AddSingleton<UncouplingService>(() => new UncouplingService(
+            ServiceProvider.AddSingleton<UncouplingService>(new UncouplingService(
                 ServiceProvider.GetService<ICarService>(),
                 ServiceProvider.GetService<IOpsControllerWrapper>()
                 ));
-            ServiceProvider.AddSingleton<AutoEngineerService>(() => new AutoEngineerService(
+            ServiceProvider.AddSingleton<AutoEngineerService>(new AutoEngineerService(
                 ServiceProvider.GetService<ICarService>()
                 ));
 
-            ServiceProvider.AddSingleton<CouplingService>(() => new CouplingService(
+            ServiceProvider.AddSingleton<CouplingService>(new CouplingService(
                 ServiceProvider.GetService<ICarService>(),
                 ServiceProvider.GetService<AutoEngineerService>(),
                 ServiceProvider.GetService<TrainControllerWrapper>()
                 ));
 
-            ServiceProvider.AddSingleton<RefuelService>(() => new RefuelService(
+            ServiceProvider.AddSingleton<RefuelService>(new RefuelService(
                 ServiceProvider.GetService<ICarService>(),
                 ServiceProvider.GetService<AutoEngineerService>(),
                 ServiceProvider.GetService<IOpsControllerWrapper>()
                 ));
 
-            ServiceProvider.AddSingleton<WaypointResolver>(() => new WaypointResolver(
+            ServiceProvider.AddSingleton<WaypointResolver>(new WaypointResolver(
                 ServiceProvider.GetService<UncouplingService>(),
                 ServiceProvider.GetService<RefuelService>(),
                 ServiceProvider.GetService<CouplingService>(),
