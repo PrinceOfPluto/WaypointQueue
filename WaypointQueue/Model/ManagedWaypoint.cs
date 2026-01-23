@@ -187,10 +187,6 @@ namespace WaypointQueue
                 {
                     SetDefaultPostCouplingCut();
                 }
-                if (value == CoupleSearchMode.None)
-                {
-                    UncouplingMode = UncoupleMode.None;
-                }
             }
         }
 
