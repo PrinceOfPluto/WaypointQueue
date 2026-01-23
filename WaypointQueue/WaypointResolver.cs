@@ -220,7 +220,7 @@ namespace WaypointQueue
                 }
             }
 
-            if (wp.IsCoupling && wp.HasAnyPostCouplingCutOrders)
+            if (wp.IsCoupling && wp.HasAnyPostCouplingCutOrders && wp.UncouplingMode != ManagedWaypoint.UncoupleMode.None)
             {
                 ResolvePostCouplingCut(wp);
             }
