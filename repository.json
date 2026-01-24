@@ -2,6 +2,11 @@
     "Releases": [
         {
             "Id": "WaypointQueue",
+            "Version": "1.5.4",
+            "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.5.4/WaypointQueue_1.5.4.0.zip"
+        },
+        {
+            "Id": "WaypointQueue",
             "Version": "1.5.3",
             "DownloadUrl": "https://github.com/PrinceOfPluto/WaypointQueue/releases/download/v1.5.3/WaypointQueue_1.5.3.0.zip"
         },
