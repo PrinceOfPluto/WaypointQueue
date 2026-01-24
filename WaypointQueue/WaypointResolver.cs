@@ -63,6 +63,7 @@ namespace WaypointQueue
         private void HandleProcessingError(string orderType, Exception exception, ManagedWaypoint wp)
         {
             Loader.LogError($"Exception while processing waypoint: {exception}");
+            Loader.Log($"Waypoint configuration:\n{wp}");
             wp.Errors.Add(new WaypointError(errorType: orderType, message: exception.Message));
             wp.StatusLabel = "Paused due to error";
             WaypointQueueController.Shared.UpdateWaypoint(wp);
