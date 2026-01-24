@@ -457,6 +457,11 @@ namespace WaypointQueue
             {
                 carsToCut = isPickup
                     ? uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo) : uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
+
+                if (carsToCut.Count == 0 && isPickup)
+                {
+                    return;
+                }
             }
 
             uncouplingService.PerformCut(carsToCut, waypoint);
