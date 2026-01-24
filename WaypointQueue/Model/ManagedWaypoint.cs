@@ -199,19 +199,17 @@ namespace WaypointQueue
                 CouplingSearchText = "";
                 CouplingSearchResultCar = null;
 
-                if (value != CoupleSearchMode.None && Loader.Settings.ShowPostCouplingCutByDefault)
+                if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None && Loader.Settings.ShowPostCouplingCutByDefault)
                 {
                     SetDefaultPostCouplingCut();
                 }
-
-                if (value == CoupleSearchMode.None && PostCouplingCutMode != PostCoupleCutType.None)
-                {
-                    {
-                        PostCouplingCutMode = PostCoupleCutType.None;
-                        UncouplingMode = UncoupleMode.None;
-                    }
-                }
             }
+        }
+
+        public void RemovePostCouplingCut()
+        {
+            PostCouplingCutMode = PostCoupleCutType.None;
+            UncouplingMode = UncoupleMode.None;
         }
 
         [JsonProperty("UncouplingMode")]

@@ -1259,7 +1259,12 @@ namespace WaypointQueue.UI
         {
             var couplingModeField = builder.AddField($"Then couple", builder.AddDropdown(["None", "To nearest car", "To a specific car"], (int)waypoint.CouplingSearchMode, (int value) =>
                 {
-                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)value;
+                    var selectedMode = (ManagedWaypoint.CoupleSearchMode)value;
+                    waypoint.CouplingSearchMode = selectedMode;
+                    if (selectedMode == ManagedWaypoint.CoupleSearchMode.None)
+                    {
+                        waypoint.RemovePostCouplingCut();
+                    }
                     onWaypointChange(waypoint);
                 }));
 
