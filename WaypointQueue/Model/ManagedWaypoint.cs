@@ -122,7 +122,23 @@ namespace WaypointQueue
         public virtual bool CountUncoupledFromNearestToWaypoint { get; set; } = true;
 
         [JsonProperty("TakeOrLeaveCut")]
-        public virtual PostCoupleCutType PostCouplingCutMode { get; set; } = PostCoupleCutType.None;
+        private PostCoupleCutType _postCouplingCutMode = PostCoupleCutType.None;
+
+        [JsonIgnore]
+        public virtual PostCoupleCutType PostCouplingCutMode
+        {
+            get { return _postCouplingCutMode; }
+            set
+            {
+                _postCouplingCutMode = value;
+
+                if (value == PostCoupleCutType.None)
+                {
+                    UncouplingMode = UncoupleMode.None;
+                }
+            }
+        }
+
         public bool TakeUncoupledCarsAsActiveCut { get; set; }
 
         [JsonIgnore]
