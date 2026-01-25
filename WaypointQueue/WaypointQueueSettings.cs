@@ -46,9 +46,9 @@ namespace WaypointQueue
         [Header("Uncoupling settings")]
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
-        [Draw("Max seconds to wait for train to fully stop before uncoupling", DrawType.Slider, Precision = 0, Min = 5, Max = 120, Tooltip = "Trains will wait to uncouple until the consist is considered at rest or until this many seconds, whichever happens sooner. If you are encountering trains unexpectedly re-coupling after being uncoupled, it is recommended to increase this timeout value.")] public float WaitBeforeCuttingTimeout = 15f;
-        [Draw("Handbrake percentage", Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
-        [Draw("Handbrake minimum", Precision = 0, Min = 1, Max = 20, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
+        [Draw("Max seconds to wait for train to fully stop before uncoupling", DrawType.Slider, Precision = 0, Min = 5, Max = 120, Tooltip = "Trains will wait to uncouple until the consist is considered at fully rest\nor until this many seconds have passed, whichever happens sooner.\nIf you are encountering trains unexpectedly re-coupling after being uncoupled,\nit is recommended to increase this timeout value.")] public float WaitBeforeCuttingTimeout = 15f;
+        [Draw("Handbrake percentage", DrawType.Slider, Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
+        [Draw("Handbrake minimum", Precision = 0, Min = 1, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
         [Draw("Default uncoupling mode", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
         [Draw("Default post-coupling cut mode", DrawType.ToggleGroup)] public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
         [Draw("Default uncoupling mode when performing post-coupling cuts", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
