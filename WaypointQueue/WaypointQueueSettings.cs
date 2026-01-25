@@ -35,7 +35,6 @@ namespace WaypointQueue
         [Draw("Toggle Route Manager window")] public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
 
         [Header("UI")]
-        [Draw("Use compact layout")] public bool UseCompactLayout = true;
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
 
         [Header("Coupling settings")]

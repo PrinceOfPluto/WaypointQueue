@@ -780,17 +780,10 @@ namespace WaypointQueue.UI
                 AddLabelOnlyTooltip(searchTrackAheadField, "Search straight ahead", "Limit the search for a nearby car to couple to only the track straight ahead. If this option is disabled, the mod will check in a search radius instead of a line.");
             }
 
-            if (Loader.Settings.UseCompactLayout)
-            {
-                builder.HStack(delegate (UIPanelBuilder builder)
-                {
-                    AddConnectAirAndReleaseBrakeToggles(waypoint, builder, onWaypointChange);
-                });
-            }
-            else
+            builder.HStack(delegate (UIPanelBuilder builder)
             {
                 AddConnectAirAndReleaseBrakeToggles(waypoint, builder, onWaypointChange);
-            }
+            });
 
 
             return builder;
@@ -890,17 +883,10 @@ namespace WaypointQueue.UI
                     }));
                 }
 
-                if (Loader.Settings.UseCompactLayout)
-                {
-                    builder.HStack(delegate (UIPanelBuilder builder)
-                    {
-                        AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                    });
-                }
-                else
+                builder.HStack(delegate (UIPanelBuilder builder)
                 {
                     AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-                }
+                });
 
                 if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
                 {
