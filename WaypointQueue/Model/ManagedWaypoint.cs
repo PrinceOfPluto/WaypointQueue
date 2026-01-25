@@ -36,12 +36,12 @@ namespace WaypointQueue
             AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
 
-            if (Loader.Settings.EnableThenUncoupleByDefault)
+            if (Loader.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
             {
                 UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
             }
 
-            if (Loader.Settings.ShowPostCouplingCutByDefault && !String.IsNullOrEmpty(coupleToCarId))
+            if (Loader.Settings.AdvancedSettings.ShowPostCouplingCutByDefault && !String.IsNullOrEmpty(coupleToCarId))
             {
                 SetDefaultPostCouplingCut();
             }
@@ -199,7 +199,7 @@ namespace WaypointQueue
                 CouplingSearchText = "";
                 CouplingSearchResultCar = null;
 
-                if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None && Loader.Settings.ShowPostCouplingCutByDefault)
+                if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None && Loader.Settings.AdvancedSettings.ShowPostCouplingCutByDefault)
                 {
                     SetDefaultPostCouplingCut();
                 }

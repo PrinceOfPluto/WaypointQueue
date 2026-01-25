@@ -37,8 +37,6 @@ namespace WaypointQueue
         [Header("UI")]
         [Draw("Use compact layout")] public bool UseCompactLayout = true;
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
-        [Draw("Enable post-coupling cut by default")] public bool ShowPostCouplingCutByDefault = false;
-        [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
 
         [Header("Coupling settings")]
         [Draw("Connect air by default when coupling")] public bool ConnectAirByDefault = true;
@@ -61,6 +59,7 @@ namespace WaypointQueue
         [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
         [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;
 
+        [Draw("Advanced settings", Collapsible = true)] public AdvancedSettings AdvancedSettings = new AdvancedSettings();
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
@@ -70,5 +69,13 @@ namespace WaypointQueue
         public void OnChange()
         {
         }
+    }
+
+    [DrawFields(DrawFieldMask.Public)]
+    public class AdvancedSettings
+    {
+        [DrawHeader("Warning! Do NOT enable these settings unless you understand what these options mean.", Color = "red")]
+        [Draw("Enable \"Then perform cut\" after coupling by default")] public bool ShowPostCouplingCutByDefault = false;
+        [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
     }
 }
