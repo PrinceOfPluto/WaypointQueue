@@ -44,12 +44,12 @@ namespace WaypointQueue
             if (wp.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
             {
                 carsToCut = CalculateCutForPickupByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
-                Loader.LogDebug($"Pickup seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+                Loader.Log($"Pickup seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
             }
             if (wp.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
             {
                 carsToCut = CalculateCutForDropoffByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
-                Loader.LogDebug($"Dropoff seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+                Loader.Log($"Dropoff seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
             }
 
             return carsToCut;

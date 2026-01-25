@@ -438,9 +438,16 @@ namespace WaypointQueue
             bool isPickup = waypoint.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup;
 
             List<Car> carsToCut = [];
-            if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
+            if (waypoint.WillUncoupleByCount)
             {
                 carsToCut = uncouplingService.FindPickupOrDropoffByCount(waypoint, carCoupledTo);
+                if (carsToCut.Count == 0)
+                {
+                    string message = $"Waypoint for {waypoint.Locomotive.Ident} was configured to perform a post-coupling cut by count with {waypoint.NumberOfCarsToCut} cars to cut, but since no cars can be cut it will remain coupled to all cars.";
+                    Console.Log(message);
+                    Loader.Log(message);
+                    return;
+                }
             }
             if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
@@ -461,6 +468,7 @@ namespace WaypointQueue
 
                 if (carsToCut.Count == 0 && isPickup)
                 {
+                    Loader.Log($"Pickup all except locomotives found zero cars to cut.");
                     return;
                 }
             }
