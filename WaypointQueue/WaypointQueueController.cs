@@ -237,7 +237,7 @@ namespace WaypointQueue
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
-                RefreshCurrentWaypoint(loco, _autoEngineerService.GetOrdersHelper(loco));
+                SendToWaypointFromQueue(waypoint, _autoEngineerService.GetOrdersHelper(loco));
             }
             else if (isInsertingNext && entry.Waypoints.Count > 0)
             {
@@ -249,6 +249,27 @@ namespace WaypointQueue
             }
             Loader.Log($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
 
+            OnWaypointWasAdded(loco.id);
+        }
+
+        public void InsertWaypoint(Car loco, Location location, string coupledToCarId, string beforeWaypointId)
+        {
+            Location clampedLocation = location.Clamped();
+            LocoWaypointState locoState = GetOrAddLocoWaypointState(loco);
+            ManagedWaypoint waypoint = new ManagedWaypoint(loco, location, coupledToCarId);
+            _refuelService.CheckNearbyFuelLoaders(waypoint);
+
+            int beforeWaypointIndex = locoState.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
+            locoState.Waypoints.Insert(beforeWaypointIndex, waypoint);
+
+            if (beforeWaypointIndex == 0)
+            {
+                _waypointResolver.CleanupBeforeRemovingWaypoint(locoState.UnresolvedWaypoint);
+                locoState.UnresolvedWaypoint = waypoint;
+                SendToWaypointFromQueue(waypoint, _autoEngineerService.GetOrdersHelper(loco));
+            }
+
+            Loader.Log($"Inserted waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location} at index {beforeWaypointIndex}");
             OnWaypointWasAdded(loco.id);
         }
 
@@ -421,6 +442,13 @@ namespace WaypointQueue
                     {
                         Loader.LogDebug($"Updated unresolved waypoint");
                         state.UnresolvedWaypoint = updatedWaypoint;
+                    }
+
+                    if (_autoEngineerService.GetCurrentOrdersGotoLocation(updatedWaypoint.Locomotive) != updatedWaypoint.Location)
+                    {
+                        updatedWaypoint.StatusLabel = "Running to waypoint";
+                        var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
+                        _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
                     }
 
                     Loader.LogDebug($"Invoking WaypointDidUpdate in UpdateWaypoint");

@@ -58,6 +58,7 @@ namespace WaypointQueue.UUM
                 Instance = waypointQueueGO.AddComponent<WaypointQueueController>();
                 waypointQueueGO.AddComponent<WaypointCarPicker>();
                 waypointQueueGO.AddComponent<ErrorModalController>();
+                waypointQueueGO.AddComponent<WaypointPicker>();
                 UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
 
                 if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null))

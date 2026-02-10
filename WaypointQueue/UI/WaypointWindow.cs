@@ -498,11 +498,15 @@ namespace WaypointQueue.UI
             List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
             var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
             var makeNextWaypointRow = new DropdownMenu.RowData("Make next waypoint", "Moves this waypoint to after current waypoint");
+            var insertWaypointAbove = new DropdownMenu.RowData("Insert waypoint above", "");
+            var adjustWaypointRow = new DropdownMenu.RowData("Adjust waypoint", "");
             var editNameAndNotesRow = new DropdownMenu.RowData("Edit name and notes", "");
             var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
             var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
             options.Add(jumpToWaypointRow);
+            options.Add(insertWaypointAbove);
+            options.Add(adjustWaypointRow);
 
             if (index != 0)
             {
@@ -527,6 +531,16 @@ namespace WaypointQueue.UI
                 if (value == options.IndexOf(makeNextWaypointRow))
                 {
                     onWaypointReorder(waypoint, 1);
+                }
+
+                if (value == options.IndexOf(insertWaypointAbove))
+                {
+                    WaypointPicker.Shared.StartInsertingWaypoint(beforeWaypoint: waypoint);
+                }
+
+                if (value == options.IndexOf(adjustWaypointRow))
+                {
+                    WaypointPicker.Shared.StartAdjustingWaypoint(waypoint, onWaypointChange);
                 }
 
                 if (value == options.IndexOf(editNameAndNotesRow))

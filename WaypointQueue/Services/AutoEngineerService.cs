@@ -17,6 +17,12 @@ namespace WaypointQueue.Services
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
+        public void SendToWaypoint(Car loco, Location location, string coupleToCarId = null)
+        {
+            var ordersHelper = GetOrdersHelper(loco);
+            SendToWaypoint(ordersHelper, location, coupleToCarId);
+        }
+
         public AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
         {
             Type plannerType = typeof(AutoEngineerPlanner);
@@ -43,6 +49,19 @@ namespace WaypointQueue.Services
             {
                 ordersHelper.ClearWaypoint();
             }
+        }
+
+        public Location? GetCurrentOrdersGotoLocation(Car loco)
+        {
+            var ordersHelper = GetOrdersHelper(loco);
+            OrderWaypoint? waypoint = ordersHelper.Orders.Waypoint;
+            if (waypoint.HasValue)
+            {
+                OrderWaypoint valueOrDefault = waypoint.GetValueOrDefault();
+                return Graph.Shared.ResolveLocationString(valueOrDefault.LocationString);
+            }
+
+            return null;
         }
 
         public bool HasActiveWaypoint(AutoEngineerOrdersHelper ordersHelper)

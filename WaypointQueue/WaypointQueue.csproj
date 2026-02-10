@@ -142,6 +142,7 @@
     <Compile Include="ServiceProvider.cs" />
     <Compile Include="Services\ICarService.cs" />
     <Compile Include="UI\ErrorModalController.cs" />
+    <Compile Include="UI\WaypointPicker.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />
     <Compile Include="CarUtils.cs" />
