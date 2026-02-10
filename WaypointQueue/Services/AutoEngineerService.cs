@@ -51,17 +51,18 @@ namespace WaypointQueue.Services
             }
         }
 
-        public Location? GetCurrentOrdersGotoLocation(Car loco)
+        public (Location? location, string coupleToCarId) GetCurrentOrderWaypoint(Car loco)
         {
             var ordersHelper = GetOrdersHelper(loco);
             OrderWaypoint? waypoint = ordersHelper.Orders.Waypoint;
             if (waypoint.HasValue)
             {
                 OrderWaypoint valueOrDefault = waypoint.GetValueOrDefault();
-                return Graph.Shared.ResolveLocationString(valueOrDefault.LocationString);
+                Location resolvedLocation = Graph.Shared.ResolveLocationString(valueOrDefault.LocationString);
+                return (resolvedLocation, valueOrDefault.CoupleToCarId);
             }
 
-            return null;
+            return (null, "");
         }
 
         public bool HasActiveWaypoint(AutoEngineerOrdersHelper ordersHelper)

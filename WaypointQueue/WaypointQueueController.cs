@@ -444,7 +444,9 @@ namespace WaypointQueue
                         state.UnresolvedWaypoint = updatedWaypoint;
                     }
 
-                    if (_autoEngineerService.GetCurrentOrdersGotoLocation(updatedWaypoint.Locomotive) != updatedWaypoint.Location)
+                    (Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
+
+                    if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
                     {
                         updatedWaypoint.StatusLabel = "Running to waypoint";
                         var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);

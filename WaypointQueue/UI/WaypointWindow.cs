@@ -500,6 +500,7 @@ namespace WaypointQueue.UI
             var makeNextWaypointRow = new DropdownMenu.RowData("Make next waypoint", "Moves this waypoint to after current waypoint");
             var insertWaypointAbove = new DropdownMenu.RowData("Insert waypoint above", "");
             var adjustWaypointRow = new DropdownMenu.RowData("Adjust waypoint", "");
+            var removeCouplingRow = new DropdownMenu.RowData("Remove coupling", "");
             var editNameAndNotesRow = new DropdownMenu.RowData("Edit name and notes", "");
             var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
             var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
@@ -515,6 +516,10 @@ namespace WaypointQueue.UI
 
             options.Add(editNameAndNotesRow);
 
+            if (!String.IsNullOrEmpty(waypoint.CoupleToCarId))
+            {
+                options.Add(removeCouplingRow);
+            }
             if (waypoint.WillWait)
             {
                 options.Add(removeWaitRow);
@@ -541,6 +546,12 @@ namespace WaypointQueue.UI
                 if (value == options.IndexOf(adjustWaypointRow))
                 {
                     WaypointPicker.Shared.StartAdjustingWaypoint(waypoint, onWaypointChange);
+                }
+
+                if (value == options.IndexOf(removeCouplingRow))
+                {
+                    waypoint.ClearCoupling();
+                    onWaypointChange(waypoint);
                 }
 
                 if (value == options.IndexOf(editNameAndNotesRow))

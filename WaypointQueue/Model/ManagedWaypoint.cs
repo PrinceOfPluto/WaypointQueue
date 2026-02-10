@@ -549,6 +549,13 @@ namespace WaypointQueue
             RefuelIndustryId = null;
         }
 
+        public void ClearCoupling()
+        {
+            CoupleToCarId = null;
+            CoupleToCar = null;
+            PostCouplingCutMode = PostCoupleCutType.None;
+        }
+
         public void OverwriteLocation(Location loc)
         {
             Location clampedLocation = loc.Clamped();
