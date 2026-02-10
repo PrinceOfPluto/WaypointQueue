@@ -151,11 +151,20 @@ namespace WaypointQueue.UI
             _locomotive = null;
             _onWaypointChange = null;
             _onWaypointSelected = null;
+            _waypointMarker.gameObject.SetActive(value: false);
             StopLoop();
         }
 
         private bool DidEscape()
         {
+            if (_onWaypointChange != null)
+            {
+                ShowMessage("Cancelled waypoint adjustment");
+            }
+            else
+            {
+                ShowMessage("Cancelled waypoint insert");
+            }
             Cancel();
             return true;
         }
