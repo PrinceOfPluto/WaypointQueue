@@ -542,6 +542,13 @@ namespace WaypointQueue
             WaitUntilGameTotalSeconds = 0;
         }
 
+        public void ClearRefueling()
+        {
+            WillRefuel = false;
+            RefuelLoadName = null;
+            RefuelIndustryId = null;
+        }
+
         public void OverwriteLocation(Location loc)
         {
             Location clampedLocation = loc.Clamped();

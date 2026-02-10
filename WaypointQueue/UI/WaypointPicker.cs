@@ -9,6 +9,7 @@ using UI;
 using UI.Common;
 using UnityEngine;
 using UnityEngine.Pool;
+using WaypointQueue.Services;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
@@ -32,6 +33,8 @@ namespace WaypointQueue.UI
 
         private Action<Location, string> _onWaypointSelected;
 
+        private RefuelService _refuelService;
+
         private static WaypointPicker _shared;
         public static WaypointPicker Shared
         {
@@ -44,6 +47,11 @@ namespace WaypointQueue.UI
 
                 return _shared;
             }
+        }
+
+        private void Awake()
+        {
+            _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
         }
 
         private void InitWaypointMarker()
@@ -125,6 +133,10 @@ namespace WaypointQueue.UI
         {
             _waypoint.OverwriteLocation(newLocation);
             _waypoint.CoupleToCarId = newCoupleToCarId;
+
+            _waypoint.ClearRefueling();
+            _refuelService.CheckNearbyFuelLoaders(_waypoint);
+
             _onWaypointChange(_waypoint);
         }
 
