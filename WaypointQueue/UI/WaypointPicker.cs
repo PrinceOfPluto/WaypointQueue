@@ -131,6 +131,11 @@ namespace WaypointQueue.UI
 
         private void AdjustWaypoint(Location newLocation, string newCoupleToCarId)
         {
+            if (!String.IsNullOrEmpty(newCoupleToCarId))
+            {
+                _waypoint.ClearCoupling();
+            }
+
             _waypoint.OverwriteLocation(newLocation);
             _waypoint.CoupleToCarId = newCoupleToCarId;
 
