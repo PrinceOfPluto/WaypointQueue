@@ -236,7 +236,7 @@ namespace WaypointQueue.UI
                 TrainController shared = TrainController.Shared;
                 Vector3 position = Graph.Shared.GetPosition(valueOrDefault);
                 float num = 2f;
-                Hit? result = null;
+                Hit? result = new Hit(valueOrDefault, null);
                 HashSet<Car> value;
                 using (CollectionPool<HashSet<Car>, Car>.Get(out value))
                 {
