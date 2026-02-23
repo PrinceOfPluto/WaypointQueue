@@ -442,15 +442,15 @@ namespace WaypointQueue
                     {
                         Loader.LogDebug($"Updated unresolved waypoint");
                         state.UnresolvedWaypoint = updatedWaypoint;
-                    }
 
-                    (Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
+                        (Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
 
-                    if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
-                    {
-                        updatedWaypoint.StatusLabel = "Running to waypoint";
-                        var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
-                        _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
+                        if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
+                        {
+                            updatedWaypoint.StatusLabel = "Running to waypoint";
+                            var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
+                            _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
+                        }
                     }
 
                     Loader.LogDebug($"Invoking WaypointDidUpdate in UpdateWaypoint");
