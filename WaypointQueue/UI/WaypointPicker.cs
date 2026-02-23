@@ -25,6 +25,7 @@ namespace WaypointQueue.UI
 
         private ManagedWaypoint _waypoint;
         private Car _locomotive;
+        private HashSet<Car> _dontSnapToCars;
         private Action<ManagedWaypoint> _onWaypointChange;
         private Coroutine _coroutine;
 
@@ -87,6 +88,7 @@ namespace WaypointQueue.UI
             _waypoint = waypoint;
             _onWaypointChange = onWaypointChange;
             _onWaypointSelected = AdjustWaypoint;
+            _dontSnapToCars = [.. waypoint.Locomotive.EnumerateCoupled()];
 
             if (_coroutine != null)
             {
@@ -111,6 +113,7 @@ namespace WaypointQueue.UI
 
             _waypoint = beforeWaypoint;
             _locomotive = beforeWaypoint.Locomotive;
+            _dontSnapToCars = [.. _locomotive.EnumerateCoupled()];
             _onWaypointSelected = HandleAddNewWaypoint;
 
             if (_coroutine != null)
@@ -240,6 +243,11 @@ namespace WaypointQueue.UI
                     shared.CheckForCarsAtPoint(position, 2f, value, valueOrDefault);
                     foreach (Car item in value)
                     {
+                        if (_dontSnapToCars.Contains(item))
+                        {
+                            continue;
+                        }
+
                         if (!item[item.EndToLogical(Car.End.F)].IsCoupled)
                         {
                             Location location2 = Graph.Shared.LocationByMoving(item.LocationF, 0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
