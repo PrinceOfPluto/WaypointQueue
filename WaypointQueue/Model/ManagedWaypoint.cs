@@ -553,6 +553,8 @@ namespace WaypointQueue
         {
             CoupleToCarId = null;
             CoupleToCar = null;
+            CouplingSearchMode = CoupleSearchMode.None;
+            CouplingSearchText = String.Empty;
             PostCouplingCutMode = PostCoupleCutType.None;
         }
 
