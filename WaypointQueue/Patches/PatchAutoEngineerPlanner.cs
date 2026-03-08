@@ -85,8 +85,9 @@ namespace WaypointQueue
                         GraphRouteSearchExtension.TryFindDistance(Graph.Shared, closestTrainEnd, waypointState.UnresolvedWaypoint.Location, out float totalDistance, out float traverseTimeSeconds);
 
                         Targets.Target t = updatedTargets[indexOfWaypoint];
-                        if (Mathf.Abs(totalDistance - t.Distance) < 5f)
+                        if (Mathf.Abs(totalDistance - t.Distance) < 10f)
                         {
+                            //Loader.LogDebug($"Updating AE target {signedSpeedToSet}mph @ {t.Distance} for reason {t.Reason}");
                             updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
                         }
                     }
