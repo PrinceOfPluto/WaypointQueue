@@ -18,6 +18,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
+using WaypointQueue.State;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
@@ -58,19 +59,17 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
-            WaypointQueueController.LocoWaypointStateDidUpdate += OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate += OnWaypointDidUpdate;
             WaypointResolver.WaypointForLocoIdDidError += OnLocoWaypointStateDidUpdate;
         }
 
         protected void OnDisable()
         {
-            WaypointQueueController.LocoWaypointStateDidUpdate -= OnLocoWaypointStateDidUpdate;
             WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;
             WaypointResolver.WaypointForLocoIdDidError -= OnLocoWaypointStateDidUpdate;
         }
 
-        private void OnLocoWaypointStateDidUpdate(string id)
+        internal void OnLocoWaypointStateDidUpdate(string id)
         {
             if (id == TrainController.Shared.SelectedLocomotive?.id)
             {
@@ -197,7 +196,7 @@ namespace WaypointQueue.UI
                     return;
                 }
 
-                LocoWaypointState locoWaypointState = WaypointQueueController.Shared.GetOrAddLocoWaypointState(selectedLocomotive);
+                LocoWaypointState locoWaypointState = ModStateManager.Shared.GetLocoWaypointState(selectedLocomotive);
                 List<ManagedWaypoint> waypointList = locoWaypointState.Waypoints;
 
                 if (waypointList == null || waypointList.Count == 0)
@@ -274,7 +273,7 @@ namespace WaypointQueue.UI
                 {
                     if (b)
                     {
-                        WaypointQueueController.Shared.ClearWaypointState(selectedLocomotive.id);
+                        ModStateManager.Shared.RemoveLocoWaypointState(selectedLocomotive.id);
                     }
                 });
         }

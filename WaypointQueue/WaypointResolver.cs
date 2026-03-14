@@ -104,6 +104,7 @@ namespace WaypointQueue
                     else
                     {
                         wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                        WaypointQueueController.Shared.UpdateWaypoint(wp);
                         Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                     }
                 }
@@ -162,6 +163,7 @@ namespace WaypointQueue
                 else
                 {
                     wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
                     Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                 }
             }
@@ -237,8 +239,6 @@ namespace WaypointQueue
 
             if (TryBeginWaiting(wp))
             {
-                wp.StatusLabel = "Waiting before continuing";
-                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
 
@@ -321,6 +321,7 @@ namespace WaypointQueue
             {
                 Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
                 wp.ClearWaiting();
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
             }
             //Loader.LogDebug($"Loco {wp.Locomotive.Ident} still waiting");
@@ -337,6 +338,7 @@ namespace WaypointQueue
             if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
                 GameDateTime waitUntilTime = TimeWeather.Now.AddingMinutes(wp.WaitForDurationMinutes);
+                wp.StatusLabel = "Waiting before continuing";
                 wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
                 wp.CurrentlyWaiting = true;
                 Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
@@ -353,6 +355,7 @@ namespace WaypointQueue
                 if (TimetableReader.TryParseTime(wp.WaitUntilTimeString, out TimetableTime time))
                 {
                     wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
+                    wp.StatusLabel = "Waiting before continuing";
                     wp.CurrentlyWaiting = true;
                     Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
@@ -388,6 +391,7 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
+                WaypointQueueController.Shared.UpdateWaypoint(waypoint);
                 throw new WaypointProcessingException($"{waypoint.Locomotive.Ident} cannot fit train past the waypoint", waypoint, e);
             }
 

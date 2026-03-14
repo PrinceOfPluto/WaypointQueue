@@ -5,6 +5,7 @@ using UI.Builder;
 using UI.Common;
 using UnityEngine;
 using UnityEngine.UI;
+using WaypointQueue.State;
 using WaypointQueue.UUM;
 
 
@@ -268,7 +269,8 @@ namespace WaypointQueue.UI
             var loco = TrainController.Shared.SelectedLocomotive;
             if (loco == null) return;
 
-            var list = WaypointQueueController.Shared.GetWaypointList(loco);
+            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco);
+            List<ManagedWaypoint> list = state.Waypoints;
 
             route.Waypoints.Clear();
 
@@ -295,7 +297,8 @@ namespace WaypointQueue.UI
             var loco = TrainController.Shared.SelectedLocomotive;
             if (loco == null || route == null) return;
 
-            var list = WaypointQueueController.Shared.GetWaypointList(loco);
+            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco);
+            List<ManagedWaypoint> list = state.Waypoints;
             if (list == null || list.Count == 0) return;
 
             foreach (var mw in list)

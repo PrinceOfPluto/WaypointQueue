@@ -9,6 +9,7 @@ using Track.Search;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.Services;
+using WaypointQueue.State;
 using WaypointQueue.UUM;
 using static Model.AI.AutoEngineer;
 
@@ -38,7 +39,9 @@ namespace WaypointQueue
                     return;
                 }
 
-                if (!WaypointQueueController.Shared.WaypointStateMap.TryGetValue(loco.id, out LocoWaypointState waypointState) || !waypointState.HasAnyWaypoints() || waypointState.UnresolvedWaypoint == null)
+                LocoWaypointState waypointState = ModStateManager.Shared.GetLocoWaypointState(loco);
+
+                if (!waypointState.HasAnyWaypoints() || waypointState.UnresolvedWaypoint == null)
                 {
                     Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
                     return;

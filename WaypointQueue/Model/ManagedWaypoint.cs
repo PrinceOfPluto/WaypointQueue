@@ -21,7 +21,7 @@ namespace WaypointQueue
 
         public int? Version { get; set; }
 
-        public ManagedWaypoint(Car locomotive, Location location, string coupleToCarId = "")
+        public ManagedWaypoint(BaseLocomotive locomotive, Location location, string coupleToCarId = "")
         {
             Version = 1;
             Locomotive = locomotive;
@@ -89,7 +89,7 @@ namespace WaypointQueue
         public string LocomotiveId { get; private set; }
 
         [JsonIgnore]
-        public virtual Car Locomotive { get; private set; }
+        public virtual BaseLocomotive Locomotive { get; private set; }
 
         [JsonProperty]
         public string LocationString { get; private set; }
@@ -357,7 +357,7 @@ namespace WaypointQueue
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
                 Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
-                Locomotive = loco;
+                Locomotive = (BaseLocomotive)loco;
             }
             else
             {
@@ -565,7 +565,7 @@ namespace WaypointQueue
             LocationString = Graph.Shared.LocationToString(clampedLocation);
         }
 
-        public bool TryCopyForRoute(out ManagedWaypoint copy, Car loco = null)
+        public bool TryCopyForRoute(out ManagedWaypoint copy, BaseLocomotive loco = null)
         {
             if (IsValid())
             {

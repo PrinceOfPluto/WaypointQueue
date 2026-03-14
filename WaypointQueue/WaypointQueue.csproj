@@ -138,9 +138,15 @@
     <Compile Include="Model\WaypointError.cs" />
     <Compile Include="Model\WaypointProcessingException.cs" />
     <Compile Include="Model\QueueTickException.cs" />
+    <Compile Include="Patches\PatchEquipmentWindow.cs" />
+    <Compile Include="Patches\PatchPopulateCarPanel.cs" />
+    <Compile Include="Patches\PatchStateManager.cs" />
     <Compile Include="Patches\PatchTrainController.cs" />
     <Compile Include="ServiceProvider.cs" />
     <Compile Include="Services\ICarService.cs" />
+    <Compile Include="State\Messages\SetWaypointMessage.cs" />
+    <Compile Include="State\WaypointModStorage.cs" />
+    <Compile Include="State\ModStateManager.cs" />
     <Compile Include="UI\ErrorModalController.cs" />
     <Compile Include="UI\WaypointPicker.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />

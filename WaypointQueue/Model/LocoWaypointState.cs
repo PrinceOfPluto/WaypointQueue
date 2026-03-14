@@ -13,7 +13,7 @@ namespace WaypointQueue
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
 
         [JsonIgnore]
-        public Car Locomotive { get; private set; }
+        public BaseLocomotive Locomotive { get; private set; }
 
         public bool HasAnyWaypoints()
         {
@@ -23,10 +23,10 @@ namespace WaypointQueue
         public bool TryResolveLocomotive(out Car loco)
         {
             // loco is null if false
-            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
+            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco) && loco is BaseLocomotive)
             {
                 Loader.LogDebug($"Loaded locomotive {loco.Ident} for LocoWaypointState");
-                Locomotive = loco;
+                Locomotive = (BaseLocomotive)loco;
             }
             else
             {
@@ -35,7 +35,7 @@ namespace WaypointQueue
             return loco != null;
         }
 
-        public LocoWaypointState(Car loco)
+        public LocoWaypointState(BaseLocomotive loco)
         {
             LocomotiveId = loco.id;
             Locomotive = loco;

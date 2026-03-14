@@ -6,6 +6,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
 using WaypointQueue.Services;
+using WaypointQueue.State;
 using WaypointQueue.UI;
 using WaypointQueue.Wrappers;
 
@@ -59,6 +60,7 @@ namespace WaypointQueue.UUM
                 waypointQueueGO.AddComponent<WaypointCarPicker>();
                 waypointQueueGO.AddComponent<ErrorModalController>();
                 waypointQueueGO.AddComponent<WaypointPicker>();
+                waypointQueueGO.AddComponent<ModStateManager>();
                 UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
 
                 if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null))

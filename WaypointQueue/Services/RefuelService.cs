@@ -1,4 +1,6 @@
-﻿using Helpers;
+﻿using Game.Messages;
+using Game.State;
+using Helpers;
 using Model;
 using Model.Definition;
 using Model.Definition.Data;
@@ -333,7 +335,7 @@ namespace WaypointQueue.Services
             CarLoaderSequencer sequencer = _carLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
             if (sequencer != null)
             {
-                sequencer.keyValueObject[sequencer.readWantsLoadingKey] = value;
+                StateManager.ApplyLocal(new PropertyChange(sequencer.keyValueObject.RegisteredId, sequencer.readWantsLoadingKey, new BoolPropertyValue(false)));
             }
             else
             {
