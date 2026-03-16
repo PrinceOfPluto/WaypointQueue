@@ -33,6 +33,8 @@ namespace WaypointQueue.UI
         private Transform _waypointMarker;
 
         private Action<Location, string> _onWaypointSelected;
+        private Action<ManagedWaypoint, string> _onWaypointInsert;
+        private bool _forRoute;
 
         private RefuelService _refuelService;
 
@@ -75,7 +77,7 @@ namespace WaypointQueue.UI
             }
         }
 
-        public void StartAdjustingWaypoint(ManagedWaypoint waypoint, Action<ManagedWaypoint> onWaypointChange)
+        public void StartAdjustingWaypoint(ManagedWaypoint waypoint, Action<ManagedWaypoint> onWaypointChange, bool forRoute = false)
         {
             if (_waypointMarker == null)
             {
@@ -88,7 +90,13 @@ namespace WaypointQueue.UI
             _waypoint = waypoint;
             _onWaypointChange = onWaypointChange;
             _onWaypointSelected = AdjustWaypoint;
-            _dontSnapToCars = [.. waypoint.Locomotive.EnumerateCoupled()];
+            _forRoute = forRoute;
+
+            _dontSnapToCars = [];
+            if (!forRoute)
+            {
+                _dontSnapToCars = [.. waypoint.Locomotive.EnumerateCoupled()];
+            }
 
             if (_coroutine != null)
             {
@@ -96,12 +104,18 @@ namespace WaypointQueue.UI
             }
 
             _coroutine = StartCoroutine(Loop());
-            ShowMessage("Click to move waypoint for " + waypoint.Locomotive.Ident);
+
+            string message = "Click to move waypoint for route";
+            if (!forRoute)
+            {
+                message = "Click to move waypoint for " + waypoint.Locomotive.Ident;
+            }
+            ShowMessage(message);
 
             GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
         }
 
-        public void StartInsertingWaypoint(ManagedWaypoint beforeWaypoint)
+        public void StartInsertingWaypoint(ManagedWaypoint beforeWaypoint, Action<ManagedWaypoint, string> onWaypointInsert, bool forRoute = false)
         {
             if (_waypointMarker == null)
             {
@@ -112,9 +126,15 @@ namespace WaypointQueue.UI
             Cancel();
 
             _waypoint = beforeWaypoint;
-            _locomotive = beforeWaypoint.Locomotive;
-            _dontSnapToCars = [.. _locomotive.EnumerateCoupled()];
             _onWaypointSelected = HandleAddNewWaypoint;
+            _onWaypointInsert = onWaypointInsert;
+            _forRoute = forRoute;
+
+            if (!forRoute)
+            {
+                _locomotive = beforeWaypoint.Locomotive;
+                _dontSnapToCars = [.. beforeWaypoint.Locomotive.EnumerateCoupled()];
+            }
 
             if (_coroutine != null)
             {
@@ -122,7 +142,13 @@ namespace WaypointQueue.UI
             }
 
             _coroutine = StartCoroutine(Loop());
-            ShowMessage("Click to insert a waypoint for " + beforeWaypoint.Locomotive.Ident);
+
+            string message = "Click to insert a waypoint for route";
+            if (!forRoute)
+            {
+                message = "Click to insert a waypoint for " + beforeWaypoint.Locomotive.Ident;
+            }
+            ShowMessage(message);
 
             GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
         }
@@ -143,22 +169,29 @@ namespace WaypointQueue.UI
             _waypoint.CoupleToCarId = newCoupleToCarId;
 
             _waypoint.ClearRefueling();
-            _refuelService.CheckNearbyFuelLoaders(_waypoint);
+
+            if (!_forRoute)
+            {
+                _refuelService.CheckNearbyFuelLoaders(_waypoint);
+            }
 
             _onWaypointChange(_waypoint);
         }
 
         private void HandleAddNewWaypoint(Location location, string coupleToCarId)
         {
-            WaypointQueueController.Shared.InsertWaypoint((BaseLocomotive)_locomotive, location, coupleToCarId, _waypoint.Id);
+            ManagedWaypoint insertedWaypoint = new ManagedWaypoint((BaseLocomotive)_locomotive, location, coupleToCarId);
+            _onWaypointInsert(insertedWaypoint, _waypoint.Id);
         }
 
         public void Cancel()
         {
             _waypoint = null;
             _locomotive = null;
+            _forRoute = false;
             _onWaypointChange = null;
             _onWaypointSelected = null;
+            _onWaypointInsert = null;
             _waypointMarker.gameObject.SetActive(value: false);
             StopLoop();
         }

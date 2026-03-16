@@ -242,7 +242,7 @@ namespace WaypointQueue.UI
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder);
+                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
                     builder.Spacer(20f);
                 }
             });
@@ -262,6 +262,11 @@ namespace WaypointQueue.UI
         private void OnWaypointReorder(ManagedWaypoint waypoint, int newIndex)
         {
             WaypointQueueController.Shared.ReorderWaypoint(waypoint, newIndex);
+        }
+
+        private void OnWaypointInsert(ManagedWaypoint waypoint, string beforeWaypointId)
+        {
+            WaypointQueueController.Shared.InsertWaypoint(waypoint.Locomotive, waypoint.Location, waypoint.CoupleToCarId, beforeWaypointId);
         }
 
         private void PresentDeleteAllModal(BaseLocomotive selectedLocomotive)
@@ -287,7 +292,8 @@ namespace WaypointQueue.UI
             Action<ManagedWaypoint> onWaypointChange,
             Action<ManagedWaypoint> onWaypointDelete,
             Action<ManagedWaypoint, int> onWaypointReorder,
-            bool isRouteWindow = false)
+            Action<ManagedWaypoint, string> onWaypointInsert,
+            bool isRouteWindow)
         {
             parentBuilder.VStack(builder =>
             {
@@ -298,7 +304,7 @@ namespace WaypointQueue.UI
                 builder.Spacer(16f);
                 builder.HStack(delegate (UIPanelBuilder builder)
                 {
-                    BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, builder);
+                    BuildWaypointItemHeader(waypoint, index, totalWaypoints, onWaypointChange, onWaypointDelete, onWaypointReorder, onWaypointInsert, builder, isRouteWindow);
                 });
 
                 if (index == 0 && !isRouteWindow)
@@ -461,7 +467,7 @@ namespace WaypointQueue.UI
             }));
         }
 
-        private void BuildWaypointItemHeader(ManagedWaypoint waypoint, int index, int totalWaypoints, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, UIPanelBuilder builder)
+        private void BuildWaypointItemHeader(ManagedWaypoint waypoint, int index, int totalWaypoints, Action<ManagedWaypoint> onWaypointChange, Action<ManagedWaypoint> onWaypointDelete, Action<ManagedWaypoint, int> onWaypointReorder, Action<ManagedWaypoint, string> onWaypointInsert, UIPanelBuilder builder, bool isRouteWindow)
         {
             string waypointName = string.IsNullOrEmpty(waypoint.Name) ? string.Empty : $" - {waypoint.Name}";
             builder.AddLabel($"Waypoint {index + 1}{waypointName}");
@@ -540,12 +546,12 @@ namespace WaypointQueue.UI
 
                 if (value == options.IndexOf(insertWaypointAbove))
                 {
-                    WaypointPicker.Shared.StartInsertingWaypoint(beforeWaypoint: waypoint);
+                    WaypointPicker.Shared.StartInsertingWaypoint(beforeWaypoint: waypoint, onWaypointInsert: onWaypointInsert, isRouteWindow);
                 }
 
                 if (value == options.IndexOf(adjustWaypointRow))
                 {
-                    WaypointPicker.Shared.StartAdjustingWaypoint(waypoint, onWaypointChange);
+                    WaypointPicker.Shared.StartAdjustingWaypoint(waypoint, onWaypointChange, isRouteWindow);
                 }
 
                 if (value == options.IndexOf(removeCouplingRow))

@@ -77,5 +77,19 @@ namespace WaypointQueue
             }
             StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
         }
+
+        public static void InsertWaypointInRoute(ManagedWaypoint waypoint, string beforeWaypointId, string routeId)
+        {
+            if (!Routes.ContainsKey(routeId))
+            {
+                return;
+            }
+
+            RouteDefinition route = Routes[routeId];
+            int beforeWaypointIndex = route.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
+            route.Waypoints.Insert(beforeWaypointIndex, waypoint);
+
+            StateManager.ApplyLocal(new UpdateRouteMessage(routeId, route));
+        }
     }
 }

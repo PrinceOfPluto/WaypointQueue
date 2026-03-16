@@ -27,7 +27,7 @@ namespace WaypointQueue
         public ManagedWaypoint(BaseLocomotive locomotive, Location location, string coupleToCarId = "")
         {
             Version = 1;
-            LocomotiveId = locomotive.id;
+            LocomotiveId = locomotive?.id ?? null;
             LocationString = Graph.Shared.LocationToString(location);
             CoupleToCarId = coupleToCarId;
             ConnectAirOnCouple = Loader.Settings.ConnectAirByDefault;

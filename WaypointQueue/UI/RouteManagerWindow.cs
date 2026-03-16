@@ -261,6 +261,10 @@ namespace WaypointQueue.UI
              {
                  RouteRegistry.ReorderWaypointInRoute(route, waypoint, newIndex);
              },
+             onWaypointInsert: (ManagedWaypoint waypoint, string beforeWaypointId) =>
+             {
+                 RouteRegistry.InsertWaypointInRoute(waypoint, beforeWaypointId, route.Id);
+             },
              isRouteWindow: true);
         }
 
