@@ -1,47 +1,44 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
+using Game;
 using Game.Events;
 using Game.Messages;
 using Game.State;
+using HarmonyLib;
 using KeyValue.Runtime;
 using Model;
 using Network;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UI.Common;
 using UnityEngine;
 using WaypointQueue.Services;
-using WaypointQueue.UI;
+using WaypointQueue.State.Events;
+using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.State
 {
+    [HarmonyPatch]
     internal class ModStateManager : MonoBehaviour
     {
         public static ModStateManager Shared { get; private set; }
 
         private WaypointModStorage _waypointModStorage;
 
-        private readonly HashSet<IDisposable> _observers = [];
+        private readonly Dictionary<string, LocoWaypointState> _locoWaypointStates = [];
+        private readonly Dictionary<string, RouteDefinition> _routes = [];
+        private readonly Dictionary<string, RouteAssignment> _routeAssignments = [];
 
-        private readonly Dictionary<string, LocoWaypointState> _waypointStateByLocoId = [];
-        private readonly Dictionary<string, IDisposable> _observersByLocoId = [];
-        private readonly Dictionary<string, IDisposable> _keyObserversByLocoId = [];
-        private readonly HashSet<string> _activeQueueLocoIds = [];
+        public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _locoWaypointStates;
 
-        public IReadOnlyCollection<string> LocoIdsWithActiveWaypointQueues => _waypointStateByLocoId.Keys;
-        public IReadOnlyCollection<LocoWaypointState> ActiveWaypointQueues => _waypointStateByLocoId.Values;
+        public IReadOnlyDictionary<string, RouteDefinition> Routes => _routes;
 
-        private readonly List<RouteDefinition> _routes;
-        private readonly List<RouteAssignment> _routeAssignments;
+        public IReadOnlyDictionary<string, RouteAssignment> RouteAssignments => _routeAssignments;
 
         private WaypointResolver _waypointResolver;
         private RefuelService _refuelService;
-        private ICarService _carService;
         private AutoEngineerService _autoEngineerService;
-
-        public readonly string KeyLocoWaypointQueueState = "waypointqueuemod.state";
 
         private void OnEnable()
         {
@@ -53,7 +50,6 @@ namespace WaypointQueue.State
             Messenger.Default.Register<PropertiesDidRestore>(this, OnPropertiesDidRestore);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
-            _carService = Loader.ServiceProvider.GetService<ICarService>();
             _autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
         }
 
@@ -76,19 +72,6 @@ namespace WaypointQueue.State
         private void OnMapWillUnload(MapWillUnloadEvent mapWillUnloadEvent)
         {
             Loader.LogDebug($"ModStateManager: Map will unload.");
-            foreach (IDisposable observer in _observers)
-            {
-                observer.Dispose();
-            }
-
-            foreach (IDisposable observer in _observersByLocoId.Values)
-            {
-                observer.Dispose();
-            }
-
-            _observers.Clear();
-            _observersByLocoId.Clear();
-            _waypointStateByLocoId.Clear();
         }
 
         private void OnMapDidUnload(MapDidUnloadEvent mapDidUnloadEvent)
@@ -100,33 +83,18 @@ namespace WaypointQueue.State
         {
             _refuelService.RebuildCollections();
 
-            foreach (BaseLocomotive loco in TrainController.Shared.Cars.Where(c => c is BaseLocomotive).Cast<BaseLocomotive>())
-            {
-                RegisterObserversForLoco(loco);
-            }
-
-            _observers.Add(_waypointModStorage.ObserveRoutes(delegate (List<RouteDefinition> routes)
-            {
-                Loader.Log($"Observed Routes update");
-                RouteRegistry.ReplaceAll(routes);
-            }, initial: true));
-
-            _observers.Add(_waypointModStorage.ObserveRouteAssignments(delegate (Dictionary<string, RouteAssignment> routeAssignments)
-            {
-                Loader.Log($"Observed Route Assignment update");
-                RouteAssignmentRegistry.ReplaceAll(routeAssignments.Values);
-            }, initial: true));
-
             using (StateManager.TransactionScope())
             {
                 if (Multiplayer.IsHost)
                 {
                     // If there is no loaded data at this point, check if old save data needs to be migrated
-                    if (_waypointStateByLocoId.Count == 0 && RouteAssignmentRegistry.All().Count == 0 && RouteRegistry.Routes.Count == 0)
+                    if (_waypointModStorage.LocoWaypointStates.Count == 0 && _waypointModStorage.Routes.Count == 0 && _waypointModStorage.RouteAssignments.Count == 0)
                     {
-                        MigrateSaveState();
+                        MigrateSaveDataFromJson();
+                        RuntimeToStorage();
                     }
                 }
+                StorageToRuntime();
 
                 RouteRegistry.LoadWaypointsForRoutes();
                 HydrateLocoWaypointStates();
@@ -135,83 +103,44 @@ namespace WaypointQueue.State
             WaypointQueueController.Shared.RestartCoroutine();
         }
 
-        internal void RegisterObserversForLoco(BaseLocomotive loco, bool initial = false)
+        [HarmonyPatch(typeof(StateManager), nameof(StateManager.PopulateSnapshotForSave))]
+        [HarmonyPrefix]
+        static bool PrefixPopulateSnapshotForSave()
         {
-            // Observe when a queue gets added or removed from a locomotive
-            _keyObserversByLocoId.Add(loco.id, loco.KeyValueObject.ObserveKeyChanges((string key, KeyChange keyChange) =>
-            {
-                if (key == _waypointModStorage.KeyLocoWaypointState && keyChange == KeyChange.Add)
-                {
-                    if (keyChange == KeyChange.Add)
-                    {
-                        // When a waypoint queue gets added to this loco, start observing
-                        _observersByLocoId[loco.id] = loco.KeyValueObject.Observe(_waypointModStorage.KeyLocoWaypointState, OnLocoWaypointStatePropertyChange(loco), callInitial: true);
-                    }
-                    else
-                    {
-                        HandleWaypointStateDelete(loco.id);
-                    }
-                }
-            }));
+            // Write runtime objects to properties for save
+            Shared.RuntimeToStorage();
+            return true;
+        }
 
-            bool locoHasWaypointQueue = loco.KeyValueObject.Keys.Contains(_waypointModStorage.KeyLocoWaypointState) && !loco.KeyValueObject[_waypointModStorage.KeyLocoWaypointState].IsNull;
-            if (locoHasWaypointQueue)
+        private void StorageToRuntime()
+        {
+            Loader.Log($"Loading storage data for runtime");
+            _locoWaypointStates.Clear();
+            foreach (var state in _waypointModStorage.LocoWaypointStates.Values)
             {
-                _observersByLocoId[loco.id] = loco.KeyValueObject.Observe(_waypointModStorage.KeyLocoWaypointState, OnLocoWaypointStatePropertyChange(loco), callInitial: true);
+                _locoWaypointStates.Add(state.LocomotiveId, state);
+            }
+
+            _routeAssignments.Clear();
+            foreach (var routeAssignment in _waypointModStorage.RouteAssignments.Values)
+            {
+                _routeAssignments.Add(routeAssignment.LocoId, routeAssignment);
+            }
+
+            _routes.Clear();
+            foreach (var route in _waypointModStorage.Routes)
+            {
+                _routes.Add(route.Id, route);
             }
         }
 
-        private Action<Value> OnLocoWaypointStatePropertyChange(BaseLocomotive loco)
+        private void RuntimeToStorage()
         {
-            void handler(Value value)
-            {
-                Loader.LogDebug($"Observed update to waypoint state of {loco.Ident} with id {loco.id}");
-                LocoWaypointState newState = JsonConvert.DeserializeObject<LocoWaypointState>(value);
-                if (_waypointStateByLocoId.ContainsKey(loco.id))
-                {
-                    LocoWaypointState oldState = _waypointStateByLocoId[loco.id];
-                    HandleWaypointStateChange(oldState, newState);
-                }
-                _waypointStateByLocoId[loco.id] = newState;
-                WaypointWindow.Shared.OnLocoWaypointStateDidUpdate(loco.id);
-            }
-            return handler;
-        }
-
-        private void HandleWaypointStateDelete(string locoId)
-        {
-            if (Multiplayer.IsHost && _waypointStateByLocoId.TryGetValue(locoId, out LocoWaypointState oldState))
-            {
-                using (StateManager.TransactionScope())
-                {
-                    if (oldState.UnresolvedWaypoint != null)
-                    {
-                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                    }
-                    _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
-                }
-            }
-
-            _waypointStateByLocoId.Remove(locoId);
-            _observersByLocoId[locoId].Dispose();
-            _observersByLocoId.Remove(locoId);
-        }
-
-        private void HandleWaypointStateChange(LocoWaypointState oldState, LocoWaypointState newState)
-        {
-            if (!Multiplayer.IsHost)
-            {
-                return;
-            }
-
-            using (StateManager.TransactionScope())
-            {
-                if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.Waypoints[0].Id)
-                {
-                    _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                    WaypointQueueController.Shared.SendToWaypointFromQueue(newState.Waypoints[0], _autoEngineerService.GetOrdersHelper(newState.Locomotive));
-                }
-            }
+            Loader.Log($"Writing runtime data to storage");
+            _waypointModStorage.Version = "1";
+            _waypointModStorage.LocoWaypointStates = _locoWaypointStates;
+            _waypointModStorage.Routes = [.. _routes.Values];
+            _waypointModStorage.RouteAssignments = _routeAssignments;
         }
 
         private void PrepareWaypointModKeyValueObject()
@@ -227,51 +156,237 @@ namespace WaypointQueue.State
             _waypointModStorage = null;
         }
 
-        public LocoWaypointState AddLocoWaypointState(BaseLocomotive loco)
+        // Handling custom IGameMessages rather than operating through PropertyChanges for better state update performance
+        [HarmonyPatch(typeof(StateManager), nameof(StateManager.Handle), [typeof(IGameMessage), typeof(IPlayer)])]
+        [HarmonyPrefix]
+        static bool PrefixPatchHandle(IGameMessage gameMessage, IPlayer sender)
         {
-            var state = new LocoWaypointState(loco);
-            string json = JsonConvert.SerializeObject(state);
-            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyActiveQueueLocoIds, new StringPropertyValue(json)));
+            if (sender == null)
+            {
+                throw new ArgumentException("null sender", "sender");
+            }
+            if (gameMessage is UpdateWaypointForQueueMessage updateWaypointForQueueMessage)
+            {
+                Shared.HandleUpdateWaypointForQueueMessage(updateWaypointForQueueMessage);
+                return false;
+            }
+            if (gameMessage is UpdateWaypointForRouteMessage updateWaypointForRouteMessage)
+            {
+                Shared.HandleUpdateWaypointForRouteMessage(updateWaypointForRouteMessage);
+                return false;
+            }
+            if (gameMessage is UpdateLocoQueueMessage updateLocoQueueMessage)
+            {
+                Shared.HandleUpdateLocoQueue(updateLocoQueueMessage);
+                return false;
+            }
+            if (gameMessage is RemoveLocoQueueMessage removeLocoQueueMessage)
+            {
+                Shared.HandleRemoveLocoQueue(removeLocoQueueMessage);
+                return false;
+            }
+            if (gameMessage is UpdateRouteMessage updateRouteMessage)
+            {
+                Shared.HandleUpdateRoute(updateRouteMessage);
+                return false;
+            }
+            if (gameMessage is RemoveRouteMessage removeRouteMessage)
+            {
+                Shared.HandleRemoveRoute(removeRouteMessage);
+                return false;
+            }
+            if (gameMessage is UpdateRouteAssignmentMessage updateRouteAssignmentMessage)
+            {
+                Shared.HandleUpdateRouteAssignment(updateRouteAssignmentMessage);
+                return false;
+            }
+            if (gameMessage is RemoveRouteAssignmentMessage removeRouteAssignmentMessage)
+            {
+                Shared.HandleRemoveRouteAssignment(removeRouteAssignmentMessage);
+                return false;
+            }
+            return true;
+        }
+
+        private void HandleUpdateWaypointForRouteMessage(UpdateWaypointForRouteMessage message)
+        {
+            if (_routes.TryGetValue(message.RouteId, out RouteDefinition route))
+            {
+                int index = route.Waypoints.FindIndex(w => w.Id == message.Waypoint.Id);
+
+                if (index >= 0)
+                {
+                    route.Waypoints[index] = message.Waypoint;
+                }
+            }
+        }
+
+        private void HandleUpdateWaypointForQueueMessage(UpdateWaypointForQueueMessage message)
+        {
+            Loader.LogDebug($"Handling update waypoint message");
+            ManagedWaypoint updatedWaypoint = message.Waypoint;
+
+            if (!_locoWaypointStates.TryGetValue(updatedWaypoint.LocomotiveId, out LocoWaypointState state))
+            {
+                Loader.LogError($"No existing LocoWaypointState found to handle update waypoint for loco id {updatedWaypoint.LocomotiveId} ");
+            }
+
+            int index = state.Waypoints.FindIndex(w => w.Id == updatedWaypoint.Id);
+
+            if (index >= 0)
+            {
+                state.Waypoints[index] = updatedWaypoint;
+
+                if (updatedWaypoint.Id == state.UnresolvedWaypoint.Id)
+                {
+                    Loader.LogDebug($"Updated unresolved waypoint");
+                    state.UnresolvedWaypoint = updatedWaypoint;
+
+                    (Track.Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
+
+                    if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
+                    {
+                        updatedWaypoint.StatusLabel = "Running to waypoint";
+                        if (Multiplayer.IsHost)
+                        {
+                            var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
+                            _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
+                        }
+                    }
+                }
+
+                Loader.LogDebug($"Invoking WaypointDidUpdate in UpdateWaypoint");
+                Messenger.Default.Send(new WaypointDidUpdate(updatedWaypoint.Id, updatedWaypoint.LocomotiveId));
+            }
+            else
+            {
+                Loader.LogError($"Failed to find waypoint for update by id {updatedWaypoint.Id}");
+            }
+        }
+
+        private void HandleUpdateRoute(UpdateRouteMessage updateRouteMessage)
+        {
+            _routes[updateRouteMessage.RouteId] = updateRouteMessage.RouteDefinition;
+            Messenger.Default.Send(new RouteDidUpdate(updateRouteMessage.RouteId));
+        }
+
+        private void HandleRemoveRoute(RemoveRouteMessage removeRouteMessage)
+        {
+            _routes.Remove(removeRouteMessage.RouteId);
+            List<string> keysToRemove = [];
+            foreach (var entry in _routeAssignments)
+            {
+                if (entry.Value.RouteId == removeRouteMessage.RouteId)
+                {
+                    keysToRemove.Add(entry.Key);
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                _routeAssignments.Remove(key);
+            }
+            Messenger.Default.Send(new RouteDidUpdate(removeRouteMessage.RouteId));
+        }
+
+        private void HandleUpdateRouteAssignment(UpdateRouteAssignmentMessage updateRouteAssignmentMessage)
+        {
+            _routeAssignments[updateRouteAssignmentMessage.RouteAssignment.LocoId] = updateRouteAssignmentMessage.RouteAssignment;
+        }
+
+        private void HandleRemoveRouteAssignment(RemoveRouteAssignmentMessage removeRouteAssignmentMessage)
+        {
+            _routeAssignments.Remove(removeRouteAssignmentMessage.LocomotiveId);
+        }
+
+        private void HandleUpdateLocoQueue(UpdateLocoQueueMessage updateLocoQueueMessage)
+        {
+            LocoWaypointState newState = updateLocoQueueMessage.State;
+
+            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(updateLocoQueueMessage.LocomotiveId, out LocoWaypointState oldState))
+            {
+                using (StateManager.TransactionScope())
+                {
+                    // when all waypoints are deleted
+                    if (newState.Waypoints.Count == 0 && oldState.UnresolvedWaypoint != null)
+                    {
+                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+
+                    }
+                    // when the first waypoint changed
+                    else if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.Waypoints[0].Id)
+                    {
+                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                        WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                    }
+                }
+            }
+
+            _locoWaypointStates[updateLocoQueueMessage.LocomotiveId] = newState;
+            Messenger.Default.Send(new QueueDidUpdate(updateLocoQueueMessage.LocomotiveId));
+        }
+
+        private void HandleRemoveLocoQueue(RemoveLocoQueueMessage updateLocoQueueMessage)
+        {
+            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(updateLocoQueueMessage.LocomotiveId, out LocoWaypointState oldState))
+            {
+                using (StateManager.TransactionScope())
+                {
+                    if (oldState.UnresolvedWaypoint != null)
+                    {
+                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                    }
+                    _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
+                }
+            }
+
+            _locoWaypointStates.Remove(updateLocoQueueMessage.LocomotiveId);
+            Messenger.Default.Send(new QueueDidUpdate(updateLocoQueueMessage.LocomotiveId));
+        }
+
+        public LocoWaypointState AddLocoWaypointState(string locoId)
+        {
+            var state = new LocoWaypointState(locoId);
+            StateManager.ApplyLocal(new UpdateLocoQueueMessage(locoId, state));
             return state;
         }
 
-        public LocoWaypointState GetLocoWaypointState(BaseLocomotive loco)
+        public LocoWaypointState GetLocoWaypointState(string locoId)
         {
-            if (_waypointStateByLocoId.TryGetValue(loco.id, out var state)) return state;
+            if (_locoWaypointStates.TryGetValue(locoId, out var state)) return state;
 
-            if (loco.KeyValueObject.Keys.Contains(_waypointModStorage.KeyLocoWaypointState))
-            {
-                string json = loco.KeyValueObject[_waypointModStorage.KeyLocoWaypointState].ToString();
-                return JsonConvert.DeserializeObject<LocoWaypointState>(json);
-            }
-            return AddLocoWaypointState(loco);
+            return AddLocoWaypointState(locoId);
         }
 
-        public void SaveLocoWaypointState(BaseLocomotive loco, LocoWaypointState newState)
+        public void SaveLocoWaypointState(string locoId, LocoWaypointState newState)
         {
-            string json = JsonConvert.SerializeObject(newState);
-            StateManager.ApplyLocal(new PropertyChange(loco.id, _waypointModStorage.KeyLocoWaypointState, new StringPropertyValue(json)));
+            StateManager.ApplyLocal(new UpdateLocoQueueMessage(locoId, newState));
         }
 
         public void RemoveLocoWaypointState(string locoId)
         {
-            StateManager.ApplyLocal(new PropertyChange(locoId, _waypointModStorage.KeyLocoWaypointState, null));
+            StateManager.ApplyLocal(new RemoveLocoQueueMessage(locoId));
         }
 
-        private void MigrateSaveState()
+        private void MigrateSaveDataFromJson()
         {
-            if (ModSaveManager.TryLoadLocoWaypointStatesFromSave(out List<LocoWaypointState> loadedStates))
+            Loader.Log($"Migrating legacy WPQ save data from json files");
+
+            foreach (var state in ModSaveManager.LoadLocoWaypointStatesFromSave())
             {
-                foreach (var state in loadedStates)
-                {
-                    if (TrainController.Shared.TryGetCarForId(state.LocomotiveId, out Car loco) && loco is BaseLocomotive)
-                    {
-                        SaveLocoWaypointState((BaseLocomotive)loco, state);
-                    }
-                }
+                _locoWaypointStates[state.LocomotiveId] = state;
             }
-            ModSaveManager.LoadRoutesFromSave();
-            ModSaveManager.LoadRouteAssignmentsFromSave();
+
+            foreach (var route in ModSaveManager.LoadRoutesFromSave())
+            {
+                _routes.Add(route.Id, route);
+            }
+
+
+            foreach (var routeAssignment in ModSaveManager.LoadRouteAssignmentsFromSave())
+            {
+                _routeAssignments.Add(routeAssignment.LocoId, routeAssignment);
+            }
         }
 
         private void HydrateLocoWaypointStates()
@@ -281,11 +396,12 @@ namespace WaypointQueue.State
             Dictionary<string, List<ManagedWaypoint>> unresolvedCoupleToCarIdsByLocoId = [];
             Dictionary<string, List<ManagedWaypoint>> unresolvedDestinationIdsByLocoId = [];
 
-            foreach (var state in _waypointStateByLocoId.Values)
+            List<LocoWaypointState> validStates = [];
+            foreach (var state in _locoWaypointStates.Values)
             {
                 Loader.LogDebug($"Loading waypoint state for locomotive id {state.LocomotiveId}");
 
-                if (!state.TryResolveLocomotive(out Car loco))
+                if (state.Locomotive == null)
                 {
                     unresolvedLocomotiveIds.Add(state.LocomotiveId);
                     break;
@@ -295,7 +411,7 @@ namespace WaypointQueue.State
                 foreach (var waypoint in state.Waypoints)
                 {
                     Loader.LogDebug($"Loading waypoint {waypoint.Id}");
-                    if (!waypoint.TryResolveLocomotive(out loco) && !unresolvedLocomotiveIds.Contains(waypoint.LocomotiveId))
+                    if (!waypoint.TryResolveLocomotive(out Car loco) && !unresolvedLocomotiveIds.Contains(waypoint.LocomotiveId))
                     {
                         unresolvedLocomotiveIds.Add(waypoint.LocomotiveId);
                         break;
@@ -344,8 +460,7 @@ namespace WaypointQueue.State
                     validWaypoints.Add(waypoint);
                 }
                 state.Waypoints = validWaypoints;
-                string json = JsonConvert.SerializeObject(state);
-                StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyActiveQueueLocoIds, new StringPropertyValue(json)));
+                validStates.Add(state);
 
                 if (state.UnresolvedWaypoint != null)
                 {
@@ -355,6 +470,11 @@ namespace WaypointQueue.State
                         Loader.LogError($"Failed to hydrate unresolved waypoint {state.UnresolvedWaypoint?.Id}");
                     }
                 }
+            }
+
+            foreach (var state in validStates)
+            {
+                SaveLocoWaypointState(state.LocomotiveId, state);
             }
 
             LogHydrateWaypointFailures(unresolvedLocomotiveIds, unresolvedLocationsByLocoId, unresolvedCoupleToCarIdsByLocoId, unresolvedDestinationIdsByLocoId);

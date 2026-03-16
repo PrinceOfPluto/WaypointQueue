@@ -1,4 +1,5 @@
 ﻿using Game;
+using MessagePack;
 using Model;
 using Model.Ops;
 using Newtonsoft.Json;
@@ -14,26 +15,25 @@ using static Model.Ops.OpsController;
 
 namespace WaypointQueue
 {
+    [MessagePackObject(false)]
     public class ManagedWaypoint
     {
         // Used for JSON deserialization
         public ManagedWaypoint() { }
 
+        [Key(51)]
         public int? Version { get; set; }
 
         public ManagedWaypoint(BaseLocomotive locomotive, Location location, string coupleToCarId = "")
         {
             Version = 1;
-            Locomotive = locomotive;
             LocomotiveId = locomotive.id;
-            Location = location;
             LocationString = Graph.Shared.LocationToString(location);
             CoupleToCarId = coupleToCarId;
             ConnectAirOnCouple = Loader.Settings.ConnectAirByDefault;
             ReleaseHandbrakesOnCouple = Loader.Settings.ReleaseHandbrakesByDefault;
             ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
-            AreaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
 
             if (Loader.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
@@ -83,27 +83,71 @@ namespace WaypointQueue
         }
 
         [JsonProperty]
+        [Key(0)]
         public string Id { get; private set; } = Guid.NewGuid().ToString();
 
         [JsonProperty]
+        [Key(1)]
         public string LocomotiveId { get; private set; }
 
         [JsonIgnore]
-        public virtual BaseLocomotive Locomotive { get; private set; }
+        [IgnoreMember]
+        public virtual BaseLocomotive Locomotive
+        {
+            get
+            {
+                TrainController.Shared.TryGetCarForId(LocomotiveId, out Car carLoco);
+                if (carLoco is BaseLocomotive loco)
+                {
+                    return loco;
+                }
+                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
+                return null;
+            }
+        }
 
         [JsonProperty]
+        [Key(2)]
         public string LocationString { get; private set; }
 
+        [IgnoreMember]
+        private Location _location;
+
         [JsonIgnore]
-        public virtual Location Location { get; internal set; }
+        [IgnoreMember]
+        public virtual Location Location
+        {
+            get
+            {
+                if (_location != Location.Invalid)
+                {
+                    return _location;
+                }
+                try
+                {
+                    Location loc = Graph.Shared.ResolveLocationString(LocationString);
+                    _location = loc.Clamped();
+                    return _location;
+                }
+                catch (Exception e)
+                {
+                    Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
+                    _location = Location.Invalid;
+                    return _location;
+                }
+            }
+        }
 
         [JsonProperty]
+        [Key(3)]
         public string CoupleToCarId { get; internal set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public Car CoupleToCar { get; internal set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool IsCoupling
         {
             get
@@ -112,19 +156,27 @@ namespace WaypointQueue
             }
         }
 
+        [Key(4)]
         public bool ConnectAirOnCouple { get; set; }
+        [Key(5)]
         public bool ReleaseHandbrakesOnCouple { get; set; }
+        [Key(6)]
         public bool HasResolvedBrakeSystemOnCouple { get; set; }
+        [Key(7)]
         public bool ApplyHandbrakesOnUncouple { get; set; }
+        [Key(8)]
         public bool BleedAirOnUncouple { get; set; }
-
+        [Key(9)]
         public virtual int NumberOfCarsToCut { get; set; }
+        [Key(10)]
         public virtual bool CountUncoupledFromNearestToWaypoint { get; set; } = true;
 
         [JsonProperty("TakeOrLeaveCut")]
+        [Key(11)]
         private PostCoupleCutType _postCouplingCutMode = PostCoupleCutType.None;
 
         [JsonIgnore]
+        [IgnoreMember]
         public virtual PostCoupleCutType PostCouplingCutMode
         {
             get { return _postCouplingCutMode; }
@@ -139,15 +191,18 @@ namespace WaypointQueue
             }
         }
 
+        [Key(12)]
         public bool TakeUncoupledCarsAsActiveCut { get; set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool CanRefuelNearby
         {
             get { return RefuelPoint != null && RefuelLoadName != null && RefuelLoadName.Length > 0; }
         }
 
         [JsonIgnore]
+        [IgnoreMember]
         public Vector3 RefuelPoint
         {
             get
@@ -157,37 +212,76 @@ namespace WaypointQueue
         }
 
         [JsonProperty]
+        [Key(13)]
         public SerializableVector3 SerializableRefuelPoint { get; set; }
 
+        [Key(14)]
         public string RefuelIndustryId { get; set; }
+        [Key(15)]
         public string RefuelLoadName { get; set; }
+        [Key(16)]
         public float RefuelMaxCapacity { get; set; }
+        [Key(17)]
         public bool WillRefuel { get; set; }
+        [Key(18)]
         public bool CurrentlyRefueling { get; set; }
+        [Key(19)]
         public int RefuelingSpeedLimit { get; set; } = 5;
+        [Key(20)]
         public int MaxSpeedAfterRefueling { get; set; }
+        [Key(21)]
         public bool RefuelLoaderAnimated { get; set; }
-        public string AreaName { get; set; }
+
+        [IgnoreMember]
+        private string _areaName = string.Empty;
+        [IgnoreMember]
+        public string AreaName
+        {
+            get
+            {
+                if (_areaName != string.Empty)
+                {
+                    return _areaName;
+                }
+                _areaName = OpsController.Shared.ClosestAreaForGamePosition(Location.GetPosition()).name;
+                return _areaName;
+            }
+        }
+        [Key(22)]
         public string TimetableSymbol { get; set; }
 
+        [Key(23)]
         public bool WillWait { get; set; }
+        [Key(24)]
         public bool CurrentlyWaiting { get; set; }
+        [Key(25)]
         public WaitType DurationOrSpecificTime { get; set; } = WaitType.Duration;
+        [Key(26)]
         public string WaitUntilTimeString { get; set; }
+        [Key(27)]
         public TodayOrTomorrow WaitUntilDay { get; set; } = TodayOrTomorrow.Today;
+        [Key(28)]
         public int WaitForDurationMinutes { get; set; }
+        [Key(29)]
         public double WaitUntilGameTotalSeconds { get; set; }
+        [Key(30)]
         public bool StopAtWaypoint { get; set; } = true;
+        [Key(31)]
         public bool WillLimitPassingSpeed { get; set; } = true;
+        [Key(32)]
         public int WaypointTargetSpeed { get; set; } = 0;
+        [Key(33)]
         public bool WillChangeMaxSpeed { get; set; } = false;
+        [Key(34)]
         public int MaxSpeedForChange { get; set; }
 
 
         [JsonProperty("CouplingSearchMode")]
+        [Key(35)]
         private CoupleSearchMode _couplingSearchMode = CoupleSearchMode.None;
 
         [JsonIgnore]
+        [IgnoreMember]
         public virtual CoupleSearchMode CouplingSearchMode
         {
             get { return _couplingSearchMode; }
@@ -213,9 +307,11 @@ namespace WaypointQueue
         }
 
         [JsonProperty("UncouplingMode")]
+        [Key(36)]
         private UncoupleMode _uncouplingMode = UncoupleMode.None;
 
         [JsonIgnore]
+        [IgnoreMember]
         public virtual UncoupleMode UncouplingMode
         {
             get { return _uncouplingMode; }
@@ -226,71 +322,105 @@ namespace WaypointQueue
         }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillUncoupleByCount { get { return UncouplingMode == UncoupleMode.ByCount; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillUncoupleByDestination { get { return WillUncoupleByDestinationTrack || WillUncoupleByDestinationIndustry || WillUncoupleByDestinationArea; } }
         [JsonIgnore]
+        [IgnoreMember]
         public virtual bool WillUncoupleByNoDestination => UncoupleDestinationId == WaypointResolver.NoDestinationString;
         [JsonIgnore]
+        [IgnoreMember]
         public virtual bool WillUncoupleByDestinationTrack { get { return UncouplingMode == UncoupleMode.ByDestinationTrack; } }
         [JsonIgnore]
+        [IgnoreMember]
         public virtual bool WillUncoupleByDestinationIndustry { get { return UncouplingMode == UncoupleMode.ByDestinationIndustry; } }
         [JsonIgnore]
+        [IgnoreMember]
         public virtual bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillUncoupleAllExceptLocomotives { get { return UncouplingMode == UncoupleMode.AllExceptLocomotives; } }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillSeekNearestCoupling { get { return CouplingSearchMode == CoupleSearchMode.Nearest; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillSeekSpecificCarCoupling { get { return CouplingSearchMode == CoupleSearchMode.SpecificCar; } }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillPostCoupleCutPickup => HasAnyCouplingOrders && PostCouplingCutMode == PostCoupleCutType.Pickup;
         [JsonIgnore]
+        [IgnoreMember]
         public bool WillPostCoupleCutDropoff => HasAnyCouplingOrders && PostCouplingCutMode == PostCoupleCutType.Dropoff;
 
+        [Key(37)]
         public bool CurrentlyCouplingNearby { get; set; }
+        [Key(38)]
         public bool CurrentlyCouplingSpecificCar { get; set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public bool HasAnyCouplingOrders { get { return IsCoupling || WillSeekNearestCoupling || WillSeekSpecificCarCoupling; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool HasAnyUncouplingOrders { get { return UncouplingMode != UncoupleMode.None; } }
         [JsonIgnore]
+        [IgnoreMember]
         public bool HasAnyCutOrders => HasAnyUncouplingOrders || (HasAnyCouplingOrders && HasAnyPostCouplingCutOrders);
         [JsonIgnore]
+        [IgnoreMember]
         public bool HasAnyPostCouplingCutOrders => HasAnyCouplingOrders && PostCouplingCutMode != PostCoupleCutType.None;
 
         [Obsolete("Use CouplingSearchMode instead")]
         [JsonProperty]
+        [Key(39)]
         private bool SeekNearbyCoupling { get; set; } = false;
+        [Key(40)]
         public bool OnlySeekNearbyOnTrackAhead { get; set; } = true;
 
+        [Key(41)]
         public string CouplingSearchText { get; set; } = "";
         [JsonIgnore]
+        [IgnoreMember]
         public Car CouplingSearchResultCar { get; set; }
 
+        [Key(42)]
         public string UncouplingSearchText { get; set; } = "";
         [JsonIgnore]
+        [IgnoreMember]
         public Car UncouplingSearchResultCar { get; set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public string DestinationSearchText { get; set; } = "";
+        [Key(43)]
         public virtual string UncoupleDestinationId { get; set; } = "";
+        [Key(44)]
         public virtual bool ExcludeMatchingCarsFromCut { get; set; }
 
+        [Key(45)]
         public bool MoveTrainPastWaypoint { get; set; }
+        [Key(46)]
         public bool CurrentlyWaitingBeforeCutting { get; set; }
 
         [JsonIgnore]
+        [IgnoreMember]
         public float SecondsSpentWaitingBeforeCut { get; set; }
+        [Key(47)]
         public string StatusLabel { get; set; } = "Inactive";
+        [Key(48)]
         public string Name { get; set; } = string.Empty;
+        [Key(49)]
         public string Notes { get; set; } = string.Empty;
 
+        [Key(50)]
         public List<WaypointError> Errors { get; set; } = [];
 
         private void SetDefaultPostCouplingCut()
@@ -357,7 +487,6 @@ namespace WaypointQueue
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
                 Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
-                Locomotive = (BaseLocomotive)loco;
             }
             else
             {
@@ -371,8 +500,6 @@ namespace WaypointQueue
             try
             {
                 loc = Graph.Shared.ResolveLocationString(LocationString);
-                Location = loc.Clamped();
-                AreaName = OpsController.Shared.ClosestAreaForGamePosition(loc.GetPosition()).name;
                 Loader.LogDebug($"Loaded clamped location {Location} with area {AreaName} for waypoint {Id}");
                 return true;
             }
@@ -561,7 +688,7 @@ namespace WaypointQueue
         public void OverwriteLocation(Location loc)
         {
             Location clampedLocation = loc.Clamped();
-            Location = clampedLocation;
+            _location = clampedLocation;
             LocationString = Graph.Shared.LocationToString(clampedLocation);
         }
 
@@ -572,9 +699,7 @@ namespace WaypointQueue
                 string serializedWaypoint = JsonConvert.SerializeObject(this);
                 copy = JsonConvert.DeserializeObject<ManagedWaypoint>(serializedWaypoint);
                 copy.Id = Guid.NewGuid().ToString();
-                copy.Locomotive = loco;
                 copy.LocomotiveId = loco?.id ?? null;
-                copy.Location = Location;
                 copy.TryResolveCouplingSearchText(out _);
                 copy.TryResolveUncouplingSearchText(out _);
                 return true;
@@ -593,6 +718,7 @@ namespace WaypointQueue
     }
 
     [Serializable]
+    [MessagePackObject]
     public struct SerializableVector3
     {
         public SerializableVector3(float x, float y, float z)
@@ -602,8 +728,11 @@ namespace WaypointQueue
             Z = z;
         }
 
+        [Key(0)]
         public float X { get; set; }
+        [Key(1)]
         public float Y { get; set; }
+        [Key(2)]
         public float Z { get; set; }
 
         public Vector3 ToVector3()

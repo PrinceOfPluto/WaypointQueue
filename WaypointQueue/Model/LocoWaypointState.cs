@@ -1,52 +1,49 @@
-﻿using Model;
+﻿using MessagePack;
+using Model;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
+    [MessagePackObject(false)]
     public class LocoWaypointState
     {
         [JsonProperty]
+        [Key(0)]
         public string LocomotiveId { get; private set; }
-        public List<ManagedWaypoint> Waypoints { get; set; }
+        [Key(1)]
+        public List<ManagedWaypoint> Waypoints { get; set; } = [];
+        [Key(2)]
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
 
         [JsonIgnore]
-        public BaseLocomotive Locomotive { get; private set; }
-
-        public bool HasAnyWaypoints()
+        [IgnoreMember]
+        public BaseLocomotive Locomotive
         {
-            return Waypoints != null && Waypoints.Count > 0;
-        }
-
-        public bool TryResolveLocomotive(out Car loco)
-        {
-            // loco is null if false
-            if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco) && loco is BaseLocomotive)
+            get
             {
-                Loader.LogDebug($"Loaded locomotive {loco.Ident} for LocoWaypointState");
-                Locomotive = (BaseLocomotive)loco;
-            }
-            else
-            {
+                TrainController.Shared.TryGetCarForId(LocomotiveId, out Car carLoco);
+                if (carLoco is BaseLocomotive loco)
+                {
+                    return loco;
+                }
                 Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
+                return null;
             }
-            return loco != null;
         }
 
-        public LocoWaypointState(BaseLocomotive loco)
+        public LocoWaypointState(string locoId)
         {
-            LocomotiveId = loco.id;
-            Locomotive = loco;
-            Waypoints = new List<ManagedWaypoint>();
+            LocomotiveId = locoId;
+            Waypoints = [];
         }
 
         [JsonConstructor]
         public LocoWaypointState(string locomotiveId, List<ManagedWaypoint> waypoints, ManagedWaypoint unresolvedWaypoint)
         {
             LocomotiveId = locomotiveId;
-            Waypoints = waypoints;
+            Waypoints = waypoints ?? [];
             UnresolvedWaypoint = unresolvedWaypoint;
         }
     }

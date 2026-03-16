@@ -33,7 +33,7 @@ namespace WaypointQueue
             // Setting a waypoint without one of the modifiers will reset the locomotive's waypoint list
             if (!isAnyModifierPressed)
             {
-                LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco);
+                LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco.id);
                 List<ManagedWaypoint> waypoints = state.Waypoints;
                 if (waypoints.Count > 1)
                 {

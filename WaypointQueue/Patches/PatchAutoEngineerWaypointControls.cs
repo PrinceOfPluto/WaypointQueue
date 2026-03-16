@@ -12,7 +12,7 @@ namespace WaypointQueue
         {
             if (TrainController.Shared.SelectedLocomotive != null)
             {
-                WaypointQueueController.Shared.RemoveCurrentWaypoint(TrainController.Shared.SelectedLocomotive);
+                WaypointQueueController.Shared.RemoveCurrentWaypoint(TrainController.Shared.SelectedLocomotive.id);
             }
         }
     }

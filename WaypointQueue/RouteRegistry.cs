@@ -1,23 +1,19 @@
-﻿using System;
+﻿using Game.State;
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using WaypointQueue.State;
+using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
     public static class RouteRegistry
     {
-        public static List<RouteDefinition> Routes { get; private set; } = new List<RouteDefinition>();
+        public static IReadOnlyDictionary<string, RouteDefinition> Routes => ModStateManager.Shared.Routes;
 
-        public static event Action OnChanged;
-
-        private static void RaiseChanged()
-        {
-            OnChanged?.Invoke();
-        }
         public static void LoadWaypointsForRoutes()
         {
-            foreach (var route in Routes)
+            foreach (var route in Routes.Values)
             {
                 if (route?.Waypoints == null) continue;
 
@@ -33,32 +29,24 @@ namespace WaypointQueue
                     }
                 }
             }
-
-            RaiseChanged();
         }
 
-        public static void ReplaceAll(List<RouteDefinition> routes)
+        public static RouteDefinition GetById(string routeId)
         {
-            Routes = routes ?? new List<RouteDefinition>();
-            RaiseChanged();
+            if (Routes.TryGetValue(routeId, out var route)) return route;
+            return null;
         }
-
-        public static RouteDefinition GetById(string id) => Routes.FirstOrDefault(r => r.Id == id);
 
         public static RouteDefinition CreateNewRoute()
         {
-            var r = new RouteDefinition { Name = $"Route {Routes.Count + 1}" };
-            Routes.Add(r);
-            RaiseChanged();
-            return r;
+            var route = new RouteDefinition { Name = $"Route {Routes.Count + 1}" };
+            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
+            return route;
         }
 
-        public static void Remove(string id)
+        public static void Remove(string routeId)
         {
-            var r = GetById(id);
-            if (r == null) return;
-            Routes.RemoveAll(x => x.Id == id);
-            RaiseChanged();
+            StateManager.ApplyLocal(new RemoveRouteMessage(routeId));
         }
 
         public static void Rename(RouteDefinition route, string newName)
@@ -69,7 +57,7 @@ namespace WaypointQueue
 
             route.Name = newName.Trim();
 
-            RaiseChanged();
+            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
         }
 
         public static void ReorderWaypointInRoute(RouteDefinition route, ManagedWaypoint waypoint, int newIndex)
@@ -87,8 +75,7 @@ namespace WaypointQueue
 
                 route.Waypoints.Insert(newIndex, waypoint);
             }
-            Loader.LogDebug($"Invoking RaiseChanged in RouteRegistry.ReorderWaypointInRoute");
-            RaiseChanged();
+            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
         }
     }
 }

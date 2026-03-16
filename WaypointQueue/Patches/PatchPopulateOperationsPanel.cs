@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
+using WaypointQueue.State;
 using WaypointQueue.UI;
 using WaypointQueue.UUM;
 
@@ -23,12 +24,11 @@ namespace WaypointQueue
 
             if (!car.Archetype.IsLocomotive()) return;
 
-            List<RouteDefinition> routes = RouteRegistry.Routes;
+            List<RouteDefinition> routes = [.. ModStateManager.Shared.Routes.Values];
 
             builder.AddSection("Routes", section =>
             {
-                List<string> names = new System.Collections.Generic.List<string> { "(select route)" };
-                names.AddRange(routes.Select(r => r.Name));
+                List<string> names = ["(select route)", .. routes.Select(r => r.Name)];
 
 
                 var (currentRouteId, currentLoop) = RouteAssignmentRegistry.Get(carID);
@@ -59,10 +59,15 @@ namespace WaypointQueue
                                     newRouteId = routes[routeIdx].Id;
                             }
 
-
-                            var (_, prevLoop) = RouteAssignmentRegistry.Get(carID);
-                            RouteAssignmentRegistry.Set(carID, newRouteId, prevLoop);
-
+                            if (newRouteId == null)
+                            {
+                                RouteAssignmentRegistry.Remove(carID);
+                            }
+                            else
+                            {
+                                var (_, prevLoop) = RouteAssignmentRegistry.Get(carID);
+                                RouteAssignmentRegistry.Set(carID, newRouteId, prevLoop);
+                            }
 
                             section.Rebuild();
                         });

@@ -1,13 +1,18 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Collections.Generic;
 
 namespace WaypointQueue
 {
     [Serializable]
+    [MessagePackObject(false)]
     public class RouteDefinition
     {
+        [Key(0)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
+        [Key(1)]
         public string Name { get; set; } = "New Route";
-        public List<ManagedWaypoint> Waypoints { get; set; } = new List<ManagedWaypoint>();
+        [Key(2)]
+        public List<ManagedWaypoint> Waypoints { get; set; } = [];
     }
 }

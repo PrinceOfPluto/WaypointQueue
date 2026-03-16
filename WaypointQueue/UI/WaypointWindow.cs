@@ -1,4 +1,5 @@
-﻿using Game;
+﻿using GalaSoft.MvvmLight.Messaging;
+using Game;
 using HarmonyLib;
 using Model;
 using Model.Ops;
@@ -19,6 +20,7 @@ using UnityEngine.UI;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.State;
+using WaypointQueue.State.Events;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
@@ -59,30 +61,29 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
-            WaypointQueueController.WaypointDidUpdate += OnWaypointDidUpdate;
-            WaypointResolver.WaypointForLocoIdDidError += OnLocoWaypointStateDidUpdate;
+            Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
+            Messenger.Default.Register<QueueDidUpdate>(this, OnQueueDidUpdate);
         }
 
         protected void OnDisable()
         {
-            WaypointQueueController.WaypointDidUpdate -= OnWaypointDidUpdate;
-            WaypointResolver.WaypointForLocoIdDidError -= OnLocoWaypointStateDidUpdate;
+            Messenger.Default.Unregister(this);
         }
 
-        internal void OnLocoWaypointStateDidUpdate(string id)
+        private void OnQueueDidUpdate(QueueDidUpdate @event)
         {
-            if (id == TrainController.Shared.SelectedLocomotive?.id)
+            if (@event.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id)
             {
                 Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
                 RebuildWithScroll();
             }
         }
 
-        private void OnWaypointDidUpdate(ManagedWaypoint waypoint)
+        private void OnWaypointDidUpdate(WaypointDidUpdate @event)
         {
-            if (waypoint.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypoint.Id, out UIPanelBuilder panelBuilder))
+            if (@event.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(@event.WaypointId, out UIPanelBuilder panelBuilder))
             {
-                Loader.LogDebug($"Rebuilding single waypoint {waypoint.Id} for {TrainController.Shared.SelectedLocomotive.Ident}");
+                Loader.LogDebug($"Rebuilding single waypoint {@event.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
                 panelBuilder.Rebuild();
             }
         }
@@ -196,7 +197,7 @@ namespace WaypointQueue.UI
                     return;
                 }
 
-                LocoWaypointState locoWaypointState = ModStateManager.Shared.GetLocoWaypointState(selectedLocomotive);
+                LocoWaypointState locoWaypointState = ModStateManager.Shared.GetLocoWaypointState(_selectedLocomotiveId);
                 List<ManagedWaypoint> waypointList = locoWaypointState.Waypoints;
 
                 if (waypointList == null || waypointList.Count == 0)

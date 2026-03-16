@@ -39,9 +39,9 @@ namespace WaypointQueue
                     return;
                 }
 
-                LocoWaypointState waypointState = ModStateManager.Shared.GetLocoWaypointState(loco);
+                LocoWaypointState waypointState = ModStateManager.Shared.GetLocoWaypointState(loco.id);
 
-                if (!waypointState.HasAnyWaypoints() || waypointState.UnresolvedWaypoint == null)
+                if (waypointState.Waypoints.Count == 0 || waypointState.UnresolvedWaypoint == null)
                 {
                     Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
                     return;

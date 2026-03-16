@@ -17,8 +17,6 @@ namespace WaypointQueue
 
         private static string SaveName { get; set; }
 
-        private static bool _timeAlreadyStarted = false;
-
         public class WaypointSaveState
         {
             public int Version { get; set; }
@@ -45,9 +43,8 @@ namespace WaypointQueue
             SaveName = saveName;
         }
 
-        internal static bool TryLoadLocoWaypointStatesFromSave(out List<LocoWaypointState> locoWaypointStates)
+        internal static List<LocoWaypointState> LoadLocoWaypointStatesFromSave()
         {
-            locoWaypointStates = [];
             try
             {
                 if (SaveName == null || SaveName.Length == 0)
@@ -58,24 +55,23 @@ namespace WaypointQueue
                 if (!File.Exists(fullSavePath))
                 {
                     Loader.Log($"No saved waypoints file found for {fullSavePath}");
-                    return false;
+                    return [];
                 }
 
                 Loader.Log($"Loading from {fullSavePath}");
                 string json = File.ReadAllText(fullSavePath);
                 var waypointSaveState = JsonConvert.DeserializeObject<WaypointSaveState>(json);
                 Loader.Log($"Deserialized waypoints v{waypointSaveState.Version} with {waypointSaveState.WaypointStates.Count} entries");
-                locoWaypointStates = waypointSaveState.WaypointStates;
-                return true;
+                return waypointSaveState.WaypointStates;
             }
             catch (Exception e)
             {
                 Loader.Log($"Failed to load waypoints for {SaveName}: {e}");
+                return [];
             }
-            return false;
         }
 
-        internal static void LoadRouteAssignmentsFromSave()
+        internal static List<RouteAssignment> LoadRouteAssignmentsFromSave()
         {
             try
             {
@@ -87,25 +83,23 @@ namespace WaypointQueue
 
                 if (!File.Exists(fullSavePath))
                 {
-                    RouteAssignmentRegistry.ReplaceAll(null);
                     Loader.Log($"[RouteAssign] No assignments for save '{SaveName}', cleared.");
-                    return;
+                    return [];
                 }
 
                 var json = File.ReadAllText(fullSavePath);
                 var data = JsonConvert.DeserializeObject<RouteAssignmentSaveState>(json);
-                //StateManager.ApplyLocal(new PropertyChange(WaypointModStorage.ObjectId, WaypointModStorage.KeyRouteAssignments, ));
-                RouteAssignmentRegistry.ReplaceAll(data?.Assignments);
                 Loader.Log($"[RouteAssign] Loaded {data?.Assignments?.Count ?? 0} assignments for '{SaveName}'.");
+                return data?.Assignments;
             }
             catch (Exception e)
             {
                 Loader.Log($"[RouteAssign] Load failed for '{SaveName}': {e}");
-                RouteAssignmentRegistry.ReplaceAll([]);
+                return [];
             }
         }
 
-        internal static void LoadRoutesFromSave()
+        internal static List<RouteDefinition> LoadRoutesFromSave()
         {
             try
             {
@@ -117,20 +111,19 @@ namespace WaypointQueue
 
                 if (!File.Exists(fullSavePath))
                 {
-                    RouteRegistry.ReplaceAll([]);
                     Loader.Log($"[Routes] No routes for save '{SaveName}', cleared.");
-                    return;
+                    return [];
                 }
 
                 string json = File.ReadAllText(fullSavePath);
                 RouteDefinitionSaveState data = JsonConvert.DeserializeObject<RouteDefinitionSaveState>(json);
-                RouteRegistry.ReplaceAll(data.RouteDefinitions);
                 Loader.Log($"[Routes] Loaded {data?.RouteDefinitions?.Count ?? 0} routes for '{SaveName}'.");
+                return data.RouteDefinitions;
             }
             catch (Exception e)
             {
                 Loader.Log($"[Routes] Load failed for '{SaveName}': {e}");
-                RouteRegistry.ReplaceAll([]);
+                return [];
             }
         }
 

@@ -1,10 +1,7 @@
 ﻿using Game.Messages;
 using Game.State;
 using HarmonyLib;
-using Model;
 using Network;
-using System.Collections.Generic;
-using System.Linq;
 using WaypointQueue.State;
 
 namespace WaypointQueue.Patches
@@ -22,7 +19,7 @@ namespace WaypointQueue.Patches
                 {
                     foreach (var carId in message.CarIds)
                     {
-                        if (ModStateManager.Shared.LocoIdsWithActiveWaypointQueues.Contains(carId))
+                        if (ModStateManager.Shared.LocoWaypointStates.ContainsKey(carId))
                         {
                             ModStateManager.Shared.RemoveLocoWaypointState(carId);
                         }
@@ -31,25 +28,6 @@ namespace WaypointQueue.Patches
             }
 
             return true;
-        }
-
-        [HarmonyPostfix]
-        [HarmonyPatch(nameof(TrainController), "HandleCreateCarsAsTrain")]
-        static void HandleAddCarsPostfix(TrainController __instance, List<Car> __result)
-        {
-            if (Multiplayer.IsHost)
-            {
-                using (StateManager.TransactionScope())
-                {
-                    foreach (var car in __result)
-                    {
-                        if (car is BaseLocomotive locomotive)
-                        {
-                            ModStateManager.Shared.RegisterObserversForLoco(locomotive);
-                        }
-                    }
-                }
-            }
         }
     }
 }

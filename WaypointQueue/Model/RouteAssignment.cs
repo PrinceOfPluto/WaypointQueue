@@ -1,12 +1,17 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 
 namespace WaypointQueue
 {
     [Serializable]
-    public class RouteAssignment
+    [MessagePackObject(false)]
+    public class RouteAssignment(string locoId, string routeId, bool loop)
     {
-        public string LocoId;
-        public string RouteId;
-        public bool Loop;
+        [Key(0)]
+        public string LocoId = locoId;
+        [Key(1)]
+        public string RouteId = routeId;
+        [Key(2)]
+        public bool Loop = loop;
     }
 }

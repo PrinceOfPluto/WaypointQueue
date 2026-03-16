@@ -150,7 +150,7 @@ namespace WaypointQueue.UI
 
         private void HandleAddNewWaypoint(Location location, string coupleToCarId)
         {
-            WaypointQueueController.Shared.InsertWaypoint(_locomotive, location, coupleToCarId, _waypoint.Id);
+            WaypointQueueController.Shared.InsertWaypoint((BaseLocomotive)_locomotive, location, coupleToCarId, _waypoint.Id);
         }
 
         public void Cancel()

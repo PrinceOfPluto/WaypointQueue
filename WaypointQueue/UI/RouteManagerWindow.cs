@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using GalaSoft.MvvmLight.Messaging;
+using Game.State;
+using System.Collections.Generic;
 using System.Linq;
 using UI;
 using UI.Builder;
@@ -6,6 +8,8 @@ using UI.Common;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.State;
+using WaypointQueue.State.Events;
+using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 
@@ -37,17 +41,17 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
-            RouteRegistry.OnChanged += OnRoutesChanged;
-
+            Messenger.Default.Register<RouteDidUpdate>(this, OnRouteDidUpdate);
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
-                _selectedRouteId.Value = RouteRegistry.Routes[0].Id;
+                _selectedRouteId.Value = RouteRegistry.Routes.Values.First().Id;
         }
+
         protected void OnDisable()
         {
-            RouteRegistry.OnChanged -= OnRoutesChanged;
+            Messenger.Default.Unregister(this);
         }
 
-        private void OnRoutesChanged()
+        private void OnRouteDidUpdate(RouteDidUpdate @event)
         {
             RebuildWithScrolls();
         }
@@ -106,7 +110,7 @@ namespace WaypointQueue.UI
         public override void Populate(UIPanelBuilder builder)
         {
             builder.Spacing = 0f;
-            var items = RouteRegistry.Routes
+            var items = RouteRegistry.Routes.Values
                 .Select(r => new UIPanelBuilder.ListItem<RouteDefinition>(r.Id, r, "Routes", r.Name))
                 .ToList();
 
@@ -210,7 +214,7 @@ namespace WaypointQueue.UI
                 {
                     if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
                     RouteRegistry.Remove(_selectedRouteId.Value);
-                    _selectedRouteId.Value = RouteRegistry.Routes.FirstOrDefault()?.Id;
+                    _selectedRouteId.Value = RouteRegistry.Routes.Values.FirstOrDefault()?.Id;
                     RebuildWithScrolls();
                 });
             });
@@ -244,11 +248,13 @@ namespace WaypointQueue.UI
              builder,
              onWaypointChange: (ManagedWaypoint waypoint) =>
              {
+                 StateManager.ApplyLocal(new UpdateWaypointForRouteMessage(route.Id, waypoint));
                  RebuildWithScrolls();
              },
              onWaypointDelete: (ManagedWaypoint waypoint) =>
              {
                  route.Waypoints.Remove(waypoint);
+                 StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
                  RebuildWithScrolls();
              },
              onWaypointReorder: (ManagedWaypoint waypoint, int newIndex) =>
@@ -269,7 +275,7 @@ namespace WaypointQueue.UI
             var loco = TrainController.Shared.SelectedLocomotive;
             if (loco == null) return;
 
-            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco);
+            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco.id);
             List<ManagedWaypoint> list = state.Waypoints;
 
             route.Waypoints.Clear();
@@ -297,7 +303,7 @@ namespace WaypointQueue.UI
             var loco = TrainController.Shared.SelectedLocomotive;
             if (loco == null || route == null) return;
 
-            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco);
+            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(loco.id);
             List<ManagedWaypoint> list = state.Waypoints;
             if (list == null || list.Count == 0) return;
 
