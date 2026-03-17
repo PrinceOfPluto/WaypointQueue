@@ -262,13 +262,6 @@ namespace WaypointQueue
             int beforeWaypointIndex = locoState.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
             locoState.Waypoints.Insert(beforeWaypointIndex, waypoint);
 
-            if (beforeWaypointIndex == 0)
-            {
-                _waypointResolver.CleanupBeforeRemovingWaypoint(locoState.UnresolvedWaypoint);
-                locoState.UnresolvedWaypoint = waypoint;
-                SendToWaypointFromQueue(waypoint, _autoEngineerService.GetOrdersHelper(loco));
-            }
-
             ModStateManager.Shared.SaveLocoWaypointState(loco.id, locoState);
             Loader.Log($"Inserted waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location} at index {beforeWaypointIndex}");
             RestartCoroutine();
@@ -344,32 +337,7 @@ namespace WaypointQueue
 
         public void RemoveWaypoint(ManagedWaypoint waypoint)
         {
-            Loader.Log($"Removing waypoint {waypoint.Id} {waypoint.Location} for {waypoint.Locomotive.Ident}");
-
-            _waypointResolver.CleanupBeforeRemovingWaypoint(waypoint);
-
-            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(waypoint.LocomotiveId);
-
-            int indexOfWaypoint = state.Waypoints.FindIndex(w => w.Id == waypoint.Id);
-
-            if (indexOfWaypoint >= 0)
-            {
-                state.Waypoints.RemoveAt(indexOfWaypoint);
-                Loader.Log($"Removed waypoint {waypoint.Id}");
-            }
-            else
-            {
-                Loader.LogError($"Failed to find waypoint for removal by id {waypoint.Id}");
-            }
-
-            if (state.UnresolvedWaypoint.Id == waypoint.Id)
-            {
-                Loader.LogDebug($"Removed waypoint was unresolved. Resetting unresolved to null");
-                state.UnresolvedWaypoint = null;
-                _autoEngineerService.CancelActiveOrders(state.Locomotive);
-            }
-
-            ModStateManager.Shared.SaveLocoWaypointState(waypoint.LocomotiveId, state);
+            StateManager.ApplyLocal(new RemoveWaypointForQueueMessage(waypoint.Id, waypoint.LocomotiveId));
         }
 
         public void RemoveCurrentWaypoint(string locoId)
@@ -415,15 +383,7 @@ namespace WaypointQueue
 
         public void RerouteCurrentWaypoint(BaseLocomotive locomotive)
         {
-            AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(locomotive);
-            if (_autoEngineerService.HasActiveWaypoint(ordersHelper))
-            {
-                StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locomotive.id));
-            }
-            else
-            {
-                RefreshCurrentWaypoint(locomotive, ordersHelper);
-            }
+            StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locomotive.id));
         }
 
         public void RefreshCurrentWaypoint(BaseLocomotive locomotive, AutoEngineerOrdersHelper ordersHelper)

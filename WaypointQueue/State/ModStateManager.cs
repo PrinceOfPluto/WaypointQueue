@@ -175,6 +175,11 @@ namespace WaypointQueue.State
                 Shared.HandleUpdateWaypointForRouteMessage(updateWaypointForRouteMessage);
                 return false;
             }
+            if (gameMessage is RemoveWaypointForQueueMessage removeWaypointForQueueMessage)
+            {
+                Shared.HandleRemoveWaypointForQueueMessage(removeWaypointForQueueMessage);
+                return false;
+            }
             if (gameMessage is UpdateLocoQueueMessage updateLocoQueueMessage)
             {
                 Shared.HandleUpdateLocoQueue(updateLocoQueueMessage);
@@ -208,6 +213,42 @@ namespace WaypointQueue.State
             return true;
         }
 
+        private void HandleRemoveWaypointForQueueMessage(RemoveWaypointForQueueMessage message)
+        {
+            if (!_locoWaypointStates.TryGetValue(message.LocomotiveId, out LocoWaypointState state))
+            {
+                Loader.LogError($"No existing LocoWaypointState found to handle remove waypoint for loco id {message.LocomotiveId} ");
+            }
+
+            int index = state.Waypoints.FindIndex(w => w.Id == message.WaypointId);
+
+            if (index < 0)
+            {
+                Loader.LogError($"Failed to find waypoint to remove by id {message.WaypointId}");
+                return;
+            }
+
+            ManagedWaypoint waypointToRemove = state.Waypoints[index];
+
+            if (Multiplayer.IsHost)
+            {
+                _waypointResolver.CleanupBeforeRemovingWaypoint(waypointToRemove);
+            }
+
+            if (waypointToRemove.Id == state.UnresolvedWaypoint.Id)
+            {
+                state.UnresolvedWaypoint = null;
+                if (Multiplayer.IsHost)
+                {
+                    _autoEngineerService.CancelActiveOrders(state.Locomotive);
+                }
+            }
+
+            state.Waypoints.RemoveAt(index);
+
+            SaveLocoWaypointState(message.LocomotiveId, state);
+        }
+
         private void HandleUpdateWaypointForRouteMessage(UpdateWaypointForRouteMessage message)
         {
             if (_routes.TryGetValue(message.RouteId, out RouteDefinition route))
@@ -235,6 +276,7 @@ namespace WaypointQueue.State
 
             if (index >= 0)
             {
+                Loader.LogDebug($"Updated waypoint for {updatedWaypoint.Locomotive.Ident}");
                 state.Waypoints[index] = updatedWaypoint;
 
                 if (updatedWaypoint.Id == state.UnresolvedWaypoint.Id)
@@ -242,15 +284,17 @@ namespace WaypointQueue.State
                     Loader.LogDebug($"Updated unresolved waypoint");
                     state.UnresolvedWaypoint = updatedWaypoint;
 
-                    (Track.Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
-
-                    if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
+                    if (Multiplayer.IsHost)
                     {
-                        updatedWaypoint.StatusLabel = "Running to waypoint";
-                        if (Multiplayer.IsHost)
+                        (Track.Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
+
+                        if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
                         {
+                            updatedWaypoint.StatusLabel = "Running to waypoint";
                             var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
                             _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
+                            // Sending a new update to clients because only host has access to AE persistence to check for this
+                            StateManager.ApplyLocal(new UpdateWaypointForQueueMessage(updatedWaypoint.LocomotiveId, updatedWaypoint));
                         }
                     }
                 }
@@ -311,7 +355,7 @@ namespace WaypointQueue.State
                     if (newState.Waypoints.Count == 0 && oldState.UnresolvedWaypoint != null)
                     {
                         _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-
+                        _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
                     }
                     // when the first waypoint changed
                     else if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.Waypoints[0].Id)

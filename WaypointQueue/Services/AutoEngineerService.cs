@@ -1,4 +1,5 @@
 ﻿using Game.Messages;
+using HarmonyLib;
 using Model;
 using Model.AI;
 using System;
@@ -17,17 +18,15 @@ namespace WaypointQueue.Services
             ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
         }
 
-        public void SendToWaypoint(Car loco, Location location, string coupleToCarId = null)
+        public void SendToWaypoint(BaseLocomotive loco, Location location, string coupleToCarId = null)
         {
             var ordersHelper = GetOrdersHelper(loco);
             SendToWaypoint(ordersHelper, location, coupleToCarId);
         }
 
-        public AutoEngineerOrdersHelper GetOrdersHelper(Car locomotive)
+        public AutoEngineerOrdersHelper GetOrdersHelper(BaseLocomotive locomotive)
         {
-            Type plannerType = typeof(AutoEngineerPlanner);
-            FieldInfo fieldInfo = plannerType.GetField("_persistence", BindingFlags.NonPublic | BindingFlags.Instance);
-            AutoEngineerPersistence persistence = (AutoEngineerPersistence)fieldInfo.GetValue((locomotive as BaseLocomotive).AutoEngineerPlanner);
+            AutoEngineerPersistence persistence = Traverse.Create(locomotive.AutoEngineerPlanner).Field("_persistence").GetValue<AutoEngineerPersistence>();
             AutoEngineerOrdersHelper ordersHelper = new(locomotive, persistence);
             return ordersHelper;
         }
@@ -40,7 +39,7 @@ namespace WaypointQueue.Services
             return persistence.PlannerStatus;
         }
 
-        public void CancelActiveOrders(Car loco)
+        public void CancelActiveOrders(BaseLocomotive loco)
         {
             Loader.Log($"Canceling active orders for {loco.Ident}");
             AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(loco);
@@ -51,7 +50,7 @@ namespace WaypointQueue.Services
             }
         }
 
-        public (Location? location, string coupleToCarId) GetCurrentOrderWaypoint(Car loco)
+        public (Location? location, string coupleToCarId) GetCurrentOrderWaypoint(BaseLocomotive loco)
         {
             var ordersHelper = GetOrdersHelper(loco);
             OrderWaypoint? waypoint = ordersHelper.Orders.Waypoint;
@@ -87,7 +86,7 @@ namespace WaypointQueue.Services
             return closestDistance < 10;
         }
 
-        public int GetOrdersMaxSpeed(Car locomotive)
+        public int GetOrdersMaxSpeed(BaseLocomotive locomotive)
         {
             var ordersHelper = GetOrdersHelper(locomotive);
             return ordersHelper.Orders.MaxSpeedMph;

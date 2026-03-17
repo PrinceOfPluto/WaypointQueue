@@ -147,6 +147,7 @@
     <Compile Include="State\Messages\RemoveLocoQueueMessage.cs" />
     <Compile Include="State\Messages\RemoveRouteAssignmentMessage.cs" />
     <Compile Include="State\Messages\RemoveRouteMessage.cs" />
+    <Compile Include="State\Messages\RemoveWaypointForQueueMessage.cs" />
     <Compile Include="State\Messages\UpdateLocoQueueMessage.cs" />
     <Compile Include="State\Messages\UpdateRouteAssignmentMessage.cs" />
     <Compile Include="State\Messages\UpdateRouteMessage.cs" />

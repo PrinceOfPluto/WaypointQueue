@@ -505,7 +505,7 @@ namespace WaypointQueue.Tests
         private Mock<ManagedWaypoint> GenerateMockWaypoint(Car locomotive)
         {
             var waypoint = new Mock<ManagedWaypoint>();
-            waypoint.Setup(wp => wp.Locomotive).Returns(locomotive);
+            waypoint.Setup(wp => wp.Locomotive).Returns((BaseLocomotive)locomotive);
             waypoint.Setup(wp => wp.Location).Returns(new Location());
             return waypoint;
         }

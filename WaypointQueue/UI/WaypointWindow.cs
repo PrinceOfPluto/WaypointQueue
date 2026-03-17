@@ -4,6 +4,7 @@ using HarmonyLib;
 using Model;
 using Model.Ops;
 using Model.Ops.Timetable;
+using Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -663,8 +664,12 @@ namespace WaypointQueue.UI
                 waypoint.StopAtWaypoint = value;
                 if (!waypoint.StopAtWaypoint && !isRouteWindow)
                 {
-                    AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
-                    int maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    int maxSpeed = 35;
+                    if (Multiplayer.IsHost)
+                    {
+                        AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                        maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    }
                     waypoint.WaypointTargetSpeed = maxSpeed;
                 }
                 onWaypointChange(waypoint);
@@ -681,8 +686,12 @@ namespace WaypointQueue.UI
                 waypoint.WillChangeMaxSpeed = value;
                 if (value && !isRouteWindow)
                 {
-                    AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
-                    int maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    int maxSpeed = 35;
+                    if (Multiplayer.IsHost)
+                    {
+                        AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                        maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
+                    }
                     waypoint.WaypointTargetSpeed = maxSpeed;
                 }
                 onWaypointChange(waypoint);
