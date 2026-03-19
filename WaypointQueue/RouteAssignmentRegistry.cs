@@ -1,7 +1,5 @@
-﻿using Game.State;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using WaypointQueue.State;
-using WaypointQueue.State.Messages;
 
 namespace WaypointQueue
 {
@@ -18,22 +16,12 @@ namespace WaypointQueue
 
         public static void Set(string locoId, string routeId, bool loop)
         {
-            if (string.IsNullOrEmpty(locoId)) return;
-
-            if (routeId == null)
-            {
-                StateManager.ApplyLocal(new RemoveRouteAssignmentMessage(locoId));
-                return;
-            }
-
-            var routeAssignment = new RouteAssignment(locoId, routeId, loop);
-            StateManager.ApplyLocal(new UpdateRouteAssignmentMessage(routeAssignment));
+            ModStateManager.Shared.SaveRouteAssignment(new RouteAssignment(locoId, routeId, loop));
         }
 
         public static void Remove(string locoId)
         {
-            if (string.IsNullOrEmpty(locoId)) return;
-            StateManager.ApplyLocal(new RemoveRouteAssignmentMessage(locoId));
+            ModStateManager.Shared.RemoveRouteAssignment(locoId);
         }
     }
 }

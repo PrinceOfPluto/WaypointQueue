@@ -1,5 +1,4 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
-using Game;
 using Game.Events;
 using Game.Messages;
 using Game.State;
@@ -7,6 +6,7 @@ using HarmonyLib;
 using KeyValue.Runtime;
 using Model;
 using Network;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +14,6 @@ using UI.Common;
 using UnityEngine;
 using WaypointQueue.Services;
 using WaypointQueue.State.Events;
-using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.State
@@ -24,11 +23,24 @@ namespace WaypointQueue.State
     {
         public static ModStateManager Shared { get; private set; }
 
-        private WaypointModStorage _waypointModStorage;
+        // Ideally state updates would be handled through custom IGameMessages, but any custom messages
+        // are not included within the MessagePack union attributes on IGameMessage which means any messages
+        // sent from client to host will appear as a null message to the host. Due to this, multiplayer mods
+        // appear limited to using the PropertyChange message.
 
-        private readonly Dictionary<string, LocoWaypointState> _locoWaypointStates = [];
-        private readonly Dictionary<string, RouteDefinition> _routes = [];
-        private readonly Dictionary<string, RouteAssignment> _routeAssignments = [];
+        // Mod data is separated into different key value objects so PropertyChanges can have better performance
+        // (i.e. so a single route update can be sent using a single PropertyChange rather than sending the entire
+        // route list which may be quite large)
+        private WaypointModStorage _waypointModStorage;
+        private QueueStateStorage _queueStateStorage;
+        private RouteStorage _routeStorage;
+
+        private Dictionary<string, LocoWaypointState> _locoWaypointStates = [];
+        private Dictionary<string, RouteDefinition> _routes = [];
+        private Dictionary<string, RouteAssignment> _routeAssignments = [];
+
+        private readonly Dictionary<string, IDisposable> _queueObservers = [];
+        private readonly Dictionary<string, IDisposable> _routeObservers = [];
 
         public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _locoWaypointStates;
 
@@ -44,8 +56,6 @@ namespace WaypointQueue.State
         {
             Shared = this;
             Messenger.Default.Register<MapWillLoadEvent>(this, OnMapWillLoad);
-            Messenger.Default.Register<MapDidLoadEvent>(this, OnMapDidLoad);
-            Messenger.Default.Register<MapWillUnloadEvent>(this, OnMapWillUnload);
             Messenger.Default.Register<MapDidUnloadEvent>(this, OnMapDidUnload);
             Messenger.Default.Register<PropertiesDidRestore>(this, OnPropertiesDidRestore);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
@@ -61,22 +71,35 @@ namespace WaypointQueue.State
 
         private void OnMapWillLoad(MapWillLoadEvent @event)
         {
-            PrepareWaypointModKeyValueObject();
-        }
-
-        private void OnMapDidLoad(MapDidLoadEvent @event)
-        {
-            Loader.LogDebug($"ModStateManager: Map loaded.");
-        }
-
-        private void OnMapWillUnload(MapWillUnloadEvent mapWillUnloadEvent)
-        {
-            Loader.LogDebug($"ModStateManager: Map will unload.");
+            PrepareStorageKeyValueObjects();
         }
 
         private void OnMapDidUnload(MapDidUnloadEvent mapDidUnloadEvent)
         {
-            DestroyWaypointModKeyValueObject();
+            DestroyStorageKeyValueObjects();
+        }
+
+        private void PrepareStorageKeyValueObjects()
+        {
+            DestroyStorageKeyValueObjects();
+            KeyValueObject modStorageKeyValueObject = base.gameObject.AddComponent<KeyValueObject>();
+            _waypointModStorage = new WaypointModStorage(modStorageKeyValueObject);
+            // Apparently a game object can only have one key value object,
+            // so two other game objects are used for state update optimization
+            KeyValueObject queueStateKeyValueObject = Loader.QueueStorageGO.AddComponent<KeyValueObject>();
+            _queueStateStorage = new QueueStateStorage(queueStateKeyValueObject);
+            KeyValueObject routeKeyValueObject = Loader.RouteStorageGO.AddComponent<KeyValueObject>();
+            _routeStorage = new RouteStorage(routeKeyValueObject);
+        }
+
+        private void DestroyStorageKeyValueObjects()
+        {
+            _waypointModStorage?.Dispose();
+            _waypointModStorage = null;
+            _queueStateStorage?.Dispose();
+            _queueStateStorage = null;
+            _routeStorage?.Dispose();
+            _routeStorage = null;
         }
 
         private void OnPropertiesDidRestore(PropertiesDidRestore evt)
@@ -88,10 +111,9 @@ namespace WaypointQueue.State
                 if (Multiplayer.IsHost)
                 {
                     // If there is no loaded data at this point, check if old save data needs to be migrated
-                    if (_waypointModStorage.LocoWaypointStates.Count == 0 && _waypointModStorage.Routes.Count == 0 && _waypointModStorage.RouteAssignments.Count == 0)
+                    if (_queueStateStorage.Count == 0 && _routeStorage.Count == 0 && _waypointModStorage.RouteAssignments.Count == 0)
                     {
-                        MigrateSaveDataFromJson();
-                        RuntimeToStorage();
+                        MigrateFromJsonSaveToStorage();
                     }
                 }
                 StorageToRuntime();
@@ -100,279 +122,66 @@ namespace WaypointQueue.State
                 HydrateLocoWaypointStates();
             }
 
-            WaypointQueueController.Shared.RestartCoroutine();
-        }
+            _queueStateStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
+            {
+                if (keyChange == KeyChange.Add)
+                {
+                    OnQueueStorageKeyAdded(key);
+                }
+                else
+                {
+                    OnQueueStorageKeyRemoved(key);
+                }
+            });
 
-        [HarmonyPatch(typeof(StateManager), nameof(StateManager.PopulateSnapshotForSave))]
-        [HarmonyPrefix]
-        static bool PrefixPopulateSnapshotForSave()
-        {
-            // Write runtime objects to properties for save
-            Shared.RuntimeToStorage();
-            return true;
+            _routeStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
+            {
+                if (keyChange == KeyChange.Add)
+                {
+                    OnRouteStorageKeyAdded(key);
+                }
+                else
+                {
+                    OnRouteStorageKeyRemoved(key);
+                }
+            });
+
+            foreach (var locoId in _locoWaypointStates.Keys)
+            {
+                _queueObservers[locoId] = _queueStateStorage.ObserveQueueState(locoId, OnLocoQueueDidChange, false);
+            }
+
+            foreach (var routeId in _routes.Keys)
+            {
+                _routeObservers[routeId] = _routeStorage.ObserveRoute(routeId, OnRouteDidChange, false);
+            }
+
+            _waypointModStorage.ObserveRouteAssignments(routeAssignments =>
+            {
+                _routeAssignments = routeAssignments;
+            }, false);
+
+            WaypointQueueController.Shared.RestartCoroutine();
         }
 
         private void StorageToRuntime()
         {
-            Loader.Log($"Loading storage data for runtime");
-            _locoWaypointStates.Clear();
-            foreach (var state in _waypointModStorage.LocoWaypointStates.Values)
-            {
-                _locoWaypointStates.Add(state.LocomotiveId, state);
-            }
-
-            _routeAssignments.Clear();
-            foreach (var routeAssignment in _waypointModStorage.RouteAssignments.Values)
-            {
-                _routeAssignments.Add(routeAssignment.LocoId, routeAssignment);
-            }
-
-            _routes.Clear();
-            foreach (var route in _waypointModStorage.Routes)
-            {
-                _routes.Add(route.Id, route);
-            }
+            Loader.LogDebug($"Populating runtime from storage data");
+            _locoWaypointStates = new Dictionary<string, LocoWaypointState>(_queueStateStorage.GetAll());
+            _routeAssignments = new Dictionary<string, RouteAssignment>(_waypointModStorage.RouteAssignments);
+            _routes = new Dictionary<string, RouteDefinition>(_routeStorage.GetAll());
         }
 
-        private void RuntimeToStorage()
+        private void OnQueueStorageKeyAdded(string key)
         {
-            Loader.Log($"Writing runtime data to storage");
-            _waypointModStorage.Version = "1";
-            _waypointModStorage.LocoWaypointStates = _locoWaypointStates;
-            _waypointModStorage.Routes = [.. _routes.Values];
-            _waypointModStorage.RouteAssignments = _routeAssignments;
+            Loader.LogDebug($"Queue added to storage for loco id: {key}");
+            _queueObservers[key] = _queueStateStorage.ObserveQueueState(key, OnLocoQueueDidChange, false);
         }
 
-        private void PrepareWaypointModKeyValueObject()
+        private void OnQueueStorageKeyRemoved(string key)
         {
-            DestroyWaypointModKeyValueObject();
-            KeyValueObject keyValueObject = base.gameObject.AddComponent<KeyValueObject>();
-            _waypointModStorage = new WaypointModStorage(keyValueObject);
-        }
-
-        private void DestroyWaypointModKeyValueObject()
-        {
-            _waypointModStorage?.Dispose();
-            _waypointModStorage = null;
-        }
-
-        // Handling custom IGameMessages rather than operating through PropertyChanges for better state update performance
-        [HarmonyPatch(typeof(StateManager), nameof(StateManager.Handle), [typeof(IGameMessage), typeof(IPlayer)])]
-        [HarmonyPrefix]
-        static bool PrefixPatchHandle(IGameMessage gameMessage, IPlayer sender)
-        {
-            if (sender == null)
-            {
-                throw new ArgumentException("null sender", "sender");
-            }
-            if (gameMessage is UpdateWaypointForQueueMessage updateWaypointForQueueMessage)
-            {
-                Shared.HandleUpdateWaypointForQueueMessage(updateWaypointForQueueMessage);
-                return false;
-            }
-            if (gameMessage is UpdateWaypointForRouteMessage updateWaypointForRouteMessage)
-            {
-                Shared.HandleUpdateWaypointForRouteMessage(updateWaypointForRouteMessage);
-                return false;
-            }
-            if (gameMessage is RemoveWaypointForQueueMessage removeWaypointForQueueMessage)
-            {
-                Shared.HandleRemoveWaypointForQueueMessage(removeWaypointForQueueMessage);
-                return false;
-            }
-            if (gameMessage is UpdateLocoQueueMessage updateLocoQueueMessage)
-            {
-                Shared.HandleUpdateLocoQueue(updateLocoQueueMessage);
-                return false;
-            }
-            if (gameMessage is RemoveLocoQueueMessage removeLocoQueueMessage)
-            {
-                Shared.HandleRemoveLocoQueue(removeLocoQueueMessage);
-                return false;
-            }
-            if (gameMessage is UpdateRouteMessage updateRouteMessage)
-            {
-                Shared.HandleUpdateRoute(updateRouteMessage);
-                return false;
-            }
-            if (gameMessage is RemoveRouteMessage removeRouteMessage)
-            {
-                Shared.HandleRemoveRoute(removeRouteMessage);
-                return false;
-            }
-            if (gameMessage is UpdateRouteAssignmentMessage updateRouteAssignmentMessage)
-            {
-                Shared.HandleUpdateRouteAssignment(updateRouteAssignmentMessage);
-                return false;
-            }
-            if (gameMessage is RemoveRouteAssignmentMessage removeRouteAssignmentMessage)
-            {
-                Shared.HandleRemoveRouteAssignment(removeRouteAssignmentMessage);
-                return false;
-            }
-            return true;
-        }
-
-        private void HandleRemoveWaypointForQueueMessage(RemoveWaypointForQueueMessage message)
-        {
-            if (!_locoWaypointStates.TryGetValue(message.LocomotiveId, out LocoWaypointState state))
-            {
-                Loader.LogError($"No existing LocoWaypointState found to handle remove waypoint for loco id {message.LocomotiveId} ");
-            }
-
-            int index = state.Waypoints.FindIndex(w => w.Id == message.WaypointId);
-
-            if (index < 0)
-            {
-                Loader.LogError($"Failed to find waypoint to remove by id {message.WaypointId}");
-                return;
-            }
-
-            ManagedWaypoint waypointToRemove = state.Waypoints[index];
-
-            if (Multiplayer.IsHost)
-            {
-                _waypointResolver.CleanupBeforeRemovingWaypoint(waypointToRemove);
-            }
-
-            if (waypointToRemove.Id == state.UnresolvedWaypoint.Id)
-            {
-                state.UnresolvedWaypoint = null;
-                if (Multiplayer.IsHost)
-                {
-                    _autoEngineerService.CancelActiveOrders(state.Locomotive);
-                }
-            }
-
-            state.Waypoints.RemoveAt(index);
-
-            SaveLocoWaypointState(message.LocomotiveId, state);
-        }
-
-        private void HandleUpdateWaypointForRouteMessage(UpdateWaypointForRouteMessage message)
-        {
-            if (_routes.TryGetValue(message.RouteId, out RouteDefinition route))
-            {
-                int index = route.Waypoints.FindIndex(w => w.Id == message.Waypoint.Id);
-
-                if (index >= 0)
-                {
-                    route.Waypoints[index] = message.Waypoint;
-                }
-            }
-        }
-
-        private void HandleUpdateWaypointForQueueMessage(UpdateWaypointForQueueMessage message)
-        {
-            Loader.LogDebug($"Handling update waypoint message");
-            ManagedWaypoint updatedWaypoint = message.Waypoint;
-
-            if (!_locoWaypointStates.TryGetValue(updatedWaypoint.LocomotiveId, out LocoWaypointState state))
-            {
-                Loader.LogError($"No existing LocoWaypointState found to handle update waypoint for loco id {updatedWaypoint.LocomotiveId} ");
-            }
-
-            int index = state.Waypoints.FindIndex(w => w.Id == updatedWaypoint.Id);
-
-            if (index >= 0)
-            {
-                Loader.LogDebug($"Updated waypoint for {updatedWaypoint.Locomotive.Ident}");
-                state.Waypoints[index] = updatedWaypoint;
-
-                if (updatedWaypoint.Id == state.UnresolvedWaypoint.Id)
-                {
-                    Loader.LogDebug($"Updated unresolved waypoint");
-                    state.UnresolvedWaypoint = updatedWaypoint;
-
-                    if (Multiplayer.IsHost)
-                    {
-                        (Track.Location? currentOrdersLocation, string currentOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(updatedWaypoint.Locomotive);
-
-                        if (currentOrdersLocation != updatedWaypoint.Location || currentOrdersCoupleToCarId != updatedWaypoint.CoupleToCarId)
-                        {
-                            updatedWaypoint.StatusLabel = "Running to waypoint";
-                            var ordersHelper = _autoEngineerService.GetOrdersHelper(updatedWaypoint.Locomotive);
-                            _autoEngineerService.SendToWaypoint(ordersHelper, updatedWaypoint.Location, updatedWaypoint.CoupleToCarId);
-                            // Sending a new update to clients because only host has access to AE persistence to check for this
-                            StateManager.ApplyLocal(new UpdateWaypointForQueueMessage(updatedWaypoint.LocomotiveId, updatedWaypoint));
-                        }
-                    }
-                }
-
-                Loader.LogDebug($"Invoking WaypointDidUpdate in UpdateWaypoint");
-                Messenger.Default.Send(new WaypointDidUpdate(updatedWaypoint.Id, updatedWaypoint.LocomotiveId));
-            }
-            else
-            {
-                Loader.LogError($"Failed to find waypoint for update by id {updatedWaypoint.Id}");
-            }
-        }
-
-        private void HandleUpdateRoute(UpdateRouteMessage updateRouteMessage)
-        {
-            _routes[updateRouteMessage.RouteId] = updateRouteMessage.RouteDefinition;
-            Messenger.Default.Send(new RouteDidUpdate(updateRouteMessage.RouteId));
-        }
-
-        private void HandleRemoveRoute(RemoveRouteMessage removeRouteMessage)
-        {
-            _routes.Remove(removeRouteMessage.RouteId);
-            List<string> keysToRemove = [];
-            foreach (var entry in _routeAssignments)
-            {
-                if (entry.Value.RouteId == removeRouteMessage.RouteId)
-                {
-                    keysToRemove.Add(entry.Key);
-                }
-            }
-
-            foreach (var key in keysToRemove)
-            {
-                _routeAssignments.Remove(key);
-            }
-            Messenger.Default.Send(new RouteDidUpdate(removeRouteMessage.RouteId));
-        }
-
-        private void HandleUpdateRouteAssignment(UpdateRouteAssignmentMessage updateRouteAssignmentMessage)
-        {
-            _routeAssignments[updateRouteAssignmentMessage.RouteAssignment.LocoId] = updateRouteAssignmentMessage.RouteAssignment;
-        }
-
-        private void HandleRemoveRouteAssignment(RemoveRouteAssignmentMessage removeRouteAssignmentMessage)
-        {
-            _routeAssignments.Remove(removeRouteAssignmentMessage.LocomotiveId);
-        }
-
-        private void HandleUpdateLocoQueue(UpdateLocoQueueMessage updateLocoQueueMessage)
-        {
-            LocoWaypointState newState = updateLocoQueueMessage.State;
-
-            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(updateLocoQueueMessage.LocomotiveId, out LocoWaypointState oldState))
-            {
-                using (StateManager.TransactionScope())
-                {
-                    // when all waypoints are deleted
-                    if (newState.Waypoints.Count == 0 && oldState.UnresolvedWaypoint != null)
-                    {
-                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                        _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
-                    }
-                    // when the first waypoint changed
-                    else if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.Waypoints[0].Id)
-                    {
-                        _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                        WaypointQueueController.Shared.SendToFirstWaypoint(newState);
-                    }
-                }
-            }
-
-            _locoWaypointStates[updateLocoQueueMessage.LocomotiveId] = newState;
-            Messenger.Default.Send(new QueueDidUpdate(updateLocoQueueMessage.LocomotiveId));
-        }
-
-        private void HandleRemoveLocoQueue(RemoveLocoQueueMessage updateLocoQueueMessage)
-        {
-            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(updateLocoQueueMessage.LocomotiveId, out LocoWaypointState oldState))
+            Loader.LogDebug($"Queue removed from storage for loco id: {key}");
+            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(key, out LocoWaypointState oldState))
             {
                 using (StateManager.TransactionScope())
                 {
@@ -384,53 +193,180 @@ namespace WaypointQueue.State
                 }
             }
 
-            _locoWaypointStates.Remove(updateLocoQueueMessage.LocomotiveId);
-            Messenger.Default.Send(new QueueDidUpdate(updateLocoQueueMessage.LocomotiveId));
+            _locoWaypointStates.Remove(key);
+            _queueObservers.Remove(key);
+            Messenger.Default.Send(new QueueDidUpdate(key));
         }
 
-        public LocoWaypointState AddLocoWaypointState(string locoId)
+        private void OnLocoQueueDidChange(LocoWaypointState newState)
         {
-            var state = new LocoWaypointState(locoId);
-            StateManager.ApplyLocal(new UpdateLocoQueueMessage(locoId, state));
-            return state;
+            if (newState == null)
+            {
+                Loader.LogDebug($"Loco queue changed but new state was null so the storage key should already be removed");
+                return;
+            }
+            Loader.LogDebug($"Loco queue changed for loco id {newState.LocomotiveId}");
+
+            LocoWaypointState oldState = GetLocoWaypointState(newState.LocomotiveId);
+
+            _locoWaypointStates[newState.LocomotiveId] = newState;
+
+            if (oldState != null)
+            {
+                if (Multiplayer.IsHost)
+                {
+                    using (StateManager.TransactionScope())
+                    {
+                        // When all waypoints are deleted
+                        if (newState.Waypoints.Count == 0 && oldState.UnresolvedWaypoint != null)
+                        {
+                            _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                            _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
+                        }
+                        // When the first waypoint changed
+                        else if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && !oldState.UnresolvedWaypoint.Equals(newState.Waypoints[0]))
+                        {
+                            _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                            WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                            return; // returning because SendToFirstWaypoint will trigger a new queue state change
+                        }
+                    }
+                }
+
+                if (newState.Waypoints.Count == oldState.Waypoints.Count)
+                {
+                    // Determine whether only a single waypoint changed for the UI refresh optimization
+                    List<ManagedWaypoint> waypointsThatChanged = [];
+                    for (int i = 0; i < newState.Waypoints.Count; i++)
+                    {
+                        ManagedWaypoint oldWaypoint = oldState.Waypoints[i];
+                        ManagedWaypoint newWaypoint = newState.Waypoints[i];
+
+                        if (oldWaypoint.Id == newWaypoint.Id && !oldWaypoint.Equals(newWaypoint))
+                        {
+                            waypointsThatChanged.Add(newWaypoint);
+                        }
+
+                        if (waypointsThatChanged.Count > 1)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (waypointsThatChanged.Count == 1)
+                    {
+                        Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId));
+                        return;
+                    }
+                }
+            }
+
+            Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
+        }
+
+        private void OnRouteStorageKeyAdded(string routeId)
+        {
+            Loader.LogDebug($"Route added to storage with id: {routeId}");
+            RouteDefinition route = _routeStorage.GetByRouteId(routeId);
+            if (route != null)
+            {
+                _routes[route.Id] = route;
+                _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
+            }
+        }
+
+        private void OnRouteStorageKeyRemoved(string routeId)
+        {
+            Loader.LogDebug($"Route removed from storage with id: {routeId}");
+            _routes.Remove(routeId);
+            _routeObservers.Remove(routeId);
+
+            List<string> assignmentsToRemove = [.. _routeAssignments.Where(ra => ra.Value.RouteId == routeId).Select(ra => ra.Key)];
+            if (assignmentsToRemove.Count > 0)
+            {
+                assignmentsToRemove.ForEach(key => _routeAssignments.Remove(key));
+                string json = JsonConvert.SerializeObject(_routeAssignments);
+                StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+            }
+
+            Messenger.Default.Send(new RouteDidUpdate(routeId));
+        }
+
+        private void OnRouteDidChange(RouteDefinition route)
+        {
+            if (route == null)
+            {
+                Loader.LogDebug($"Route changed but new route def was null so the storage key should already be removed");
+                return;
+            }
+
+            Loader.LogDebug($"Route changed for route id: {route.Id}");
+            _routes[route.Id] = route;
+            Messenger.Default.Send(new RouteDidUpdate(route.Id));
         }
 
         public LocoWaypointState GetLocoWaypointState(string locoId)
         {
-            if (_locoWaypointStates.TryGetValue(locoId, out var state)) return state;
-
-            return AddLocoWaypointState(locoId);
+            return _locoWaypointStates.TryGetValue(locoId, out var state) ? state : new LocoWaypointState(locoId);
         }
 
         public void SaveLocoWaypointState(string locoId, LocoWaypointState newState)
         {
-            StateManager.ApplyLocal(new UpdateLocoQueueMessage(locoId, newState));
+            string json = JsonConvert.SerializeObject(newState);
+            StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new StringPropertyValue(json)));
         }
 
         public void RemoveLocoWaypointState(string locoId)
         {
-            StateManager.ApplyLocal(new RemoveLocoQueueMessage(locoId));
+            StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new NullPropertyValue()));
         }
 
-        private void MigrateSaveDataFromJson()
+        public void SaveRoute(RouteDefinition routeDefinition)
         {
-            Loader.Log($"Migrating legacy WPQ save data from json files");
+            string json = JsonConvert.SerializeObject(routeDefinition);
+            StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, routeDefinition.Id, new StringPropertyValue(json)));
+        }
+
+        public void RemoveRoute(string routeId)
+        {
+            StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, routeId, new NullPropertyValue()));
+        }
+
+        public void SaveRouteAssignment(RouteAssignment routeAssignment)
+        {
+            _routeAssignments[routeAssignment.LocoId] = routeAssignment;
+            string json = JsonConvert.SerializeObject(_routeAssignments);
+            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+
+        }
+
+        public void RemoveRouteAssignment(string locoId)
+        {
+            _routeAssignments.Remove(locoId);
+            string json = JsonConvert.SerializeObject(_routeAssignments);
+            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+        }
+
+        private void MigrateFromJsonSaveToStorage()
+        {
+            Loader.Log($"Migrating pre 1.6 save data from json files to property storage");
 
             foreach (var state in ModSaveManager.LoadLocoWaypointStatesFromSave())
             {
-                _locoWaypointStates[state.LocomotiveId] = state;
+                _queueStateStorage.SetLocoQueue(state);
             }
 
             foreach (var route in ModSaveManager.LoadRoutesFromSave())
             {
-                _routes.Add(route.Id, route);
+                _routeStorage.SetRoute(route);
             }
 
-
+            Dictionary<string, RouteAssignment> routeAssignmentLookup = [];
             foreach (var routeAssignment in ModSaveManager.LoadRouteAssignmentsFromSave())
             {
-                _routeAssignments.Add(routeAssignment.LocoId, routeAssignment);
+                routeAssignmentLookup.Add(routeAssignment.LocoId, routeAssignment);
             }
+            _waypointModStorage.RouteAssignments = routeAssignmentLookup;
         }
 
         private void HydrateLocoWaypointStates()
@@ -518,6 +454,7 @@ namespace WaypointQueue.State
 
             foreach (var state in validStates)
             {
+                Loader.LogDebug($"Saving loco queue state after hydrating waypoints for loco id: {state.LocomotiveId}");
                 SaveLocoWaypointState(state.LocomotiveId, state);
             }
 

@@ -27,6 +27,10 @@ namespace WaypointQueue.UUM
 
         private static bool MapHasLoaded = false;
 
+        public static GameObject QueueStorageGO { get; private set; }
+
+        public static GameObject RouteStorageGO { get; private set; }
+
         private static bool Load(UnityModManager.ModEntry modEntry)
         {
             if (ModEntry != null)
@@ -61,7 +65,13 @@ namespace WaypointQueue.UUM
                 waypointQueueGO.AddComponent<ErrorModalController>();
                 waypointQueueGO.AddComponent<WaypointPicker>();
                 waypointQueueGO.AddComponent<ModStateManager>();
+
+                QueueStorageGO = new GameObject("WaypointQueueStateStorage");
+                RouteStorageGO = new GameObject("WaypointQueueRouteStorage");
+
                 UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
+                UnityEngine.Object.DontDestroyOnLoad(QueueStorageGO);
+                UnityEngine.Object.DontDestroyOnLoad(RouteStorageGO);
 
                 if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null))
                 {
@@ -147,6 +157,12 @@ namespace WaypointQueue.UUM
 
             if (RouteManagerWindow != null) UnityEngine.Object.DestroyImmediate(RouteManagerWindow.gameObject);
             RouteManagerWindow = null;
+
+            if (QueueStorageGO != null) UnityEngine.Object.DestroyImmediate(QueueStorageGO.gameObject);
+            QueueStorageGO = null;
+
+            if (RouteStorageGO != null) UnityEngine.Object.DestroyImmediate(RouteStorageGO.gameObject);
+            RouteStorageGO = null;
 
             return true;
         }

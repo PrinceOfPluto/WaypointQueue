@@ -1,5 +1,4 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
-using Game.State;
 using System.Collections.Generic;
 using System.Linq;
 using UI;
@@ -9,7 +8,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.State;
 using WaypointQueue.State.Events;
-using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 
@@ -248,13 +246,13 @@ namespace WaypointQueue.UI
              builder,
              onWaypointChange: (ManagedWaypoint waypoint) =>
              {
-                 StateManager.ApplyLocal(new UpdateWaypointForRouteMessage(route.Id, waypoint));
+                 ModStateManager.Shared.SaveRoute(route);
                  RebuildWithScrolls();
              },
              onWaypointDelete: (ManagedWaypoint waypoint) =>
              {
                  route.Waypoints.Remove(waypoint);
-                 StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
+                 ModStateManager.Shared.SaveRoute(route);
                  RebuildWithScrolls();
              },
              onWaypointReorder: (ManagedWaypoint waypoint, int newIndex) =>

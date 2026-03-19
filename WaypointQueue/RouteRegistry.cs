@@ -1,8 +1,6 @@
-﻿using Game.State;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using WaypointQueue.State;
-using WaypointQueue.State.Messages;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
@@ -40,13 +38,13 @@ namespace WaypointQueue
         public static RouteDefinition CreateNewRoute()
         {
             var route = new RouteDefinition { Name = $"Route {Routes.Count + 1}" };
-            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
+            ModStateManager.Shared.SaveRoute(route);
             return route;
         }
 
         public static void Remove(string routeId)
         {
-            StateManager.ApplyLocal(new RemoveRouteMessage(routeId));
+            ModStateManager.Shared.RemoveRoute(routeId);
         }
 
         public static void Rename(RouteDefinition route, string newName)
@@ -57,7 +55,7 @@ namespace WaypointQueue
 
             route.Name = newName.Trim();
 
-            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
+            ModStateManager.Shared.SaveRoute(route);
         }
 
         public static void ReorderWaypointInRoute(RouteDefinition route, ManagedWaypoint waypoint, int newIndex)
@@ -75,7 +73,7 @@ namespace WaypointQueue
 
                 route.Waypoints.Insert(newIndex, waypoint);
             }
-            StateManager.ApplyLocal(new UpdateRouteMessage(route.Id, route));
+            ModStateManager.Shared.SaveRoute(route);
         }
 
         public static void InsertWaypointInRoute(ManagedWaypoint waypoint, string beforeWaypointId, string routeId)
@@ -89,7 +87,7 @@ namespace WaypointQueue
             int beforeWaypointIndex = route.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
             route.Waypoints.Insert(beforeWaypointIndex, waypoint);
 
-            StateManager.ApplyLocal(new UpdateRouteMessage(routeId, route));
+            ModStateManager.Shared.SaveRoute(route);
         }
     }
 }

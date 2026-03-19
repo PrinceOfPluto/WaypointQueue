@@ -715,6 +715,55 @@ namespace WaypointQueue
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            var other = (ManagedWaypoint)obj;
+
+            return Id == other.Id &&
+                   LocomotiveId == other.LocomotiveId &&
+                   LocationString == other.LocationString &&
+                   CoupleToCarId == other.CoupleToCarId &&
+                   ConnectAirOnCouple == other.ConnectAirOnCouple &&
+                   ReleaseHandbrakesOnCouple == other.ReleaseHandbrakesOnCouple &&
+                   ApplyHandbrakesOnUncouple == other.ApplyHandbrakesOnUncouple &&
+                   BleedAirOnUncouple == other.BleedAirOnUncouple &&
+                   NumberOfCarsToCut == other.NumberOfCarsToCut &&
+                   PostCouplingCutMode == other.PostCouplingCutMode &&
+                   TakeUncoupledCarsAsActiveCut == other.TakeUncoupledCarsAsActiveCut &&
+                   SerializableRefuelPoint.Equals(other.SerializableRefuelPoint) &&
+                   RefuelIndustryId == other.RefuelIndustryId &&
+                   RefuelLoadName == other.RefuelLoadName &&
+                   RefuelMaxCapacity.Equals(other.RefuelMaxCapacity) &&
+                   WillRefuel == other.WillRefuel &&
+                   CurrentlyRefueling == other.CurrentlyRefueling &&
+                   RefuelingSpeedLimit == other.RefuelingSpeedLimit &&
+                   MaxSpeedAfterRefueling == other.MaxSpeedAfterRefueling &&
+                   RefuelLoaderAnimated == other.RefuelLoaderAnimated &&
+                   TimetableSymbol == other.TimetableSymbol &&
+                   WillWait == other.WillWait &&
+                   CurrentlyWaiting == other.CurrentlyWaiting &&
+                   DurationOrSpecificTime == other.DurationOrSpecificTime &&
+                   WaitUntilTimeString == other.WaitUntilTimeString &&
+                   WaitUntilDay == other.WaitUntilDay &&
+                   WaitForDurationMinutes == other.WaitForDurationMinutes &&
+                   WillLimitPassingSpeed == other.WillLimitPassingSpeed &&
+                   WaypointTargetSpeed == other.WaypointTargetSpeed &&
+                   StatusLabel == other.StatusLabel &&
+                   Name == other.Name &&
+                   Notes == other.Notes &&
+                   Errors.SequenceEqual(other.Errors);
+        }
+
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
+        }
     }
 
     [Serializable]

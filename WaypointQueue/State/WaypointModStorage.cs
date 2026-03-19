@@ -10,15 +10,11 @@ namespace WaypointQueue.State
 {
     internal class WaypointModStorage : IPropertyAccessControlDelegate, IDisposable
     {
-        private readonly KeyValueObject _modKeyValueObject;
+        private readonly KeyValueObject _keyValueObject;
 
         public readonly string ObjectId = "_waypointQueueMod";
 
         public readonly string KeyVersion = "version";
-
-        public readonly string KeyLocoWaypointStates = "locoWaypointStates";
-
-        public readonly string KeyRoutes = "routes";
 
         public readonly string KeyRouteAssignments = "routeAssignments";
 
@@ -26,53 +22,15 @@ namespace WaypointQueue.State
         {
             get
             {
-                if (_modKeyValueObject != null && _modKeyValueObject.Keys.Contains(KeyVersion))
+                if (_keyValueObject != null && _keyValueObject.Keys.Contains(KeyVersion))
                 {
-                    return _modKeyValueObject[KeyVersion].StringValue;
+                    return _keyValueObject[KeyVersion].StringValue;
                 }
                 return string.Empty;
             }
             set
             {
-                _modKeyValueObject[KeyVersion] = value;
-            }
-        }
-
-        public Dictionary<string, LocoWaypointState> LocoWaypointStates
-        {
-            get
-            {
-                if (_modKeyValueObject != null && _modKeyValueObject.Keys.Contains(KeyLocoWaypointStates))
-                {
-                    string json = _modKeyValueObject[KeyLocoWaypointStates].StringValue;
-                    return JsonConvert.DeserializeObject<Dictionary<string, LocoWaypointState>>(json);
-                }
-
-                return [];
-            }
-            set
-            {
-                string json = JsonConvert.SerializeObject(value);
-                _modKeyValueObject[KeyLocoWaypointStates] = Value.String(json);
-            }
-        }
-
-        public List<RouteDefinition> Routes
-        {
-            get
-            {
-                if (_modKeyValueObject != null && _modKeyValueObject.Keys.Contains(KeyRoutes))
-                {
-                    string json = _modKeyValueObject[KeyRoutes].StringValue;
-                    return JsonConvert.DeserializeObject<List<RouteDefinition>>(json);
-                }
-
-                return [];
-            }
-            set
-            {
-                string json = JsonConvert.SerializeObject(value);
-                _modKeyValueObject[KeyRoutes] = Value.String(json);
+                _keyValueObject[KeyVersion] = value;
             }
         }
 
@@ -80,24 +38,22 @@ namespace WaypointQueue.State
         {
             get
             {
-                if (_modKeyValueObject != null && _modKeyValueObject.Keys.Contains(KeyRouteAssignments))
+                if (_keyValueObject != null && _keyValueObject.Keys.Contains(KeyRouteAssignments))
                 {
-                    string json = _modKeyValueObject[KeyRouteAssignments].StringValue;
+                    string json = _keyValueObject[KeyRouteAssignments];
                     return JsonConvert.DeserializeObject<Dictionary<string, RouteAssignment>>(json);
                 }
-
                 return [];
             }
             set
             {
-                string json = JsonConvert.SerializeObject(value);
-                _modKeyValueObject[KeyRouteAssignments] = Value.String(json);
+                _keyValueObject[KeyRouteAssignments] = JsonConvert.SerializeObject(value);
             }
         }
 
         public WaypointModStorage(KeyValueObject keyValueObject)
         {
-            _modKeyValueObject = keyValueObject;
+            _keyValueObject = keyValueObject;
             StateManager.Shared.RegisterPropertyObject(ObjectId, keyValueObject, this);
         }
 
@@ -111,11 +67,19 @@ namespace WaypointQueue.State
 
         public void Dispose()
         {
-            if (!(_modKeyValueObject == null))
+            if (!(_keyValueObject == null))
             {
-                UnityEngine.Object.DestroyImmediate(_modKeyValueObject);
+                UnityEngine.Object.DestroyImmediate(_keyValueObject);
                 StateManager.Shared.UnregisterPropertyObject(ObjectId);
             }
+        }
+
+        public IDisposable ObserveRouteAssignments(Action<Dictionary<string, RouteAssignment>> action, bool callInitial)
+        {
+            return _keyValueObject.Observe(KeyRouteAssignments, (Value value) =>
+            {
+                action(RouteAssignments);
+            }, callInitial);
         }
     }
 }
