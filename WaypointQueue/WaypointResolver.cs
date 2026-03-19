@@ -450,6 +450,7 @@ namespace WaypointQueue
                     string message = $"Waypoint for {waypoint.Locomotive.Ident} was configured to perform a post-coupling cut by count with {waypoint.NumberOfCarsToCut} cars to cut, but since no cars can be cut it will remain coupled to all cars.";
                     Console.Log(message);
                     Loader.Log(message);
+                    Loader.Log($"Waypoint was: {waypoint}");
                     return;
                 }
             }
@@ -475,6 +476,15 @@ namespace WaypointQueue
                     Loader.Log($"Pickup all except locomotives found zero cars to cut.");
                     return;
                 }
+            }
+
+            if (isPickup && carsToCut.Count == 0)
+            {
+                string message = $"Waypoint for {waypoint.Locomotive.Ident} was configured to perform a post-coupling cut, but since no cars can be cut it will remain coupled to all cars.";
+                Console.Log(message);
+                Loader.Log(message);
+                Loader.Log($"Waypoint was: {waypoint}");
+                return;
             }
 
             uncouplingService.PerformCut(carsToCut, waypoint);
