@@ -211,57 +211,76 @@ namespace WaypointQueue.State
 
             _locoWaypointStates[newState.LocomotiveId] = newState;
 
-            if (oldState != null)
+            if (Multiplayer.IsHost)
             {
-                if (Multiplayer.IsHost)
+                using (StateManager.TransactionScope())
                 {
-                    using (StateManager.TransactionScope())
+                    HostHandleQueueDidChange(oldState, newState);
+                }
+            }
+
+            if (newState.Waypoints.Count == oldState.Waypoints.Count)
+            {
+                // Determine whether only a single waypoint changed for the UI refresh optimization
+                List<ManagedWaypoint> waypointsThatChanged = [];
+                for (int i = 0; i < newState.Waypoints.Count; i++)
+                {
+                    ManagedWaypoint oldWaypoint = oldState.Waypoints[i];
+                    ManagedWaypoint newWaypoint = newState.Waypoints[i];
+
+                    if (oldWaypoint.Id == newWaypoint.Id && !oldWaypoint.Equals(newWaypoint))
                     {
-                        // When all waypoints are deleted
-                        if (newState.Waypoints.Count == 0 && oldState.UnresolvedWaypoint != null)
-                        {
-                            _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                            _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
-                        }
-                        // When the first waypoint changed
-                        else if (newState.Waypoints.Count > 0 && oldState.UnresolvedWaypoint != null && !oldState.UnresolvedWaypoint.Equals(newState.Waypoints[0]))
-                        {
-                            _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
-                            WaypointQueueController.Shared.SendToFirstWaypoint(newState);
-                            return; // returning because SendToFirstWaypoint will trigger a new queue state change
-                        }
+                        waypointsThatChanged.Add(newWaypoint);
+                    }
+
+                    if (waypointsThatChanged.Count > 1)
+                    {
+                        break;
                     }
                 }
 
-                if (newState.Waypoints.Count == oldState.Waypoints.Count)
+                if (waypointsThatChanged.Count == 1)
                 {
-                    // Determine whether only a single waypoint changed for the UI refresh optimization
-                    List<ManagedWaypoint> waypointsThatChanged = [];
-                    for (int i = 0; i < newState.Waypoints.Count; i++)
-                    {
-                        ManagedWaypoint oldWaypoint = oldState.Waypoints[i];
-                        ManagedWaypoint newWaypoint = newState.Waypoints[i];
-
-                        if (oldWaypoint.Id == newWaypoint.Id && !oldWaypoint.Equals(newWaypoint))
-                        {
-                            waypointsThatChanged.Add(newWaypoint);
-                        }
-
-                        if (waypointsThatChanged.Count > 1)
-                        {
-                            break;
-                        }
-                    }
-
-                    if (waypointsThatChanged.Count == 1)
-                    {
-                        Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId));
-                        return;
-                    }
+                    Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId));
+                    return;
                 }
             }
 
             Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
+        }
+
+        private void HostHandleQueueDidChange(LocoWaypointState oldState, LocoWaypointState newState)
+        {
+            if (oldState.UnresolvedWaypoint == null)
+            {
+                // Don't need to handle anything here because the queue processor will handle it
+                return;
+            }
+
+            // When all waypoints are deleted
+            if (newState.Waypoints.Count == 0)
+            {
+                _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
+                return;
+            }
+
+            // When first waypoint was adjusted
+            (Track.Location? oldOrdersLocation, string oldOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(oldState.Locomotive);
+
+            if (oldOrdersLocation != newState.UnresolvedWaypoint.Location || oldOrdersCoupleToCarId != newState.UnresolvedWaypoint.CoupleToCarId)
+            {
+                WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                return;
+            }
+
+            // When first waypoint changed
+            if (newState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.UnresolvedWaypoint.Id)
+            {
+                _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                return;
+            }
         }
 
         private void OnRouteStorageKeyAdded(string routeId)

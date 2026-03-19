@@ -265,6 +265,8 @@ namespace WaypointQueue
             int beforeWaypointIndex = locoState.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
             locoState.Waypoints.Insert(beforeWaypointIndex, waypoint);
 
+            locoState.UnresolvedWaypoint = locoState.Waypoints.FirstOrDefault();
+
             Loader.LogDebug($"Saving loco queue state after inserting waypoint for loco id: {loco.id}");
             ModStateManager.Shared.SaveLocoWaypointState(loco.id, locoState);
             Loader.Log($"Inserted waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location} at index {beforeWaypointIndex}");
@@ -387,6 +389,8 @@ namespace WaypointQueue
 
             state.Waypoints[index] = waypoint;
 
+            state.UnresolvedWaypoint = state.Waypoints.FirstOrDefault();
+
             Loader.LogDebug($"Saving loco queue state after updating waypoint {waypoint.Id} for loco id: {waypoint.LocomotiveId}");
             ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
@@ -394,29 +398,22 @@ namespace WaypointQueue
         public void ReorderWaypoint(ManagedWaypoint waypoint, int newIndex)
         {
             LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(waypoint.LocomotiveId);
-            if (state.Waypoints != null && state.Waypoints.Count > 0)
+            int oldIndex = state.Waypoints.FindIndex(w => w.Id == waypoint.Id);
+            if (oldIndex < 0) return;
+
+            state.Waypoints.RemoveAt(oldIndex);
+
+            if (newIndex > oldIndex)
             {
-                int oldIndex = state.Waypoints.FindIndex(w => w.Id == waypoint.Id);
-                if (oldIndex < 0) return;
-
-                state.Waypoints.RemoveAt(oldIndex);
-
-                if (newIndex > oldIndex)
-                {
-                    newIndex--; // the actual index could have shifted due to the removal
-                }
-
-                state.Waypoints.Insert(newIndex, waypoint);
-
-                if (state.Waypoints[0].Id != state.UnresolvedWaypoint.Id)
-                {
-                    Loader.LogDebug($"Resetting unresolved waypoint after reordering waypoint list");
-                    state.UnresolvedWaypoint = waypoint;
-                }
-
-                Loader.LogDebug($"Saving loco queue state after reordering waypoint {waypoint.Id} for loco id: {waypoint.LocomotiveId}");
-                ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
+                newIndex--; // the actual index could have shifted due to the removal
             }
+
+            state.Waypoints.Insert(newIndex, waypoint);
+
+            state.UnresolvedWaypoint = state.Waypoints.FirstOrDefault();
+
+            Loader.LogDebug($"Saving loco queue state after reordering waypoint {waypoint.Id} for loco id: {waypoint.LocomotiveId}");
+            ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
 
         public void RerouteCurrentWaypoint(BaseLocomotive locomotive)

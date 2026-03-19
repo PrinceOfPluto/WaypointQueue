@@ -71,20 +71,20 @@ namespace WaypointQueue.UI
             Messenger.Default.Unregister(this);
         }
 
-        private void OnQueueDidUpdate(QueueDidUpdate @event)
+        private void OnQueueDidUpdate(QueueDidUpdate queueDidUpdateEvent)
         {
-            if (@event.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id)
+            if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id)
             {
                 Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
                 RebuildWithScroll();
             }
         }
 
-        private void OnWaypointDidUpdate(WaypointDidUpdate @event)
+        private void OnWaypointDidUpdate(WaypointDidUpdate waypointDidUpdateEvent)
         {
-            if (@event.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(@event.WaypointId, out UIPanelBuilder panelBuilder))
+            if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder))
             {
-                Loader.LogDebug($"Rebuilding single waypoint {@event.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
+                Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
                 panelBuilder.Rebuild();
             }
         }
