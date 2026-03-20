@@ -76,6 +76,11 @@ namespace WaypointQueue
          */
         private bool TryHandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
+            if (wp.WaitingWasSkipped)
+            {
+                return true;
+            }
+
             // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
             {

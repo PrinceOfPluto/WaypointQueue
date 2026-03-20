@@ -546,9 +546,16 @@ namespace WaypointQueue
 
             List<Car> fullConsistFromEndA = [.. carsToCut.First().EnumerateCoupled(fromEnd: LogicalEnd.A)];
 
-            if (carsToCut.Count >= fullConsistFromEndA.Count)
+            if (carsToCut.Count > fullConsistFromEndA.Count)
             {
                 string errorMessage = $"Cannot uncouple more cars than exist in {waypoint.Locomotive.Ident}'s consist.";
+                Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                throw new UncouplingException(errorMessage, waypoint);
+            }
+
+            if (carsToCut.Count == fullConsistFromEndA.Count)
+            {
+                string errorMessage = $"{carsToCut.Count} cars were calculated to be cut from {waypoint.Locomotive.Ident}'s consist of {fullConsistFromEndA.Count} cars.";
                 Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
                 throw new UncouplingException(errorMessage, waypoint);
             }

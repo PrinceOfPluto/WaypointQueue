@@ -195,9 +195,11 @@ namespace WaypointQueue
             bool isTrainStopped = _waypointResolver.IsTrainStopped(entry.UnresolvedWaypoint);
             bool needsEndOfTrackResolve = atEndOfTrack && isNearWaypoint && isTrainStopped;
 
+            bool needsResolveFromWaitingSkipped = entry.UnresolvedWaypoint?.WaitingWasSkipped ?? false;
+
             bool needsAlreadyCoupledResolve = IsUnresolvedWaypointAlreadyCoupled(entry.UnresolvedWaypoint);
 
-            return needsEndOfTrackResolve || needsAlreadyCoupledResolve;
+            return needsEndOfTrackResolve || needsAlreadyCoupledResolve || needsResolveFromWaitingSkipped;
         }
 
         private bool IsUnresolvedWaypointAlreadyCoupled(ManagedWaypoint wp)

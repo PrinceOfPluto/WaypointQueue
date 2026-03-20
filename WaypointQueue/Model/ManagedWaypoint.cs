@@ -254,6 +254,8 @@ namespace WaypointQueue
         public bool WillWait { get; set; }
         [Key(24)]
         public bool CurrentlyWaiting { get; set; }
+        [Key(52)]
+        public bool WaitingWasSkipped { get; set; } = false;
         [Key(25)]
         public WaitType DurationOrSpecificTime { get; set; } = WaitType.Duration;
         [Key(26)]
@@ -659,6 +661,10 @@ namespace WaypointQueue
 
         public void ClearWaiting()
         {
+            if (CurrentlyWaiting)
+            {
+                WaitingWasSkipped = true;
+            }
             Loader.LogDebug($"Clear waiting for {Locomotive.Ident} at {LocationString}");
             WillWait = false;
             CurrentlyWaiting = false;
