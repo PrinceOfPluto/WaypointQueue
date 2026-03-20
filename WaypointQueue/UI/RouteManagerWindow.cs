@@ -150,6 +150,13 @@ namespace WaypointQueue.UI
 
                         row.AddButtonCompact("Copy to Loco", () => AssignToSelectedLoco(route, append: true));
                     });
+                    detail.ButtonStrip(row =>
+                    {
+                        row.AddButtonCompact("Add waypoint", () =>
+                        {
+                            WaypointPicker.Shared.StartPickingWaypointForRoute(RouteRegistry.AddWaypointToRoute, route.Id);
+                        });
+                    });
 
                     detail.Spacer(12f);
                     detail.VScrollView(scroll =>

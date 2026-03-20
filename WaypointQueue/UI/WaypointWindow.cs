@@ -512,6 +512,7 @@ namespace WaypointQueue.UI
             var removeWaitRow = new DropdownMenu.RowData("Remove wait", "");
             var deleteWaypointRow = new DropdownMenu.RowData("Delete", "");
 
+            // Ordering
             options.Add(jumpToWaypointRow);
             options.Add(insertWaypointAbove);
             options.Add(adjustWaypointRow);
@@ -533,6 +534,7 @@ namespace WaypointQueue.UI
             }
             options.Add(deleteWaypointRow);
 
+            // Handling
             builder.AddOptionsDropdown(options, (int value) =>
             {
                 if (value == options.IndexOf(jumpToWaypointRow))

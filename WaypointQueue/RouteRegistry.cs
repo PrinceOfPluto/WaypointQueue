@@ -89,5 +89,17 @@ namespace WaypointQueue
 
             ModStateManager.Shared.SaveRoute(route);
         }
+
+        public static void AddWaypointToRoute(ManagedWaypoint waypoint, string routeId)
+        {
+            if (!Routes.ContainsKey(routeId))
+            {
+                return;
+            }
+
+            RouteDefinition route = Routes[routeId];
+            route.Waypoints.Add(waypoint);
+            ModStateManager.Shared.SaveRoute(route);
+        }
     }
 }

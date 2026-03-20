@@ -25,7 +25,7 @@ namespace WaypointQueue.UI
 
         private ManagedWaypoint _waypoint;
         private Car _locomotive;
-        private HashSet<Car> _dontSnapToCars;
+        private HashSet<Car> _dontSnapToCars = [];
         private Action<ManagedWaypoint> _onWaypointChange;
         private Coroutine _coroutine;
 
@@ -34,7 +34,10 @@ namespace WaypointQueue.UI
 
         private Action<Location, string> _onWaypointSelected;
         private Action<ManagedWaypoint, string> _onWaypointInsert;
+        private string _routeId;
         private bool _forRoute;
+
+        private string _cancelMessage = String.Empty;
 
         private RefuelService _refuelService;
 
@@ -91,6 +94,7 @@ namespace WaypointQueue.UI
             _onWaypointChange = onWaypointChange;
             _onWaypointSelected = AdjustWaypoint;
             _forRoute = forRoute;
+            _cancelMessage = "Cancelled waypoint adjustment";
 
             _dontSnapToCars = [];
             if (!forRoute)
@@ -126,9 +130,10 @@ namespace WaypointQueue.UI
             Cancel();
 
             _waypoint = beforeWaypoint;
-            _onWaypointSelected = HandleAddNewWaypoint;
+            _onWaypointSelected = HandleInsertNewWaypoint;
             _onWaypointInsert = onWaypointInsert;
             _forRoute = forRoute;
+            _cancelMessage = "Cancelled inserting waypoint";
 
             if (!forRoute)
             {
@@ -149,6 +154,29 @@ namespace WaypointQueue.UI
                 message = "Click to insert a waypoint for " + beforeWaypoint.Locomotive.Ident;
             }
             ShowMessage(message);
+
+            GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
+        }
+
+        public void StartPickingWaypointForRoute(Action<ManagedWaypoint, string> onWaypointInsert, string routeId)
+        {
+            if (_waypointMarker == null)
+            {
+                InitWaypointMarker();
+            }
+
+            AutoEngineerDestinationPicker.Shared.Cancel();
+            Cancel();
+
+            _onWaypointSelected = HandleAddWaypointToRoute;
+            _onWaypointInsert = onWaypointInsert;
+            _routeId = routeId;
+            _cancelMessage = "Cancelled adding waypoint";
+            _dontSnapToCars = [];
+
+            _coroutine = StartCoroutine(Loop());
+
+            ShowMessage("Click to add a waypoint for route");
 
             GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
         }
@@ -178,10 +206,16 @@ namespace WaypointQueue.UI
             _onWaypointChange(_waypoint);
         }
 
-        private void HandleAddNewWaypoint(Location location, string coupleToCarId)
+        private void HandleInsertNewWaypoint(Location location, string coupleToCarId)
         {
             ManagedWaypoint insertedWaypoint = new ManagedWaypoint((BaseLocomotive)_locomotive, location, coupleToCarId);
             _onWaypointInsert(insertedWaypoint, _waypoint.Id);
+        }
+
+        private void HandleAddWaypointToRoute(Location location, string coupleToCarId)
+        {
+            ManagedWaypoint addedWaypoint = new ManagedWaypoint(null, location, coupleToCarId);
+            _onWaypointInsert(addedWaypoint, _routeId);
         }
 
         public void Cancel()
@@ -189,23 +223,18 @@ namespace WaypointQueue.UI
             _waypoint = null;
             _locomotive = null;
             _forRoute = false;
+            _routeId = String.Empty;
             _onWaypointChange = null;
             _onWaypointSelected = null;
             _onWaypointInsert = null;
             _waypointMarker.gameObject.SetActive(value: false);
+            _dontSnapToCars = [];
             StopLoop();
         }
 
         private bool DidEscape()
         {
-            if (_onWaypointChange != null)
-            {
-                ShowMessage("Cancelled waypoint adjustment");
-            }
-            else
-            {
-                ShowMessage("Cancelled waypoint insert");
-            }
+            ShowMessage(_cancelMessage);
             Cancel();
             return true;
         }
