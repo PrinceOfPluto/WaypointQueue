@@ -1,4 +1,5 @@
-﻿using Game.State;
+﻿using Game.Messages;
+using Game.State;
 using HarmonyLib;
 using Model;
 using Model.AI;
@@ -36,7 +37,7 @@ namespace WaypointQueue.Services
 
                 if (shouldApplyBrake)
                 {
-                    if (car is BaseLocomotive baseLocomotive)
+                    if (car is BaseLocomotive baseLocomotive && !baseLocomotive.KeyValueObject[PropertyChange.KeyForControl(PropertyChange.Control.CutOut)].BoolValue)
                     {
                         baseLocomotive.ControlHelper.LocomotiveBrake = 1f;
                     }
