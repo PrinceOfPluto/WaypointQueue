@@ -342,6 +342,7 @@ namespace WaypointQueue.State
 
         public void SaveRoute(RouteDefinition routeDefinition)
         {
+            routeDefinition.UpdatedAt = DateTime.Now;
             string json = JsonConvert.SerializeObject(routeDefinition);
             StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, routeDefinition.Id, new StringPropertyValue(json)));
         }

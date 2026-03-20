@@ -27,6 +27,24 @@ namespace WaypointQueue.UI
         private readonly UIState<string> _selectedRouteId = new UIState<string>(null);
         private readonly List<float> _scrollPositions = new List<float>();
 
+        private string _searchFilter = string.Empty;
+        private SortByField _sortByField = SortByField.Section;
+        private SortByDirection _sortByDirection = SortByDirection.Ascending;
+
+        private enum SortByField
+        {
+            Name,
+            Section,
+            CreatedAt,
+            UpdatedAt
+        }
+
+        private enum SortByDirection
+        {
+            Ascending,
+            Descending
+        }
+
         protected void Awake()
         {
             Shared = this;
@@ -86,9 +104,7 @@ namespace WaypointQueue.UI
                 _scrollPositions.Add(sr.verticalNormalizedPosition);
             }
 
-
             Rebuild();
-
 
             Invoke(nameof(RestoreScrolls), 0f);
         }
@@ -108,9 +124,105 @@ namespace WaypointQueue.UI
         public override void Populate(UIPanelBuilder builder)
         {
             builder.Spacing = 0f;
-            var items = RouteRegistry.Routes.Values
-                .Select(r => new UIPanelBuilder.ListItem<RouteDefinition>(r.Id, r, "Routes", r.Name))
+            var filteredRoutes = RouteRegistry.Routes.Values;
+
+            if (!string.IsNullOrWhiteSpace(_searchFilter))
+            {
+                filteredRoutes = [.. filteredRoutes.Where(r => r.Name.Contains(_searchFilter))];
+            }
+
+            var items = filteredRoutes
+                .Select(r => new UIPanelBuilder.ListItem<RouteDefinition>(r.Id, r, r.Section, r.Name))
                 .ToList();
+
+            if (_sortByField == SortByField.Name)
+            {
+                if (_sortByDirection == SortByDirection.Ascending)
+                {
+                    items.Sort((x, y) => x.Value.Name.CompareTo(y.Value.Name));
+                }
+                else
+                {
+                    items.Sort((x, y) => y.Value.Name.CompareTo(x.Value.Name));
+                }
+            }
+
+            if (_sortByField == SortByField.Section)
+            {
+                if (_sortByDirection == SortByDirection.Ascending)
+                {
+                    items.Sort((x, y) => x.Value.Section.CompareTo(y.Value.Section));
+                }
+                else
+                {
+                    items.Sort((x, y) => y.Value.Section.CompareTo(x.Value.Section));
+                }
+            }
+
+            if (_sortByField == SortByField.CreatedAt)
+            {
+                if (_sortByDirection == SortByDirection.Ascending)
+                {
+                    items.Sort((x, y) => x.Value.CreatedAt.CompareTo(y.Value.CreatedAt));
+                }
+                else
+                {
+                    items.Sort((x, y) => y.Value.CreatedAt.CompareTo(x.Value.CreatedAt));
+                }
+            }
+
+            if (_sortByField == SortByField.UpdatedAt)
+            {
+                if (_sortByDirection == SortByDirection.Ascending)
+                {
+                    items.Sort((x, y) => x.Value.UpdatedAt.CompareTo(y.Value.UpdatedAt));
+                }
+                else
+                {
+                    items.Sort((x, y) => y.Value.UpdatedAt.CompareTo(x.Value.UpdatedAt));
+                }
+            }
+
+            builder.VStack(builder =>
+            {
+                builder.HStack(row =>
+                {
+                    row.AddLabel("Filter").VerticalTextAlignment(TMPro.VerticalAlignmentOptions.Middle);
+                    row.AddInputField(_searchFilter, (value =>
+                    {
+                        _searchFilter = value;
+                        RebuildWithScrolls();
+                    }), placeholder: "Type to filter route names").FlexibleWidth();
+                    row.AddButtonCompact("Clear filter", () =>
+                    {
+                        _searchFilter = string.Empty;
+                        RebuildWithScrolls();
+                    });
+                    row.Spacer();
+
+                    row.AddLabel("Sort by").VerticalTextAlignment(TMPro.VerticalAlignmentOptions.Middle);
+                    row.AddDropdown(["Name", "Section", "Created at", "Updated at"], (int)_sortByField, (val =>
+                    {
+                        _sortByField = (SortByField)val;
+                        RebuildWithScrolls();
+                    })).Width(140f);
+
+                    List<string> sortDirectionLabels = ["A to Z", "Z to A"];
+                    if (_sortByField == SortByField.CreatedAt || _sortByField == SortByField.UpdatedAt)
+                    {
+                        sortDirectionLabels = ["Ascending", "Descending"];
+                    }
+                    row.AddDropdown(sortDirectionLabels, (int)_sortByDirection, (val =>
+                    {
+                        _sortByDirection = (SortByDirection)val;
+                        RebuildWithScrolls();
+                    })).Width(140f);
+                });
+            });
+
+            builder.Spacer(8f);
+            builder.AddHRule();
+            builder.Spacer(8f);
 
             builder.AddListDetail<RouteDefinition>(
                 items,
@@ -121,44 +233,112 @@ namespace WaypointQueue.UI
 
                     if (route == null)
                     {
-                        detail.AddLabel("Select a route from the list.");
-                        detail.AddExpandingVerticalSpacer();
-                        return;
+                        if (items.Count == 0)
+                        {
+                            detail.AddLabel("No matching results found.");
+                            detail.AddExpandingVerticalSpacer();
+                            return;
+                        }
+                        else
+                        {
+                            detail.AddLabel("Select a route from the list.");
+                            detail.AddExpandingVerticalSpacer();
+                            return;
+                        }
                     }
-                    detail.AddTitle(route.Name, "");
-                    detail.FieldLabelWidth = 110f;
-                    detail.AddField("Name", detail.AddInputField(route.Name, newName =>
+                    detail.HStack(row =>
                     {
-                        RouteRegistry.Rename(route, newName);
-                        RebuildWithScrolls();
-                    }, placeholder: "Route name"));
+                        row.AddLabel(route.Name, text =>
+                        {
+                            text.fontSize = 20f;
+                        });
+                        row.Spacer();
 
-                    detail.Spacer(8f);
+                        row.AddButtonCompact("Delete", () =>
+                        {
+                            if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
+                            var route = RouteRegistry.GetById(_selectedRouteId.Value);
+
+                            if (route.Waypoints.Count > 0)
+                            {
+                                ModalAlertController.Present($"Delete route \"{route.Name}\" with {route.Waypoints.Count} waypoints?", "This cannot be undone.",
+                                [
+                                    (true, "Delete"),
+                        (false, "Cancel")
+                                ], delegate (bool b)
+                                {
+                                    if (b)
+                                    {
+                                        RouteRegistry.Remove(_selectedRouteId.Value);
+                                        _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
+                                        RebuildWithScrolls();
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                RouteRegistry.Remove(_selectedRouteId.Value);
+                                _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
+                                RebuildWithScrolls();
+                            }
+                        });
+                        List<DropdownMenu.RowData> options = [
+                            new("Overwrite from Loco", "Overwrites route with waypoints from current loco"),
+                            new("Add from Loco", "Appends current loco waypoints to the end of the route"),
+                            new("Copy to Loco", "Appends waypoints from this route to the current loco")
+                            ];
+                        row.AddOptionsDropdown(options, (value =>
+                        {
+                            switch (value)
+                            {
+                                case 0:
+                                    SetFromSelectedLoco(route);
+                                    break;
+                                case 1:
+                                    AppendFromSelectedLoco(route);
+                                    break;
+                                case 2:
+                                    AssignToSelectedLoco(route, append: true);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }));
+                    });
+                    detail.FieldLabelWidth = 80f;
+                    detail.VStack(stack =>
+                    {
+                        stack.Spacing = 2f;
+                        stack.AddField("Name", stack.AddInputField(route.Name, newName =>
+                        {
+                            RouteRegistry.Rename(route, newName);
+                            RebuildWithScrolls();
+                        }, placeholder: "Route name"));
+                        stack.AddField("Section", stack.AddInputField(route.Section, newSection =>
+                        {
+                            RouteRegistry.RenameSection(route, newSection);
+                            RebuildWithScrolls();
+                        }, placeholder: "Assign section to organize route in list"));
+                    });
+
                     detail.ButtonStrip(row =>
                     {
-                        row.AddButtonCompact("Replace from Loco", () =>
+                        row.AddButton("Add waypoint", () =>
                         {
-                            SetFromSelectedLoco(route);
+                            WaypointPicker.Shared.StartPickingWaypointForRoute(RouteRegistry.AddWaypointToRoute, route.Id);
                         });
 
-                        row.AddButtonCompact("Add from Loco", () =>
+                        row.AddButton("Add from Loco", () =>
                         {
                             AppendFromSelectedLoco(route);
                         });
 
                         row.Spacer();
-
-                        row.AddButtonCompact("Copy to Loco", () => AssignToSelectedLoco(route, append: true));
-                    });
-                    detail.ButtonStrip(row =>
-                    {
-                        row.AddButtonCompact("Add waypoint", () =>
-                        {
-                            WaypointPicker.Shared.StartPickingWaypointForRoute(RouteRegistry.AddWaypointToRoute, route.Id);
-                        });
+                        row.AddButton("Copy to Loco", () => AssignToSelectedLoco(route, append: true));
                     });
 
-                    detail.Spacer(12f);
+                    detail.AddHRule();
+
                     detail.VScrollView(scroll =>
                     {
                         if (route.Waypoints == null || route.Waypoints.Count == 0)
@@ -185,7 +365,7 @@ namespace WaypointQueue.UI
                                         RebuildWithScrolls();
                                         break;
                                     case 1:
-                                        PresentDeleteAllModal(route);
+                                        PresentDeleteAllWaypointsModal(route);
                                         break;
                                 }
                             });
@@ -215,17 +395,10 @@ namespace WaypointQueue.UI
                     RebuildWithScrolls();
                 });
 
-                row.AddButton("Delete", () =>
-                {
-                    if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
-                    RouteRegistry.Remove(_selectedRouteId.Value);
-                    _selectedRouteId.Value = RouteRegistry.Routes.Values.FirstOrDefault()?.Id;
-                    RebuildWithScrolls();
-                });
             });
         }
 
-        private void PresentDeleteAllModal(RouteDefinition route)
+        private void PresentDeleteAllWaypointsModal(RouteDefinition route)
         {
             ModalAlertController.Present($"Delete all waypoints for route '{route.Name}'?", "This cannot be undone.",
                 new (bool, string)[] { (true, "Delete"), (false, "Cancel") },

@@ -14,5 +14,11 @@ namespace WaypointQueue
         public string Name { get; set; } = "New Route";
         [Key(2)]
         public List<ManagedWaypoint> Waypoints { get; set; } = [];
+        [Key(3)]
+        public string Section { get; set; } = "Unsorted section";
+        [Key(4)]
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        [Key(5)]
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }

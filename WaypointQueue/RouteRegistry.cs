@@ -58,6 +58,17 @@ namespace WaypointQueue
             ModStateManager.Shared.SaveRoute(route);
         }
 
+        public static void RenameSection(RouteDefinition route, string newSection)
+        {
+            if (route == null) return;
+            newSection = (newSection ?? "").Trim();
+            if (newSection.Length == 0 || newSection == route.Section) return;
+
+            route.Section = newSection.Trim();
+
+            ModStateManager.Shared.SaveRoute(route);
+        }
+
         public static void ReorderWaypointInRoute(RouteDefinition route, ManagedWaypoint waypoint, int newIndex)
         {
             if (route != null && route.Waypoints != null)
