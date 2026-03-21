@@ -398,9 +398,7 @@ namespace WaypointQueue
         [JsonIgnore]
         [IgnoreMember]
         public Car UncouplingSearchResultCar { get; set; }
-
-        [JsonIgnore]
-        [IgnoreMember]
+        [Key(53)]
         public string DestinationSearchText { get; set; } = "";
         [Key(43)]
         public virtual string UncoupleDestinationId { get; set; } = "";
