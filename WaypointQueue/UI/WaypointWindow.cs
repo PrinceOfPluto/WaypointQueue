@@ -212,27 +212,39 @@ namespace WaypointQueue.UI
                     builder.AddLabel($"Showing waypoints for {selectedLocomotive.Ident}");
                     builder.Spacer();
 
-                    List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
-                    options.Add(new DropdownMenu.RowData("Reroute", "Reroute the current waypoint"));
-                    options.Add(new DropdownMenu.RowData("Refresh", "Forces a refresh of the waypoint window"));
-                    options.Add(new DropdownMenu.RowData("Delete all", ""));
+                    List<DropdownMenu.RowData> options = [];
+
+                    DropdownMenu.RowData rerouteOption = new("Reroute", "Reroute the current waypoint");
+                    DropdownMenu.RowData periodicRerouteOption = new(locoWaypointState.PeriodicReroute ? DropdownMenu.CheckState.Checked : DropdownMenu.CheckState.Unchecked, "Periodic reroute", "Reroutes every few seconds");
+                    DropdownMenu.RowData refreshOption = new("Refresh", "Forces a refresh of the waypoint window");
+                    DropdownMenu.RowData deleteAllOption = new("Delete all", "Deletes all waypoints");
+
+                    options.Add(rerouteOption);
+
+                    if (Loader.Settings.PeriodicReroute)
+                    {
+                        options.Add(periodicRerouteOption);
+                    }
+                    options.Add(refreshOption);
+                    options.Add(deleteAllOption);
 
                     builder.AddOptionsDropdown(options, (int value) =>
                     {
-                        switch (value)
+                        if (value == options.IndexOf(rerouteOption))
                         {
-                            case 0:
-                                Loader.LogDebug($"Refreshing orders");
-                                WaypointQueueController.Shared.RerouteCurrentWaypoint(selectedLocomotive);
-                                break;
-                            case 1:
-                                RebuildWithScroll();
-                                break;
-                            case 2:
-                                PresentDeleteAllModal(selectedLocomotive);
-                                break;
-                            default:
-                                break;
+                            WaypointQueueController.Shared.RerouteCurrentWaypoint(selectedLocomotive.id);
+                        }
+                        else if (value == options.IndexOf(periodicRerouteOption))
+                        {
+                            WaypointQueueController.Shared.TogglePeriodicRerouteForLoco(selectedLocomotive.id);
+                        }
+                        else if (value == options.IndexOf(refreshOption))
+                        {
+                            RebuildWithScroll();
+                        }
+                        else if (value == options.IndexOf(deleteAllOption))
+                        {
+                            PresentDeleteAllModal(selectedLocomotive);
                         }
                     });
                     builder.Spacer(8f);

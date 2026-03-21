@@ -2,7 +2,9 @@
 using Game.Events;
 using Game.Messages;
 using Game.State;
+using HarmonyLib;
 using Model;
+using Model.AI;
 using Network;
 using System;
 using System.Collections;
@@ -19,6 +21,7 @@ using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
+    [HarmonyPatch]
     public class WaypointQueueController : MonoBehaviour
     {
         private Coroutine _coroutine;
@@ -43,6 +46,7 @@ namespace WaypointQueue
         }
 
         public static float WaypointTickInterval = 0.5f;
+        private readonly Dictionary<string, float> _timeSinceLastRerouteByLocoId = [];
 
         private void Awake()
         {
@@ -109,6 +113,24 @@ namespace WaypointQueue
                     continue;
                 }
 
+                if (Loader.Settings.PeriodicReroute && entry.PeriodicReroute && _autoEngineerService.HasActiveWaypoint(ordersHelper))
+                {
+                    if (_timeSinceLastRerouteByLocoId.TryGetValue(entry.LocomotiveId, out float elapsed))
+                    {
+                        _timeSinceLastRerouteByLocoId[entry.LocomotiveId] = elapsed + WaypointTickInterval;
+                    }
+                    else
+                    {
+                        _timeSinceLastRerouteByLocoId[entry.LocomotiveId] = 0;
+                    }
+
+                    if (_timeSinceLastRerouteByLocoId[entry.LocomotiveId] > 4f)
+                    {
+                        _timeSinceLastRerouteByLocoId[entry.LocomotiveId] = 0;
+                        RerouteCurrentWaypoint(entry.LocomotiveId);
+                    }
+                }
+
                 if (!IsReadyToResolve(entry, ordersHelper))
                 {
                     continue;
@@ -132,6 +154,8 @@ namespace WaypointQueue
                         RemoveWaypoint(entry.UnresolvedWaypoint);
                     }
                 }
+
+                _timeSinceLastRerouteByLocoId.Remove(entry.LocomotiveId);
 
                 // Send next waypoint
                 if (waypointList.Count > 0)
@@ -168,6 +192,18 @@ namespace WaypointQueue
             {
                 ModStateManager.Shared.RemoveLocoWaypointState(entry.LocomotiveId);
             }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(AutoEngineerPlanner), "SendMessageToRouteRequester")]
+        static bool SendMessageToRouteRequesterPrefix(AutoEngineerPlanner __instance)
+        {
+            BaseLocomotive loco = Traverse.Create(__instance).Field("_locomotive").GetValue<BaseLocomotive>();
+            if (Shared._timeSinceLastRerouteByLocoId.TryGetValue(loco.id, out float elapsed) && elapsed == 0)
+            {
+                return false;
+            }
+            return true;
         }
 
         private bool IsReadyToResolve(LocoWaypointState entry, AutoEngineerOrdersHelper ordersHelper)
@@ -418,9 +454,16 @@ namespace WaypointQueue
             ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
 
-        public void RerouteCurrentWaypoint(BaseLocomotive locomotive)
+        public void RerouteCurrentWaypoint(string locoId)
         {
-            StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locomotive.id));
+            StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locoId));
+        }
+
+        public void TogglePeriodicRerouteForLoco(string locoId)
+        {
+            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(locoId);
+            state.PeriodicReroute = !state.PeriodicReroute;
+            ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
 
         public void RefreshCurrentWaypoint(BaseLocomotive locomotive, AutoEngineerOrdersHelper ordersHelper)

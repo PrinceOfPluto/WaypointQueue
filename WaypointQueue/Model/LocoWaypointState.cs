@@ -16,6 +16,8 @@ namespace WaypointQueue
         public List<ManagedWaypoint> Waypoints { get; set; } = [];
         [Key(2)]
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
+        [Key(3)]
+        public bool PeriodicReroute { get; set; } = false;
 
         [JsonIgnore]
         [IgnoreMember]
