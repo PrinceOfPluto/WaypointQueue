@@ -65,6 +65,7 @@ namespace WaypointQueue.UUM
                 waypointQueueGO.AddComponent<ErrorModalController>();
                 waypointQueueGO.AddComponent<WaypointPicker>();
                 waypointQueueGO.AddComponent<ModStateManager>();
+                waypointQueueGO.AddComponent<ModSaveManager>();
 
                 QueueStorageGO = new GameObject("WaypointQueueStateStorage");
                 RouteStorageGO = new GameObject("WaypointQueueRouteStorage");

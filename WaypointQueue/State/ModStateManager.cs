@@ -41,6 +41,7 @@ namespace WaypointQueue.State
 
         private readonly Dictionary<string, IDisposable> _queueObservers = [];
         private readonly Dictionary<string, IDisposable> _routeObservers = [];
+        private readonly List<IDisposable> _observers = [];
 
         public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _locoWaypointStates;
 
@@ -77,6 +78,19 @@ namespace WaypointQueue.State
         private void OnMapDidUnload(MapDidUnloadEvent mapDidUnloadEvent)
         {
             DestroyStorageKeyValueObjects();
+
+            _queueObservers.Values.ToList().ForEach(o => o.Dispose());
+            _queueObservers.Clear();
+
+            _routeObservers.Values.ToList().ForEach(o => o.Dispose());
+            _routeObservers.Clear();
+
+            _observers.ForEach(o => o.Dispose());
+            _observers.Clear();
+
+            _locoWaypointStates.Clear();
+            _routes.Clear();
+            _routeAssignments.Clear();
         }
 
         private void PrepareStorageKeyValueObjects()
@@ -122,7 +136,7 @@ namespace WaypointQueue.State
                 HydrateLocoWaypointStates();
             }
 
-            _queueStateStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
+            _observers.Add(_queueStateStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
             {
                 if (keyChange == KeyChange.Add)
                 {
@@ -132,9 +146,9 @@ namespace WaypointQueue.State
                 {
                     OnQueueStorageKeyRemoved(key);
                 }
-            });
+            }));
 
-            _routeStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
+            _observers.Add(_routeStorage.ObserveKeyChanges((string key, KeyChange keyChange) =>
             {
                 if (keyChange == KeyChange.Add)
                 {
@@ -144,7 +158,7 @@ namespace WaypointQueue.State
                 {
                     OnRouteStorageKeyRemoved(key);
                 }
-            });
+            }));
 
             foreach (var locoId in _locoWaypointStates.Keys)
             {
@@ -156,10 +170,10 @@ namespace WaypointQueue.State
                 _routeObservers[routeId] = _routeStorage.ObserveRoute(routeId, OnRouteDidChange, false);
             }
 
-            _waypointModStorage.ObserveRouteAssignments(routeAssignments =>
+            _observers.Add(_waypointModStorage.ObserveRouteAssignments(routeAssignments =>
             {
                 _routeAssignments = routeAssignments;
-            }, false);
+            }, false));
 
             WaypointQueueController.Shared.RestartCoroutine();
         }
@@ -371,18 +385,18 @@ namespace WaypointQueue.State
         {
             Loader.Log($"Migrating pre 1.6 save data from json files to property storage");
 
-            foreach (var state in ModSaveManager.LoadLocoWaypointStatesFromSave())
+            foreach (var state in ModSaveManager.Shared.LoadLocoWaypointStatesFromSave())
             {
                 _queueStateStorage.SetLocoQueue(state);
             }
 
-            foreach (var route in ModSaveManager.LoadRoutesFromSave())
+            foreach (var route in ModSaveManager.Shared.LoadRoutesFromSave())
             {
                 _routeStorage.SetRoute(route);
             }
 
             Dictionary<string, RouteAssignment> routeAssignmentLookup = [];
-            foreach (var routeAssignment in ModSaveManager.LoadRouteAssignmentsFromSave())
+            foreach (var routeAssignment in ModSaveManager.Shared.LoadRouteAssignmentsFromSave())
             {
                 routeAssignmentLookup.Add(routeAssignment.LocoId, routeAssignment);
             }
