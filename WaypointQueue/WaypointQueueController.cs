@@ -109,7 +109,11 @@ namespace WaypointQueue
 
                 if (!_autoEngineerService.IsInWaypointMode(ordersHelper))
                 {
+                    if (entry.UnresolvedWaypoint != null)
+                    {
                     entry.UnresolvedWaypoint = null;
+                        ModStateManager.Shared.SaveLocoWaypointState(entry.LocomotiveId, entry);
+                    }
                     continue;
                 }
 
