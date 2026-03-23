@@ -211,7 +211,12 @@ namespace WaypointQueue.State
             }
 
             _locoWaypointStates.Remove(key);
+
+            if (_queueObservers.ContainsKey(key))
+            {
+                _queueObservers[key].Dispose();
             _queueObservers.Remove(key);
+            }
             Messenger.Default.Send(new QueueDidUpdate(key));
         }
 
@@ -318,7 +323,12 @@ namespace WaypointQueue.State
         {
             Loader.LogDebug($"Route removed from storage with id: {routeId}");
             _routes.Remove(routeId);
+
+            if (_routeObservers.ContainsKey(routeId))
+            {
+                _routeObservers[routeId]?.Dispose();
             _routeObservers.Remove(routeId);
+            }
 
             List<string> assignmentsToRemove = [.. _routeAssignments.Where(ra => ra.Value.RouteId == routeId).Select(ra => ra.Key)];
             if (assignmentsToRemove.Count > 0)
