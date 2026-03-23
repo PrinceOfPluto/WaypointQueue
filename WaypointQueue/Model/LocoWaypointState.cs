@@ -1,7 +1,9 @@
 ﻿using MessagePack;
 using Model;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
@@ -47,6 +49,26 @@ namespace WaypointQueue
             LocomotiveId = locomotiveId;
             Waypoints = waypoints ?? [];
             UnresolvedWaypoint = unresolvedWaypoint;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            var other = (LocoWaypointState)obj;
+
+            return LocomotiveId == other.LocomotiveId &&
+                UnresolvedWaypoint.Equals(other.UnresolvedWaypoint) &&
+                Waypoints.SequenceEqual(other.Waypoints) &&
+                PeriodicReroute == other.PeriodicReroute;
+        }
+
+        public override int GetHashCode()
+        {
+            return LocomotiveId.GetHashCode();
         }
     }
 }
