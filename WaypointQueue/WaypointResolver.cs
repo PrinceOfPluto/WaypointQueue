@@ -27,6 +27,8 @@ namespace WaypointQueue
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
+        private readonly Dictionary<string, float> _timeSpentWaitingBeforeCutLookup = [];
+
         public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             if (wp.Errors.Any())
@@ -203,7 +205,12 @@ namespace WaypointQueue
              * Unless explicitly not stopping, loco needs a complete stop before resolving orders that would uncouple.
              * Otherwise, some cars may be uncoupled and then recoupled if the train still has momentum.
              */
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && wp.SecondsSpentWaitingBeforeCut < Loader.Settings.WaitBeforeCuttingTimeout)
+            if (!_timeSpentWaitingBeforeCutLookup.ContainsKey(wp.Id))
+            {
+                _timeSpentWaitingBeforeCutLookup[wp.Id] = 0f;
+            }
+
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && _timeSpentWaitingBeforeCutLookup[wp.Id] < Loader.Settings.WaitBeforeCuttingTimeout)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
@@ -215,10 +222,10 @@ namespace WaypointQueue
 
                 if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
                 {
-                    wp.SecondsSpentWaitingBeforeCut += tickIntervalSeconds;
+                    _timeSpentWaitingBeforeCutLookup[wp.Id] += tickIntervalSeconds;
                 }
 
-                if (wp.SecondsSpentWaitingBeforeCut < Loader.Settings.WaitBeforeCuttingTimeout)
+                if (_timeSpentWaitingBeforeCutLookup[wp.Id] < Loader.Settings.WaitBeforeCuttingTimeout)
                 {
                     return false;
                 }
@@ -236,6 +243,8 @@ namespace WaypointQueue
             {
                 ResolveUncouplingOrders(wp);
             }
+
+            _timeSpentWaitingBeforeCutLookup.Remove(wp.Id);
 
             if (wp.WillChangeMaxSpeed)
             {

@@ -410,9 +410,6 @@ namespace WaypointQueue
         [Key(46)]
         public bool CurrentlyWaitingBeforeCutting { get; set; }
 
-        [JsonIgnore]
-        [IgnoreMember]
-        public float SecondsSpentWaitingBeforeCut { get; set; }
         [Key(47)]
         public string StatusLabel { get; set; } = "Inactive";
         [Key(48)]
