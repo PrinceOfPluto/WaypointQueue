@@ -732,9 +732,11 @@ namespace WaypointQueue
                    CoupleToCarId == other.CoupleToCarId &&
                    ConnectAirOnCouple == other.ConnectAirOnCouple &&
                    ReleaseHandbrakesOnCouple == other.ReleaseHandbrakesOnCouple &&
+                   HasResolvedBrakeSystemOnCouple == other.HasResolvedBrakeSystemOnCouple &&
                    ApplyHandbrakesOnUncouple == other.ApplyHandbrakesOnUncouple &&
                    BleedAirOnUncouple == other.BleedAirOnUncouple &&
                    NumberOfCarsToCut == other.NumberOfCarsToCut &&
+                   CountUncoupledFromNearestToWaypoint == other.CountUncoupledFromNearestToWaypoint &&
                    PostCouplingCutMode == other.PostCouplingCutMode &&
                    TakeUncoupledCarsAsActiveCut == other.TakeUncoupledCarsAsActiveCut &&
                    SerializableRefuelPoint.Equals(other.SerializableRefuelPoint) &&
@@ -749,12 +751,29 @@ namespace WaypointQueue
                    TimetableSymbol == other.TimetableSymbol &&
                    WillWait == other.WillWait &&
                    CurrentlyWaiting == other.CurrentlyWaiting &&
+                   WaitingWasSkipped == other.WaitingWasSkipped &&
                    DurationOrSpecificTime == other.DurationOrSpecificTime &&
                    WaitUntilTimeString == other.WaitUntilTimeString &&
                    WaitUntilDay == other.WaitUntilDay &&
                    WaitForDurationMinutes == other.WaitForDurationMinutes &&
+                   WaitUntilGameTotalSeconds == other.WaitUntilGameTotalSeconds &&
+                   StopAtWaypoint == other.StopAtWaypoint &&
                    WillLimitPassingSpeed == other.WillLimitPassingSpeed &&
                    WaypointTargetSpeed == other.WaypointTargetSpeed &&
+                   WillChangeMaxSpeed == other.WillChangeMaxSpeed &&
+                   MaxSpeedForChange == other.MaxSpeedForChange &&
+                   CouplingSearchMode == other.CouplingSearchMode &&
+                   UncouplingMode == other.UncouplingMode &&
+                   CurrentlyCouplingNearby == other.CurrentlyCouplingNearby &&
+                   CurrentlyCouplingSpecificCar == other.CurrentlyCouplingSpecificCar &&
+                   OnlySeekNearbyOnTrackAhead == other.OnlySeekNearbyOnTrackAhead &&
+                   CouplingSearchText == other.CouplingSearchText &&
+                   UncouplingSearchText == other.UncouplingSearchText &&
+                   DestinationSearchText == other.DestinationSearchText &&
+                   UncoupleDestinationId == other.UncoupleDestinationId &&
+                   ExcludeMatchingCarsFromCut == other.ExcludeMatchingCarsFromCut &&
+                   MoveTrainPastWaypoint == other.MoveTrainPastWaypoint &&
+                   CurrentlyWaitingBeforeCutting == other.CurrentlyWaitingBeforeCutting &&
                    StatusLabel == other.StatusLabel &&
                    Name == other.Name &&
                    Notes == other.Notes &&
