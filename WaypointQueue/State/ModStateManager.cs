@@ -189,7 +189,10 @@ namespace WaypointQueue.State
         private void OnQueueStorageKeyAdded(string key)
         {
             Loader.LogDebug($"Queue added to storage for loco id: {key}");
+            if (!_queueObservers.ContainsKey(key))
+            {
             _queueObservers[key] = _queueStateStorage.ObserveQueueState(key, OnLocoQueueDidChange, false);
+        }
         }
 
         private void OnQueueStorageKeyRemoved(string key)
@@ -304,8 +307,11 @@ namespace WaypointQueue.State
             if (route != null)
             {
                 _routes[route.Id] = route;
+                if (!_routeObservers.ContainsKey(routeId))
+                {
                 _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
             }
+        }
         }
 
         private void OnRouteStorageKeyRemoved(string routeId)
