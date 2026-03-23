@@ -351,7 +351,10 @@ namespace WaypointQueue.State
 
         public void RemoveLocoWaypointState(string locoId)
         {
+            if (_queueStateStorage.ContainsQueueForLocoId(locoId))
+            {
             StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new NullPropertyValue()));
+        }
         }
 
         public void SaveRoute(RouteDefinition routeDefinition)
