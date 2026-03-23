@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Track;
 using UI.Common;
 using UnityEngine;
 using WaypointQueue.Services;
@@ -43,7 +44,7 @@ namespace WaypointQueue.State
         private readonly Dictionary<string, IDisposable> _routeObservers = [];
         private readonly List<IDisposable> _observers = [];
 
-        public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _locoWaypointStates;
+        public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _queueStateStorage.GetAll();
 
         public IReadOnlyDictionary<string, RouteDefinition> Routes => _routes;
 
@@ -224,14 +225,17 @@ namespace WaypointQueue.State
         {
             if (newState == null)
             {
-                Loader.LogDebug($"Loco queue changed but new state was null so the storage key should already be removed");
+                // State is already removed from storage
                 return;
             }
-            Loader.LogDebug($"Loco queue changed for loco id {newState.LocomotiveId}");
 
-            LocoWaypointState oldState = GetLocoWaypointState(newState.LocomotiveId);
-
+            if (!_locoWaypointStates.TryGetValue(newState.LocomotiveId, out var oldState))
+            {
+                // No old state to handle
             _locoWaypointStates[newState.LocomotiveId] = newState;
+                Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
+                return;
+            }
 
             if (Multiplayer.IsHost)
             {
@@ -241,9 +245,9 @@ namespace WaypointQueue.State
                 }
             }
 
+            // Determine whether only a single waypoint changed for the UI refresh optimization
             if (newState.Waypoints.Count == oldState.Waypoints.Count)
             {
-                // Determine whether only a single waypoint changed for the UI refresh optimization
                 List<ManagedWaypoint> waypointsThatChanged = [];
                 for (int i = 0; i < newState.Waypoints.Count; i++)
                 {
@@ -263,11 +267,13 @@ namespace WaypointQueue.State
 
                 if (waypointsThatChanged.Count == 1)
                 {
+                    _locoWaypointStates[newState.LocomotiveId] = newState;
                     Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId));
                     return;
                 }
             }
 
+            _locoWaypointStates[newState.LocomotiveId] = newState;
             Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
         }
 
@@ -287,15 +293,6 @@ namespace WaypointQueue.State
                 return;
             }
 
-            // When first waypoint was adjusted
-            (Track.Location? oldOrdersLocation, string oldOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(oldState.Locomotive);
-
-            if (oldOrdersLocation != newState.UnresolvedWaypoint.Location || oldOrdersCoupleToCarId != newState.UnresolvedWaypoint.CoupleToCarId)
-            {
-                WaypointQueueController.Shared.SendToFirstWaypoint(newState);
-                return;
-            }
-
             // When first waypoint changed
             if (newState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.UnresolvedWaypoint.Id)
             {
@@ -303,6 +300,24 @@ namespace WaypointQueue.State
                 WaypointQueueController.Shared.SendToFirstWaypoint(newState);
                 return;
             }
+
+            // When first waypoint was adjusted
+            (Location oldOrdersLocation, string oldOrdersCoupleToCarId) = _autoEngineerService.GetCurrentOrderWaypoint(oldState.Locomotive);
+
+            if (oldOrdersLocation.IsValid)
+            {
+                string oldLocString = Graph.Shared.LocationToString(oldOrdersLocation);
+                string newLocString = newState.UnresolvedWaypoint.LocationString;
+
+                string oldCoupleId = oldOrdersCoupleToCarId ?? "";
+                string newCoupleId = newState.UnresolvedWaypoint.CoupleToCarId ?? "";
+
+                if (oldLocString != newLocString || oldCoupleId != newCoupleId)
+            {
+                WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                return;
+            }
+        }
         }
 
         private void OnRouteStorageKeyAdded(string routeId)
@@ -356,7 +371,9 @@ namespace WaypointQueue.State
 
         public LocoWaypointState GetLocoWaypointState(string locoId)
         {
-            return _locoWaypointStates.TryGetValue(locoId, out var state) ? state : new LocoWaypointState(locoId);
+            var state = _queueStateStorage.GetQueueByLocoId(locoId);
+            return state ?? new LocoWaypointState(locoId);
+        }
         }
 
         public void SaveLocoWaypointState(string locoId, LocoWaypointState newState)

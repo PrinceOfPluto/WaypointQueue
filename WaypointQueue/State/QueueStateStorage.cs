@@ -39,6 +39,17 @@ namespace WaypointQueue.State
             _keyValueObject[state.LocomotiveId] = JsonConvert.SerializeObject(state);
         }
 
+        public LocoWaypointState GetQueueByLocoId(string locoId)
+        {
+            if (_keyValueObject.Keys.Contains(locoId))
+            {
+                string json = _keyValueObject[locoId];
+                LocoWaypointState state = JsonConvert.DeserializeObject<LocoWaypointState>(json);
+                return state;
+            }
+            return null;
+        }
+
         public QueueStateStorage(KeyValueObject keyValueObject)
         {
             _keyValueObject = keyValueObject;

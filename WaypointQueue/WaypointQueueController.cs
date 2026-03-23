@@ -111,7 +111,7 @@ namespace WaypointQueue
                 {
                     if (entry.UnresolvedWaypoint != null)
                     {
-                    entry.UnresolvedWaypoint = null;
+                        entry.UnresolvedWaypoint = null;
                         ModStateManager.Shared.SaveLocoWaypointState(entry.LocomotiveId, entry);
                     }
                     continue;
@@ -164,10 +164,7 @@ namespace WaypointQueue
                 // Send next waypoint
                 if (waypointList.Count > 0)
                 {
-                    ManagedWaypoint nextWaypoint = waypointList.First();
-                    entry.UnresolvedWaypoint = nextWaypoint;
-                    Loader.LogDebug($"Sending loco {entry.LocomotiveId} to next waypoint in queue");
-                    SendToWaypointFromQueue(nextWaypoint, ordersHelper);
+                    SendToFirstWaypoint(entry, ordersHelper);
                 }
 
                 // Mark if empty
@@ -271,13 +268,14 @@ namespace WaypointQueue
 
             if (isReplacing && entry.Waypoints.Count > 0)
             {
+                waypoint.StatusLabel = "Running to waypoint";
                 if (entry.Waypoints[0].Id == entry.UnresolvedWaypoint.Id)
                 {
                     _waypointResolver.CleanupBeforeRemovingWaypoint(entry.UnresolvedWaypoint);
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
-                SendToWaypointFromQueue(waypoint, _autoEngineerService.GetOrdersHelper(loco));
+                SendToFirstWaypoint(entry, _autoEngineerService.GetOrdersHelper(loco));
                 Loader.LogDebug($"Replaced waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
                 RestartCoroutine();
                 return;
@@ -305,6 +303,12 @@ namespace WaypointQueue
             _refuelService.CheckNearbyFuelLoaders(waypoint);
 
             int beforeWaypointIndex = locoState.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
+
+            if (beforeWaypointIndex == 0)
+            {
+                waypoint.StatusLabel = "Running to waypoint";
+            }
+
             locoState.Waypoints.Insert(beforeWaypointIndex, waypoint);
 
             locoState.UnresolvedWaypoint = locoState.Waypoints.FirstOrDefault();
@@ -476,9 +480,7 @@ namespace WaypointQueue
             if (state.Waypoints.Count > 0)
             {
                 Loader.Log($"Resetting current waypoint as active");
-                ManagedWaypoint nextWaypoint = state.Waypoints.First();
-                state.UnresolvedWaypoint = nextWaypoint;
-                SendToWaypointFromQueue(nextWaypoint, ordersHelper);
+                SendToFirstWaypoint(state, ordersHelper);
             }
         }
 
@@ -501,18 +503,26 @@ namespace WaypointQueue
             return true;
         }
 
-        internal void SendToWaypointFromQueue(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
-        {
-            Loader.Log($"Sending next waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
-            _waypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
-            waypoint.StatusLabel = "Running to waypoint";
-            UpdateWaypoint(waypoint);
-            _autoEngineerService.SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
-        }
-
         internal void SendToFirstWaypoint(LocoWaypointState state)
         {
-            SendToWaypointFromQueue(state.Waypoints[0], _autoEngineerService.GetOrdersHelper(state.Locomotive));
+            SendToFirstWaypoint(state, _autoEngineerService.GetOrdersHelper(state.Locomotive));
+        }
+
+        private void SendToFirstWaypoint(LocoWaypointState state, AutoEngineerOrdersHelper ordersHelper)
+        {
+            if (state.Waypoints.Count == 0) return;
+
+            ManagedWaypoint waypoint = state.Waypoints.First();
+            waypoint.StatusLabel = "Running to waypoint";
+
+            state.UnresolvedWaypoint = waypoint;
+
+            Loader.Log($"Sending next waypoint for {state.Locomotive?.Ident} to {waypoint.Location}");
+            _autoEngineerService.SendToWaypoint(ordersHelper, waypoint.Location, waypoint.CoupleToCarId);
+
+            _waypointResolver.ApplyTimetableSymbolIfRequested(waypoint);
+
+            ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
 
         internal void RestartCoroutine()

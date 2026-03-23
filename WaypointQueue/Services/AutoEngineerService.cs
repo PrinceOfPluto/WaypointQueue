@@ -50,7 +50,7 @@ namespace WaypointQueue.Services
             }
         }
 
-        public (Location? location, string coupleToCarId) GetCurrentOrderWaypoint(BaseLocomotive loco)
+        public (Location location, string coupleToCarId) GetCurrentOrderWaypoint(BaseLocomotive loco)
         {
             var ordersHelper = GetOrdersHelper(loco);
             OrderWaypoint? waypoint = ordersHelper.Orders.Waypoint;
@@ -61,7 +61,7 @@ namespace WaypointQueue.Services
                 return (resolvedLocation, valueOrDefault.CoupleToCarId);
             }
 
-            return (null, "");
+            return (Location.Invalid, "");
         }
 
         public bool HasActiveWaypoint(AutoEngineerOrdersHelper ordersHelper)
