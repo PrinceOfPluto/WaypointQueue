@@ -255,7 +255,7 @@ namespace WaypointQueue.UI
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    BuildWaypointSection(waypoint, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
+                    BuildWaypointSection(waypoint.Id, waypoint.LocomotiveId, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
                     builder.Spacer(20f);
                 }
             });
@@ -298,7 +298,8 @@ namespace WaypointQueue.UI
         }
 
         internal void BuildWaypointSection(
-            ManagedWaypoint waypoint,
+            string waypointId,
+            string waypointOwnerId,
             int index,
             int totalWaypoints,
             UIPanelBuilder parentBuilder,
@@ -310,7 +311,8 @@ namespace WaypointQueue.UI
         {
             parentBuilder.VStack(builder =>
             {
-                panelsByWaypointId[waypoint.Id] = builder;
+                panelsByWaypointId[waypointId] = builder;
+                ManagedWaypoint waypoint = ModStateManager.Shared.GetWaypointById(waypointId, waypointOwnerId, isRouteWindow);
 
                 Loader.LogDebug($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
                 builder.AddHRule();
@@ -322,7 +324,7 @@ namespace WaypointQueue.UI
 
                 if (index == 0 && !isRouteWindow)
                 {
-                    BuildStatusLabelField(waypoint, builder);
+                    BuildStatusLabelField(waypoint.StatusLabel, builder);
                 }
 
                 if (waypoint.Errors.Any())
@@ -637,11 +639,11 @@ namespace WaypointQueue.UI
             }, 500);
         }
 
-        private UIPanelBuilder BuildStatusLabelField(ManagedWaypoint waypoint, UIPanelBuilder builder)
+        private UIPanelBuilder BuildStatusLabelField(string label, UIPanelBuilder builder)
         {
             builder.AddField("Status", builder.HStack(field =>
             {
-                field.AddLabel(waypoint.StatusLabel);
+                field.AddLabel(label);
             }));
             return builder;
         }

@@ -192,8 +192,8 @@ namespace WaypointQueue.State
             Loader.LogDebug($"Queue added to storage for loco id: {key}");
             if (!_queueObservers.ContainsKey(key))
             {
-            _queueObservers[key] = _queueStateStorage.ObserveQueueState(key, OnLocoQueueDidChange, false);
-        }
+                _queueObservers[key] = _queueStateStorage.ObserveQueueState(key, OnLocoQueueDidChange, false);
+            }
         }
 
         private void OnQueueStorageKeyRemoved(string key)
@@ -216,7 +216,7 @@ namespace WaypointQueue.State
             if (_queueObservers.ContainsKey(key))
             {
                 _queueObservers[key].Dispose();
-            _queueObservers.Remove(key);
+                _queueObservers.Remove(key);
             }
             Messenger.Default.Send(new QueueDidUpdate(key));
         }
@@ -232,7 +232,7 @@ namespace WaypointQueue.State
             if (!_locoWaypointStates.TryGetValue(newState.LocomotiveId, out var oldState))
             {
                 // No old state to handle
-            _locoWaypointStates[newState.LocomotiveId] = newState;
+                _locoWaypointStates[newState.LocomotiveId] = newState;
                 Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
                 return;
             }
@@ -313,11 +313,11 @@ namespace WaypointQueue.State
                 string newCoupleId = newState.UnresolvedWaypoint.CoupleToCarId ?? "";
 
                 if (oldLocString != newLocString || oldCoupleId != newCoupleId)
-            {
-                WaypointQueueController.Shared.SendToFirstWaypoint(newState);
-                return;
+                {
+                    WaypointQueueController.Shared.SendToFirstWaypoint(newState);
+                    return;
+                }
             }
-        }
         }
 
         private void OnRouteStorageKeyAdded(string routeId)
@@ -329,9 +329,9 @@ namespace WaypointQueue.State
                 _routes[route.Id] = route;
                 if (!_routeObservers.ContainsKey(routeId))
                 {
-                _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
+                    _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
+                }
             }
-        }
         }
 
         private void OnRouteStorageKeyRemoved(string routeId)
@@ -342,7 +342,7 @@ namespace WaypointQueue.State
             if (_routeObservers.ContainsKey(routeId))
             {
                 _routeObservers[routeId]?.Dispose();
-            _routeObservers.Remove(routeId);
+                _routeObservers.Remove(routeId);
             }
 
             List<string> assignmentsToRemove = [.. _routeAssignments.Where(ra => ra.Value.RouteId == routeId).Select(ra => ra.Key)];
@@ -374,6 +374,22 @@ namespace WaypointQueue.State
             var state = _queueStateStorage.GetQueueByLocoId(locoId);
             return state ?? new LocoWaypointState(locoId);
         }
+
+        public ManagedWaypoint GetWaypointById(string waypointId, string ownerId, bool forRoute)
+        {
+            if (forRoute)
+            {
+                var route = RouteRegistry.GetById(ownerId);
+                if (route == null) { return null; }
+                int index = route.Waypoints.FindIndex(w => w.Id == waypointId);
+                return index < 0 ? null : route.Waypoints[index];
+            }
+            else
+            {
+                var state = _queueStateStorage.GetQueueByLocoId(ownerId);
+                int index = state.Waypoints.FindIndex(w => w.Id == waypointId);
+                return index < 0 ? null : state.Waypoints[index];
+            }
         }
 
         public void SaveLocoWaypointState(string locoId, LocoWaypointState newState)
@@ -386,8 +402,8 @@ namespace WaypointQueue.State
         {
             if (_queueStateStorage.ContainsQueueForLocoId(locoId))
             {
-            StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new NullPropertyValue()));
-        }
+                StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new NullPropertyValue()));
+            }
         }
 
         public void SaveRoute(RouteDefinition routeDefinition)

@@ -420,7 +420,8 @@ namespace WaypointQueue.UI
             }
 
             WaypointWindow.Shared.BuildWaypointSection(
-             mw,
+             mw.Id,
+             route.Id,
              index,
              totalWaypoints,
              builder,
