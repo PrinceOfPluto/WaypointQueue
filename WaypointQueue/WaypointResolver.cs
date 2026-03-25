@@ -22,8 +22,6 @@ namespace WaypointQueue
 {
     internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, ICarService carService, AutoEngineerService autoEngineerService)
     {
-        public static event Action<string> WaypointForLocoIdDidError;
-
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
@@ -70,7 +68,6 @@ namespace WaypointQueue
             wp.StatusLabel = "Paused due to error";
             WaypointQueueController.Shared.UpdateWaypoint(wp);
             ErrorModalController.Shared.ShowProcessingErrorModal(exception.Message, orderType, wp);
-            WaypointForLocoIdDidError.Invoke(wp.Locomotive.id);
         }
 
         /**
