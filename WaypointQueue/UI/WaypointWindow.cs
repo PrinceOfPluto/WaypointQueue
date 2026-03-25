@@ -50,6 +50,8 @@ namespace WaypointQueue.UI
         private Coroutine _coroutine;
         private float _scrollPosition;
 
+        private UIPanelBuilder _scrollViewBuilder;
+
         protected void Awake()
         {
             Shared = this;
@@ -64,6 +66,7 @@ namespace WaypointQueue.UI
         {
             Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
             Messenger.Default.Register<QueueDidUpdate>(this, OnQueueDidUpdate);
+            Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
         }
 
         protected void OnDisable()
@@ -73,7 +76,7 @@ namespace WaypointQueue.UI
 
         private void OnQueueDidUpdate(QueueDidUpdate queueDidUpdateEvent)
         {
-            if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id)
+            if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && Shared.Window.IsShown)
             {
                 Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
                 RebuildWithScroll();
@@ -82,10 +85,28 @@ namespace WaypointQueue.UI
 
         private void OnWaypointDidUpdate(WaypointDidUpdate waypointDidUpdateEvent)
         {
-            if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder))
+            if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && Shared.Window.IsShown)
             {
                 Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
                 panelBuilder.Rebuild();
+            }
+        }
+
+        private void OnWaypointWasAppended(WaypointWasAppended waypointWasAppendedEvent)
+        {
+            if (!String.IsNullOrEmpty(waypointWasAppendedEvent.RouteId))
+            {
+                return;
+            }
+
+            if (waypointWasAppendedEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && Shared.Window.IsShown)
+            {
+                LocoWaypointState locoWaypointState = ModStateManager.Shared.GetLocoWaypointState(_selectedLocomotiveId);
+                List<ManagedWaypoint> waypointList = locoWaypointState.Waypoints;
+
+                ManagedWaypoint lastWaypoint = waypointList.Last();
+
+                BuildWaypointSection(lastWaypoint.Id, lastWaypoint.LocomotiveId, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
             }
         }
 
@@ -190,6 +211,7 @@ namespace WaypointQueue.UI
 
             builder.VScrollView(delegate (UIPanelBuilder builder)
             {
+                _scrollViewBuilder = builder;
                 BaseLocomotive selectedLocomotive = TrainController.Shared.SelectedLocomotive;
                 _selectedLocomotiveId = selectedLocomotive?.id;
                 if (selectedLocomotive == null)

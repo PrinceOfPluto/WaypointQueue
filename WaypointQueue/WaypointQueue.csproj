@@ -144,6 +144,7 @@
     <Compile Include="State\Events\QueueDidUpdate.cs" />
     <Compile Include="State\Events\RouteDidUpdate.cs" />
     <Compile Include="State\Events\WaypointDidUpdate.cs" />
+    <Compile Include="State\Events\WaypointWasAppended.cs" />
     <Compile Include="State\QueueStateStorage.cs" />
     <Compile Include="State\RouteStorage.cs" />
     <Compile Include="State\WaypointModStorage.cs" />

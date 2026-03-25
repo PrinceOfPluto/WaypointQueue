@@ -268,7 +268,29 @@ namespace WaypointQueue.State
                 if (waypointsThatChanged.Count == 1)
                 {
                     _locoWaypointStates[newState.LocomotiveId] = newState;
-                    Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId));
+                    Messenger.Default.Send(new WaypointDidUpdate(waypointsThatChanged[0].Id, waypointsThatChanged[0].LocomotiveId, null));
+                    return;
+                }
+            }
+
+            // Determine if a single waypoint was added at the end
+            if (newState.Waypoints.Count - oldState.Waypoints.Count == 1)
+            {
+                bool allMatch = true;
+                for (int i = 0; i < oldState.Waypoints.Count; i++)
+                {
+                    if (newState.Waypoints[i].Id != oldState.Waypoints[i].Id)
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                }
+
+                if (allMatch)
+                {
+                    ManagedWaypoint appendedWaypoint = newState.Waypoints.Last();
+                    _locoWaypointStates[newState.LocomotiveId] = newState;
+                    Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
                     return;
                 }
             }
