@@ -275,6 +275,7 @@ namespace WaypointQueue
                     entry.UnresolvedWaypoint = waypoint;
                 }
                 entry.Waypoints[0] = waypoint;
+                ModStateManager.Shared.SaveLocoWaypointState(loco.id, entry);
                 SendToFirstWaypoint(entry, _autoEngineerService.GetOrdersHelper(loco));
                 Loader.LogDebug($"Replaced waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
                 RestartCoroutine();
@@ -510,6 +511,7 @@ namespace WaypointQueue
 
         private void SendToFirstWaypoint(LocoWaypointState state, AutoEngineerOrdersHelper ordersHelper)
         {
+            state = ModStateManager.Shared.GetLocoWaypointState(state.LocomotiveId);
             if (state.Waypoints.Count == 0) return;
 
             ManagedWaypoint waypoint = state.Waypoints.First();
