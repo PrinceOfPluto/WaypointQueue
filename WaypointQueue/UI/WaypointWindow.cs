@@ -1604,6 +1604,7 @@ namespace WaypointQueue.UI
                         {
                             Loader.Log($"Parsed minutes as {time.Minutes}");
                             waypoint.WaitUntilTimeString = value;
+                            onWaypointChange(waypoint);
                         }
                         else
                         {
