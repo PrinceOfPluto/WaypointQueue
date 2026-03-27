@@ -307,8 +307,8 @@ namespace WaypointQueue.State
                 return;
             }
 
-            // When all waypoints are deleted
-            if (newState.Waypoints.Count == 0)
+            // When all waypoints are deleted or if the first waypoint got deleted
+            if (newState.Waypoints.Count == 0 || newState.UnresolvedWaypoint == null)
             {
                 _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
                 _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
