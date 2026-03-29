@@ -59,12 +59,12 @@ namespace WaypointQueue
             _carWasPicked = true;
             if (_forUncoupling)
             {
-                _waypoint.UncouplingSearchResultCar = car;
+                _waypoint.UncouplingSearchResultCarId = car.id;
                 _waypoint.UncouplingSearchText = car.Ident.ToString();
             }
             else
             {
-                _waypoint.CouplingSearchResultCar = car;
+                _waypoint.CouplingSearchResultCarId = car.id;
                 _waypoint.CouplingSearchText = car.Ident.ToString();
             }
             _onWaypointChange(_waypoint);

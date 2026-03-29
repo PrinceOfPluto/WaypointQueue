@@ -6,7 +6,6 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 using Track;
 using UnityEngine;
 using WaypointQueue.Model;
@@ -294,7 +293,6 @@ namespace WaypointQueue
                 CoupleToCar = null;
                 CoupleToCarId = null;
                 CouplingSearchText = "";
-                CouplingSearchResultCar = null;
 
                 if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None && Loader.Settings.AdvancedSettings.ShowPostCouplingCutByDefault)
                 {
@@ -390,15 +388,58 @@ namespace WaypointQueue
 
         [Key(41)]
         public string CouplingSearchText { get; set; } = "";
+
+        public string CouplingSearchResultCarId { get; set; } = "";
+
         [JsonIgnore]
         [IgnoreMember]
-        public Car CouplingSearchResultCar { get; set; }
+        public Car CouplingSearchResultCar
+        {
+            get
+            {
+                // O(1) lookup by id
+                if (!String.IsNullOrEmpty(CouplingSearchResultCarId) && TrainController.Shared.TryGetCarForId(CouplingSearchResultCarId, out Car car))
+                {
+                    return car;
+                }
+
+                if (!String.IsNullOrEmpty(CouplingSearchText))
+                {
+                    // O(n) worst case for searching all cars by Ident text
+                    car = TrainController.Shared.CarForString(CouplingSearchText);
+                    CouplingSearchResultCarId = car?.id ?? "";
+                    return car;
+                }
+                return null;
+            }
+        }
 
         [Key(42)]
         public string UncouplingSearchText { get; set; } = "";
+        public string UncouplingSearchResultCarId { get; set; } = "";
+
         [JsonIgnore]
         [IgnoreMember]
-        public Car UncouplingSearchResultCar { get; set; }
+        public Car UncouplingSearchResultCar
+        {
+            get
+            {
+                // O(1) lookup by id
+                if (!String.IsNullOrEmpty(UncouplingSearchResultCarId) && TrainController.Shared.TryGetCarForId(UncouplingSearchResultCarId, out Car car))
+                {
+                    return car;
+                }
+
+                if (!String.IsNullOrEmpty(UncouplingSearchText))
+                {
+                    // O(n) worst case for searching all cars by Ident text
+                    car = TrainController.Shared.CarForString(UncouplingSearchText);
+                    UncouplingSearchResultCarId = car?.id ?? "";
+                    return car;
+                }
+                return null;
+            }
+        }
         [Key(53)]
         public string DestinationSearchText { get; set; } = "";
         [Key(43)]
@@ -440,8 +481,6 @@ namespace WaypointQueue
         public void LoadForRoute()
         {
             TryResolveLocation(out Location _);
-
-            TryResolveCouplingSearchText(out Car _);
         }
 
         internal void HandleMigration()
@@ -529,62 +568,6 @@ namespace WaypointQueue
             }
             car = null;
             return false;
-        }
-
-        public bool TryResolveCouplingSearchText(out Car car)
-        {
-            if (String.IsNullOrEmpty(CouplingSearchText))
-            {
-                //Loader.LogDebug($"Coupling search text is empty");
-                car = null;
-                return false;
-            }
-
-            // Check if we already have it
-            if (CouplingSearchResultCar != null && CouplingSearchResultCar.Ident.ToString() == CouplingSearchText)
-            {
-                //Loader.LogDebug($"Coupling search result car already cached");
-                car = CouplingSearchResultCar;
-                return true;
-            }
-
-            CouplingSearchResultCar = TrainController.Shared.CarForString(CouplingSearchText);
-            car = CouplingSearchResultCar;
-
-            if (CouplingSearchResultCar != null)
-            {
-                CouplingSearchText = CouplingSearchResultCar.Ident.ToString();
-            }
-
-            return car != null;
-        }
-
-        public bool TryResolveUncouplingSearchText(out Car car)
-        {
-            if (String.IsNullOrEmpty(UncouplingSearchText))
-            {
-                //Loader.LogDebug($"Uncoupling search text is empty");
-                car = null;
-                return false;
-            }
-
-            // Check if we already have it
-            if (UncouplingSearchResultCar != null && UncouplingSearchResultCar.Ident.ToString() == UncouplingSearchText)
-            {
-                //Loader.LogDebug($"Uncoupling search result car already cached");
-                car = UncouplingSearchResultCar;
-                return true;
-            }
-
-            UncouplingSearchResultCar = TrainController.Shared.CarForString(UncouplingSearchText);
-            car = UncouplingSearchResultCar;
-
-            if (UncouplingSearchResultCar != null)
-            {
-                UncouplingSearchText = UncouplingSearchResultCar.Ident.ToString();
-            }
-
-            return car != null;
         }
 
         public bool CheckValidUncoupleDestinationId()
@@ -702,8 +685,6 @@ namespace WaypointQueue
                 copy = JsonConvert.DeserializeObject<ManagedWaypoint>(serializedWaypoint);
                 copy.Id = Guid.NewGuid().ToString();
                 copy.LocomotiveId = loco?.id ?? null;
-                copy.TryResolveCouplingSearchText(out _);
-                copy.TryResolveUncouplingSearchText(out _);
                 return true;
             }
             else

@@ -317,7 +317,8 @@ namespace WaypointQueue
 
         public List<Car> FindCutBySpecificCar(ManagedWaypoint waypoint)
         {
-            if (!waypoint.TryResolveUncouplingSearchText(out Car carToUncouple))
+            Car carToUncouple = waypoint.UncouplingSearchResultCar;
+            if (carToUncouple == null)
             {
                 throw new UncouplingException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to uncouple.", waypoint);
             }
@@ -340,7 +341,8 @@ namespace WaypointQueue
 
         public List<Car> FindPickupBySpecificCar(ManagedWaypoint waypoint, Car carCoupledTo)
         {
-            if (!waypoint.TryResolveUncouplingSearchText(out Car carToPickup))
+            Car carToPickup = waypoint.UncouplingSearchResultCar;
+            if (carToPickup == null)
             {
                 throw new UncouplingException($"Cannot find valid car matching \"{waypoint.UncouplingSearchText}\" for {waypoint.Locomotive.Ident} to pickup as a post-coupling cut.", waypoint);
             }
@@ -361,7 +363,8 @@ namespace WaypointQueue
 
         public List<Car> FindDropoffBySpecificCar(ManagedWaypoint wp, Car carCoupledTo)
         {
-            if (!wp.TryResolveUncouplingSearchText(out Car carToDropoff))
+            Car carToDropoff = wp.UncouplingSearchResultCar;
+            if (carToDropoff == null)
             {
                 throw new UncouplingException($"Cannot find valid car matching \"{wp.UncouplingSearchText}\" for {wp.Locomotive.Ident} to dropoff as post-coupling cut.", wp);
             }

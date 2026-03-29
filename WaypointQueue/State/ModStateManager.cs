@@ -544,8 +544,6 @@ namespace WaypointQueue.State
                         }
                         break;
                     }
-                    waypoint.TryResolveCouplingSearchText(out Car _);
-                    waypoint.TryResolveUncouplingSearchText(out Car _);
 
                     validWaypoints.Add(waypoint);
                 }

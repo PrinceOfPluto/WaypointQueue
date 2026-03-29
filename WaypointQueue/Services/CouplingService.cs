@@ -138,7 +138,7 @@ namespace WaypointQueue.Services
         public bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Car targetCar = waypoint.CouplingSearchResultCar;
-            if (targetCar == null && !waypoint.TryResolveCouplingSearchText(out targetCar))
+            if (targetCar == null)
             {
                 throw new CouplingException($"Cannot find valid car matching \"{waypoint.CouplingSearchText}\" for {waypoint.Locomotive.Ident} to couple", waypoint);
             }

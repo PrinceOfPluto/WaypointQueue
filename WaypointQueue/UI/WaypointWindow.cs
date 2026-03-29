@@ -1139,7 +1139,11 @@ namespace WaypointQueue.UI
                 field.AddInputField(waypoint.UncouplingSearchText ?? "", (string value) =>
                 {
                     waypoint.UncouplingSearchText = value;
-                    waypoint.TryResolveUncouplingSearchText(out Car foundCar);
+                    Car foundCar = waypoint.UncouplingSearchResultCar;
+                    if (foundCar != null)
+                    {
+                        waypoint.UncouplingSearchText = foundCar.Ident.ToString();
+                    }
                     onWaypointChange(waypoint);
                 }, "Enter car id").FlexibleWidth();
 
@@ -1148,7 +1152,7 @@ namespace WaypointQueue.UI
                 field.AddButton("Clear", () =>
                 {
                     waypoint.UncouplingSearchText = "";
-                    waypoint.UncouplingSearchResultCar = null;
+                    waypoint.UncouplingSearchResultCarId = "";
                     onWaypointChange(waypoint);
                 });
             }));
@@ -1347,7 +1351,11 @@ namespace WaypointQueue.UI
                 field.AddInputField(waypoint.CouplingSearchText ?? "", (string value) =>
                 {
                     waypoint.CouplingSearchText = value;
-                    waypoint.TryResolveCouplingSearchText(out Car foundCar);
+                    Car foundCar = waypoint.CouplingSearchResultCar;
+                    if (foundCar != null)
+                    {
+                        waypoint.CouplingSearchText = foundCar.Ident.ToString();
+                    }
                     onWaypointChange(waypoint);
                 }, "Enter car id").FlexibleWidth();
 
@@ -1356,7 +1364,7 @@ namespace WaypointQueue.UI
                 field.AddButton("Clear", () =>
                 {
                     waypoint.CouplingSearchText = "";
-                    waypoint.CouplingSearchResultCar = null;
+                    waypoint.CouplingSearchResultCarId = "";
                     onWaypointChange(waypoint);
                 });
             }));
