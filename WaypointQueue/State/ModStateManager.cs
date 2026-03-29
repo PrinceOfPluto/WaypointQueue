@@ -498,6 +498,8 @@ namespace WaypointQueue.State
                 List<ManagedWaypoint> validWaypoints = [];
                 foreach (var waypoint in state.Waypoints)
                 {
+                    waypoint.HandleMigration();
+
                     Loader.LogDebug($"Loading waypoint {waypoint.Id}");
                     if (!waypoint.TryResolveLocomotive(out Car loco) && !unresolvedLocomotiveIds.Contains(waypoint.LocomotiveId))
                     {

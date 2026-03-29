@@ -22,6 +22,7 @@ namespace WaypointQueue
         public ManagedWaypoint() { }
 
         [Key(51)]
+        [JsonProperty]
         public int? Version { get; set; }
 
         public ManagedWaypoint(BaseLocomotive locomotive, Location location, string coupleToCarId = "")
@@ -443,8 +444,7 @@ namespace WaypointQueue
             TryResolveCouplingSearchText(out Car _);
         }
 
-        [OnDeserialized]
-        internal void OnDeserialized(StreamingContext _)
+        internal void HandleMigration()
         {
             if (!Version.HasValue)
             {
@@ -455,6 +455,7 @@ namespace WaypointQueue
         private void MigrateFromVersion0To1()
         {
             Loader.LogDebug($"Migrating waypoint {Id} from version 0 to version 1");
+            Version = 1;
 #pragma warning disable 0618
             // below is the only area where this obsolete field should be used
             if (SeekNearbyCoupling)

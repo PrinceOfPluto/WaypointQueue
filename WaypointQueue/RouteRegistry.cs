@@ -19,6 +19,7 @@ namespace WaypointQueue
                 {
                     try
                     {
+                        wp?.HandleMigration();
                         wp?.LoadForRoute();
                     }
                     catch (Exception ex)
@@ -26,6 +27,8 @@ namespace WaypointQueue
                         Loader.LogError($"[Routes] Failed to hydrate waypoint {wp?.Id} for route '{route?.Name}': {ex}");
                     }
                 }
+
+                ModStateManager.Shared.SaveRoute(route);
             }
         }
 
