@@ -38,6 +38,7 @@ namespace WaypointQueue.State
 
         private Dictionary<string, LocoWaypointState> _locoWaypointStates = [];
         private Dictionary<string, RouteDefinition> _routes = [];
+        private Dictionary<string, RouteDefinition> _prevStateRoutes = [];
         private Dictionary<string, RouteAssignment> _routeAssignments = [];
 
         private readonly Dictionary<string, IDisposable> _queueObservers = [];
@@ -91,6 +92,7 @@ namespace WaypointQueue.State
 
             _locoWaypointStates.Clear();
             _routes.Clear();
+            _prevStateRoutes.Clear();
             _routeAssignments.Clear();
         }
 
@@ -185,6 +187,7 @@ namespace WaypointQueue.State
             _locoWaypointStates = new Dictionary<string, LocoWaypointState>(_queueStateStorage.GetAll());
             _routeAssignments = new Dictionary<string, RouteAssignment>(_waypointModStorage.RouteAssignments);
             _routes = new Dictionary<string, RouteDefinition>(_routeStorage.GetAll());
+            _prevStateRoutes = new(_routes);
         }
 
         private void OnQueueStorageKeyAdded(string key)
@@ -370,6 +373,7 @@ namespace WaypointQueue.State
             if (route != null)
             {
                 _routes[route.Id] = route;
+                _prevStateRoutes[route.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(route));
                 if (!_routeObservers.ContainsKey(routeId))
                 {
                     _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
@@ -381,6 +385,7 @@ namespace WaypointQueue.State
         {
             Loader.LogDebug($"Route removed from storage with id: {routeId}");
             _routes.Remove(routeId);
+            _prevStateRoutes.Remove(routeId);
 
             if (_routeObservers.ContainsKey(routeId))
             {
@@ -409,10 +414,11 @@ namespace WaypointQueue.State
 
             Loader.LogDebug($"Route changed for route id: {newRouteState.Id}");
 
-            if (!_routes.TryGetValue(newRouteState.Id, out var oldRouteState))
+            if (!_prevStateRoutes.TryGetValue(newRouteState.Id, out var oldRouteState))
             {
                 // No old state to handle
                 _routes[newRouteState.Id] = newRouteState;
+                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
                 Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
                 return;
             }
@@ -421,6 +427,7 @@ namespace WaypointQueue.State
             if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
             {
                 _routes[newRouteState.Id] = newRouteState;
+                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
                 Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
                 return;
             }
@@ -429,11 +436,13 @@ namespace WaypointQueue.State
             if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
             {
                 _routes[newRouteState.Id] = newRouteState;
+                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
                 Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
                 return;
             }
 
             _routes[newRouteState.Id] = newRouteState;
+            _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
             Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
         }
 

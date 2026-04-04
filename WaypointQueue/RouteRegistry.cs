@@ -72,6 +72,46 @@ namespace WaypointQueue
             ModStateManager.Shared.SaveRoute(route);
         }
 
+        public static void UpdateWaypoint(ManagedWaypoint waypoint, string routeId)
+        {
+            if (!Routes.ContainsKey(routeId))
+            {
+                return;
+            }
+
+            RouteDefinition route = Routes[routeId];
+            int index = route.Waypoints.FindIndex(w => w.Id == waypoint.Id);
+
+            if (index < 0)
+            {
+                Loader.LogError($"Failed to find waypoint to update for route by waypoint id {waypoint.Id}");
+                return;
+            }
+
+            route.Waypoints[index] = waypoint;
+            ModStateManager.Shared.SaveRoute(route);
+        }
+
+        public static void RemoveWaypoint(ManagedWaypoint waypoint, string routeId)
+        {
+            if (!Routes.ContainsKey(routeId))
+            {
+                return;
+            }
+
+            RouteDefinition route = Routes[routeId];
+            int index = route.Waypoints.FindIndex(w => w.Id == waypoint.Id);
+
+            if (index < 0)
+            {
+                Loader.LogError($"Failed to find waypoint to remove for route by waypoint id {waypoint.Id}");
+                return;
+            }
+
+            route.Waypoints.RemoveAt(index);
+            ModStateManager.Shared.SaveRoute(route);
+        }
+
         public static void ReorderWaypointInRoute(RouteDefinition route, ManagedWaypoint waypoint, int newIndex)
         {
             if (route != null && route.Waypoints != null)

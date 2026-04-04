@@ -106,7 +106,7 @@ namespace WaypointQueue.UI
 
                 ManagedWaypoint lastWaypoint = waypointList.Last();
 
-                BuildWaypointSection(lastWaypoint.Id, lastWaypoint.LocomotiveId, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
+                BuildWaypointSection(lastWaypoint.Id, lastWaypoint.LocomotiveId, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, cachePanelByWaypointId: CachePanelBuilderByWaypointId, false);
             }
         }
 
@@ -277,7 +277,7 @@ namespace WaypointQueue.UI
                 for (int i = 0; i < waypointList.Count; i++)
                 {
                     ManagedWaypoint waypoint = waypointList[i];
-                    BuildWaypointSection(waypoint.Id, waypoint.LocomotiveId, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, false);
+                    BuildWaypointSection(waypoint.Id, waypoint.LocomotiveId, i, waypointList.Count, builder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, CachePanelBuilderByWaypointId, false);
                     builder.Spacer(20f);
                 }
             });
@@ -302,6 +302,11 @@ namespace WaypointQueue.UI
         private void OnWaypointInsert(ManagedWaypoint waypoint, string beforeWaypointId)
         {
             WaypointQueueController.Shared.InsertWaypoint(waypoint.Locomotive, waypoint.Location, waypoint.CoupleToCarId, beforeWaypointId);
+        }
+
+        private void CachePanelBuilderByWaypointId(string waypointId, UIPanelBuilder builder)
+        {
+            panelsByWaypointId[waypointId] = builder;
         }
 
         private void PresentDeleteAllModal(BaseLocomotive selectedLocomotive)
@@ -329,11 +334,12 @@ namespace WaypointQueue.UI
             Action<ManagedWaypoint> onWaypointDelete,
             Action<ManagedWaypoint, int> onWaypointReorder,
             Action<ManagedWaypoint, string> onWaypointInsert,
+            Action<string, UIPanelBuilder> cachePanelByWaypointId,
             bool isRouteWindow)
         {
             parentBuilder.VStack(builder =>
             {
-                panelsByWaypointId[waypointId] = builder;
+                cachePanelByWaypointId(waypointId, builder);
                 ManagedWaypoint waypoint = ModStateManager.Shared.GetWaypointById(waypointId, waypointOwnerId, isRouteWindow);
 
                 Loader.LogDebug($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");

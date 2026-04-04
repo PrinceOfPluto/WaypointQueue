@@ -1,4 +1,5 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UI;
@@ -26,6 +27,9 @@ namespace WaypointQueue.UI
 
         private readonly UIState<string> _selectedRouteId = new UIState<string>(null);
         private readonly List<float> _scrollPositions = new List<float>();
+
+        internal static readonly Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
+        private UIPanelBuilder _scrollViewBuilder;
 
         private string _searchFilter = string.Empty;
         private SortByField _sortByField = SortByField.Section;
@@ -57,9 +61,14 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
+            Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
+            Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
             Messenger.Default.Register<RouteDidUpdate>(this, OnRouteDidUpdate);
+
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
+            {
                 _selectedRouteId.Value = RouteRegistry.Routes.Values.First().Id;
+            }
         }
 
         protected void OnDisable()
@@ -67,9 +76,43 @@ namespace WaypointQueue.UI
             Messenger.Default.Unregister(this);
         }
 
-        private void OnRouteDidUpdate(RouteDidUpdate @event)
+        private void OnRouteDidUpdate(RouteDidUpdate routeDidUpdateEvent)
         {
-            RebuildWithScrolls();
+            if (routeDidUpdateEvent.RouteId == _selectedRouteId.Value && Shared.Window.IsShown)
+            {
+                RebuildWithScrolls();
+            }
+        }
+
+        private void OnWaypointDidUpdate(WaypointDidUpdate waypointDidUpdateEvent)
+        {
+            if (String.IsNullOrEmpty(waypointDidUpdateEvent.RouteId))
+            {
+                return;
+            }
+
+            if (waypointDidUpdateEvent.RouteId == _selectedRouteId.Value && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && Shared.Window.IsShown)
+            {
+                Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for route {_selectedRouteId.Value}");
+                panelBuilder.Rebuild();
+            }
+        }
+
+        private void OnWaypointWasAppended(WaypointWasAppended waypointWasAppendedEvent)
+        {
+            if (String.IsNullOrEmpty(waypointWasAppendedEvent.RouteId))
+            {
+                return;
+            }
+
+            if (waypointWasAppendedEvent.RouteId == _selectedRouteId.Value && Shared.Window.IsShown)
+            {
+                RouteDefinition route = RouteRegistry.GetById(_selectedRouteId.Value);
+                List<ManagedWaypoint> waypointList = route.Waypoints;
+                ManagedWaypoint lastWaypoint = waypointList.Last();
+
+                BuildRouteWaypointSection(route, lastWaypoint, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder);
+            }
         }
 
         public void Show()
@@ -123,6 +166,8 @@ namespace WaypointQueue.UI
 
         public override void Populate(UIPanelBuilder builder)
         {
+            panelsByWaypointId.Clear();
+
             builder.Spacing = 0f;
             var filteredRoutes = RouteRegistry.Routes.Values;
 
@@ -341,6 +386,8 @@ namespace WaypointQueue.UI
 
                     detail.VScrollView(scroll =>
                     {
+                        _scrollViewBuilder = scroll;
+
                         if (route.Waypoints == null || route.Waypoints.Count == 0)
                         {
                             scroll.AddLabel("<i>Route has no waypoints.</i>").HorizontalTextAlignment(TMPro.HorizontalAlignmentOptions.Center);
@@ -412,6 +459,11 @@ namespace WaypointQueue.UI
                 });
         }
 
+        private void CachePanelBuilderByWaypointId(string waypointId, UIPanelBuilder builder)
+        {
+            panelsByWaypointId[waypointId] = builder;
+        }
+
         private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int index, int totalWaypoints, UIPanelBuilder builder)
         {
             if (!mw.IsValid())
@@ -427,14 +479,11 @@ namespace WaypointQueue.UI
              builder,
              onWaypointChange: (ManagedWaypoint waypoint) =>
              {
-                 ModStateManager.Shared.SaveRoute(route);
-                 RebuildWithScrolls();
+                 RouteRegistry.UpdateWaypoint(waypoint, route.Id);
              },
              onWaypointDelete: (ManagedWaypoint waypoint) =>
              {
-                 route.Waypoints.Remove(waypoint);
-                 ModStateManager.Shared.SaveRoute(route);
-                 RebuildWithScrolls();
+                 RouteRegistry.RemoveWaypoint(waypoint, route.Id);
              },
              onWaypointReorder: (ManagedWaypoint waypoint, int newIndex) =>
              {
@@ -444,6 +493,7 @@ namespace WaypointQueue.UI
              {
                  RouteRegistry.InsertWaypointInRoute(waypoint, beforeWaypointId, route.Id);
              },
+             cachePanelByWaypointId: CachePanelBuilderByWaypointId,
              isRouteWindow: true);
         }
 
