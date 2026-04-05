@@ -133,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Model\CouplingException.cs" />
+    <Compile Include="Model\DelayedBleedAirCutEntry.cs" />
     <Compile Include="Model\RefuelException.cs" />
     <Compile Include="Model\UncouplingException.cs" />
     <Compile Include="Model\WaypointError.cs" />

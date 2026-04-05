@@ -8,6 +8,7 @@ using System.Linq;
 using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
+using WaypointQueue.State;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
@@ -598,7 +599,14 @@ namespace WaypointQueue
 
             if (waypoint.BleedAirOnUncouple)
             {
-                carService.BleedAirOnCut(inactiveCut);
+                if (Loader.Settings.DoNotBottleAir)
+                {
+                    ModStateManager.Shared.RegisterDelayedBleedAirCars(inactiveCut);
+                }
+                else
+                {
+                    carService.BleedAirOnCut(inactiveCut);
+                }
             }
             return inactiveCut;
         }
@@ -614,7 +622,8 @@ namespace WaypointQueue
                 if (adjacent != null)
                 {
                     Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
-                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
+                    float anglecockValue = Loader.Settings.DoNotBottleAir ? 1f : 0f;
+                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: anglecockValue);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
 
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);

@@ -1,4 +1,5 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
+using Game;
 using Game.Events;
 using Game.Messages;
 using Game.State;
@@ -13,6 +14,7 @@ using System.Linq;
 using Track;
 using UI.Common;
 using UnityEngine;
+using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.State.Events;
 using WaypointQueue.UUM;
@@ -508,6 +510,25 @@ namespace WaypointQueue.State
             _routeAssignments.Remove(locoId);
             string json = JsonConvert.SerializeObject(_routeAssignments);
             StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+        }
+
+        public void RegisterDelayedBleedAirCars(List<Car> cars)
+        {
+            List<DelayedBleedAirCutEntry> listOfEntries = _waypointModStorage.DelayedBleedAirCutEntries;
+            List<string> carIds = cars.Select(c => c.id).ToList();
+            double bleedAfterTime = TimeWeather.Now.AddingSeconds(10).TotalSeconds;
+            listOfEntries.Add(new DelayedBleedAirCutEntry(bleedAfterTime, carIds));
+            _waypointModStorage.DelayedBleedAirCutEntries = listOfEntries;
+        }
+
+        public void OverwriteDelayedBleedAirCars(List<DelayedBleedAirCutEntry> listOfEntries)
+        {
+            _waypointModStorage.DelayedBleedAirCutEntries = listOfEntries;
+        }
+
+        public List<DelayedBleedAirCutEntry> GetDelayedBleedAirCars()
+        {
+            return _waypointModStorage.DelayedBleedAirCutEntries;
         }
 
         private void MigrateFromJsonSaveToStorage()

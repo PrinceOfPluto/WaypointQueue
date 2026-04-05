@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using WaypointQueue.Model;
 
 namespace WaypointQueue.State
 {
@@ -17,6 +18,7 @@ namespace WaypointQueue.State
         public readonly string KeyVersion = "version";
 
         public readonly string KeyRouteAssignments = "routeAssignments";
+        public readonly string KeyDelayedBleedAirCutEntries = "delayedBleedAirCars";
 
         public string Version
         {
@@ -48,6 +50,24 @@ namespace WaypointQueue.State
             set
             {
                 _keyValueObject[KeyRouteAssignments] = JsonConvert.SerializeObject(value);
+            }
+        }
+
+        public List<DelayedBleedAirCutEntry> DelayedBleedAirCutEntries
+        {
+            get
+            {
+                if (_keyValueObject != null && _keyValueObject.Keys.Contains(KeyDelayedBleedAirCutEntries))
+                {
+                    string json = _keyValueObject[KeyDelayedBleedAirCutEntries];
+                    _keyValueObject.Get(KeyDelayedBleedAirCutEntries);
+                    return JsonConvert.DeserializeObject<List<DelayedBleedAirCutEntry>>(json);
+                }
+                return [];
+            }
+            set
+            {
+                _keyValueObject[KeyDelayedBleedAirCutEntries] = JsonConvert.SerializeObject(value);
             }
         }
 

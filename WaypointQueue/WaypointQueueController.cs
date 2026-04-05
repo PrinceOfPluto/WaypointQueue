@@ -1,4 +1,5 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
+using Game;
 using Game.Events;
 using Game.Messages;
 using Game.State;
@@ -84,6 +85,7 @@ namespace WaypointQueue
                 using (StateManager.TransactionScope())
                 {
                     DoQueueTickUpdate();
+                    HandleDelayedBleedAir();
                 }
             }
             catch (Exception e)
@@ -193,6 +195,32 @@ namespace WaypointQueue
             {
                 ModStateManager.Shared.RemoveLocoWaypointState(entry.LocomotiveId);
             }
+        }
+
+        private void HandleDelayedBleedAir()
+        {
+            var entries = ModStateManager.Shared.GetDelayedBleedAirCars();
+
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
+            List<DelayedBleedAirCutEntry> entriesToPersist = [];
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (TimeWeather.Now.TotalSeconds >= entry.DelayBleedUntilGameTotalSeconds)
+                {
+                    List<Car> nonnullCars = [.. entry.CarIds.Select(id => TrainController.Shared.CarForId(id)).Where(c => c != null)];
+                    _carService.BleedAirOnCut(nonnullCars);
+                }
+                else
+                {
+                    entriesToPersist.Add(entry);
+                }
+            }
+            ModStateManager.Shared.OverwriteDelayedBleedAirCars(entriesToPersist);
         }
 
         [HarmonyPrefix]

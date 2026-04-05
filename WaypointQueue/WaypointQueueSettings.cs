@@ -45,6 +45,7 @@ namespace WaypointQueue
 
         [Header("Uncoupling settings")]
         [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
+        [Draw("Leave anglecock open after cutting cars (do not bottle air)")] public bool DoNotBottleAir = false;
         [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
         [Draw("Max seconds to wait for train to fully stop before uncoupling", DrawType.Slider, Precision = 0, Min = 5, Max = 120, Tooltip = "Trains will wait to uncouple until the consist is considered at fully rest\nor until this many seconds have passed, whichever happens sooner.\nIf you are encountering trains unexpectedly re-coupling after being uncoupled,\nit is recommended to increase this timeout value.")] public float WaitBeforeCuttingTimeout = 15f;
         [Draw("Handbrake percentage", DrawType.Slider, Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
