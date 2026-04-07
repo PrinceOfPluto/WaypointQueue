@@ -299,38 +299,11 @@ namespace WaypointQueue.UI
                         });
                         row.Spacer();
 
-                        row.AddButtonCompact("Delete", () =>
-                        {
-                            if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
-                            var route = RouteRegistry.GetById(_selectedRouteId.Value);
-
-                            if (route.Waypoints.Count > 0)
-                            {
-                                ModalAlertController.Present($"Delete route \"{route.Name}\" with {route.Waypoints.Count} waypoints?", "This cannot be undone.",
-                                [
-                                    (true, "Delete"),
-                        (false, "Cancel")
-                                ], delegate (bool b)
-                                {
-                                    if (b)
-                                    {
-                                        RouteRegistry.Remove(_selectedRouteId.Value);
-                                        _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
-                                        RebuildWithScrolls();
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                RouteRegistry.Remove(_selectedRouteId.Value);
-                                _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
-                                RebuildWithScrolls();
-                            }
-                        });
                         List<DropdownMenu.RowData> options = [
                             new("Overwrite from Loco", "Overwrites route with waypoints from current loco"),
                             new("Add from Loco", "Appends current loco waypoints to the end of the route"),
-                            new("Copy to Loco", "Appends waypoints from this route to the current loco")
+                            new("Copy to Loco", "Appends waypoints from this route to the current loco"),
+                            new("Delete route", "Deletes this route")
                             ];
                         row.AddOptionsDropdown(options, (value =>
                         {
@@ -344,6 +317,9 @@ namespace WaypointQueue.UI
                                     break;
                                 case 2:
                                     AssignToSelectedLoco(route, append: true);
+                                    break;
+                                case 3:
+                                    PromptDeleteModal(items);
                                     break;
                                 default:
                                     break;
@@ -553,6 +529,36 @@ namespace WaypointQueue.UI
             }
 
             RebuildWithScrolls();
+        }
+
+        private void PromptDeleteModal(List<UIPanelBuilder.ListItem<RouteDefinition>> items)
+        {
+            if (string.IsNullOrEmpty(_selectedRouteId.Value)) return;
+            var route = RouteRegistry.GetById(_selectedRouteId.Value);
+
+            if (route.Waypoints.Count > 0)
+            {
+                ModalAlertController.Present($"Delete route \"{route.Name}\" with {route.Waypoints.Count} waypoints?", "This cannot be undone.",
+                [
+                    (true, "Delete"),
+                        (false, "Cancel")
+                ], delegate (bool b)
+                {
+                    if (b)
+                    {
+                        RouteRegistry.Remove(_selectedRouteId.Value);
+                        _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
+                        RebuildWithScrolls();
+                    }
+                });
+            }
+            else
+            {
+                Multiplayer.Broadcast($"{StateManager.Shared.PlayersManager.LocalPlayer.Name} deleted route {route.Name}.");
+                RouteRegistry.Remove(_selectedRouteId.Value);
+                _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
+                RebuildWithScrolls();
+            }
         }
     }
 }
