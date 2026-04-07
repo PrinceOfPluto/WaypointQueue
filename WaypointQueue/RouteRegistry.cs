@@ -32,6 +32,31 @@ namespace WaypointQueue
             }
         }
 
+        public static bool CheckIfValid(RouteDefinition route)
+        {
+            foreach (var wp in route.Waypoints)
+            {
+                if (wp == null)
+                {
+                    return false;
+                }
+                try
+                {
+                    wp.HandleMigration();
+                    if (!wp.TryResolveLocation(out _))
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    Loader.LogError($"Failed to load waypoint for route {route.Id} with name {route.Name}");
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public static RouteDefinition GetById(string routeId)
         {
             if (Routes.TryGetValue(routeId, out var route)) return route;

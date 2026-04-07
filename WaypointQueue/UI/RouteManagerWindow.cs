@@ -1,4 +1,6 @@
 ﻿using GalaSoft.MvvmLight.Messaging;
+using Game.State;
+using Network;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,6 +26,8 @@ namespace WaypointQueue.UI
         public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
 
         public static RouteManagerWindow Shared;
+
+        private RouteLoadSaveHelper _routeLoadSaveHelper;
 
         private readonly UIState<string> _selectedRouteId = new UIState<string>(null);
         private readonly List<float> _scrollPositions = new List<float>();
@@ -64,6 +68,8 @@ namespace WaypointQueue.UI
             Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
             Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
             Messenger.Default.Register<RouteDidUpdate>(this, OnRouteDidUpdate);
+            Messenger.Default.Register<RoutesDidLoadFromDisk>(this, OnRoutesDidLoadFromDisk);
+            _routeLoadSaveHelper = new RouteLoadSaveHelper();
 
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
             {
@@ -112,6 +118,14 @@ namespace WaypointQueue.UI
                 ManagedWaypoint lastWaypoint = waypointList.Last();
 
                 BuildRouteWaypointSection(route, lastWaypoint, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder);
+            }
+        }
+
+        private void OnRoutesDidLoadFromDisk(RoutesDidLoadFromDisk _)
+        {
+            if (Shared.Window.IsShown)
+            {
+                RebuildWithScrolls();
             }
         }
 
@@ -262,6 +276,27 @@ namespace WaypointQueue.UI
                         _sortByDirection = (SortByDirection)val;
                         RebuildWithScrolls();
                     })).Width(140f);
+                    List<DropdownMenu.RowData> dropdownOptions = [];
+                    dropdownOptions.Add(new DropdownMenu.RowData("Load from disk", "Load routes from a file"));
+                    dropdownOptions.Add(new DropdownMenu.RowData("Save to disk", "Save routes to a file"));
+                    dropdownOptions.Add(new DropdownMenu.RowData("Delete all", "Delete all routes"));
+                    row.AddOptionsDropdown(dropdownOptions, (i =>
+                    {
+                        switch (i)
+                        {
+                            case 0:
+                                _routeLoadSaveHelper.PromptToLoadRoutes();
+                                break;
+                            case 1:
+                                _routeLoadSaveHelper.PromptToSaveRoutes();
+                                break;
+                            case 2:
+                                PromptDeleteAllModal();
+                                break;
+                            default:
+                                break;
+                        }
+                    }));
                 });
             });
 
@@ -559,6 +594,30 @@ namespace WaypointQueue.UI
                 _selectedRouteId.Value = items.Where(x => x.Value.Id != _selectedRouteId.Value).FirstOrDefault().Value?.Id;
                 RebuildWithScrolls();
             }
+        }
+
+        private void PromptDeleteAllModal()
+        {
+            ModalAlertController.Present($"Delete all {ModStateManager.Shared.Routes.Count} routes?", "This cannot be undone.",
+                [
+                    (true, "Delete"),
+                        (false, "Cancel")
+                ], delegate (bool b)
+                {
+                    if (b)
+                    {
+                        if (StateManager.AccessLevel < Game.AccessControl.AccessLevel.Officer)
+                        {
+                            Toast.Present("Only Officers and Presidents may delete all routes");
+                        }
+                        else
+                        {
+                            ModStateManager.Shared.RemoveAllRoutes();
+                            _selectedRouteId.Value = "";
+                            RebuildWithScrolls();
+                        }
+                    }
+                });
         }
     }
 }

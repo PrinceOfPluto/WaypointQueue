@@ -144,6 +144,7 @@
     <Compile Include="Services\ICarService.cs" />
     <Compile Include="State\Events\QueueDidUpdate.cs" />
     <Compile Include="State\Events\RouteDidUpdate.cs" />
+    <Compile Include="State\Events\RoutesDidLoadFromDisk.cs" />
     <Compile Include="State\Events\WaypointDidUpdate.cs" />
     <Compile Include="State\Events\WaypointWasAppended.cs" />
     <Compile Include="State\QueueStateStorage.cs" />
@@ -151,6 +152,7 @@
     <Compile Include="State\WaypointModStorage.cs" />
     <Compile Include="State\ModStateManager.cs" />
     <Compile Include="UI\ErrorModalController.cs" />
+    <Compile Include="UI\RouteLoadSaveHelper.cs" />
     <Compile Include="UI\WaypointPicker.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />

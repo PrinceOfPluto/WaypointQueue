@@ -531,6 +531,57 @@ namespace WaypointQueue.State
             return _waypointModStorage.DelayedBleedAirCutEntries;
         }
 
+        public void RegisterRoutesFromLoad(List<RouteDefinition> routesFromLoad)
+        {
+            if (routesFromLoad.Count == 0)
+            {
+                ModalAlertController.PresentOkay("No routes detected", "No routes have been detected in the file you tried to load.");
+            }
+
+            List<RouteDefinition> failedRoutes = [];
+            using (StateManager.TransactionScope())
+            {
+                foreach (var route in routesFromLoad)
+                {
+                    if (RouteRegistry.CheckIfValid(route))
+                    {
+                        string json = JsonConvert.SerializeObject(route);
+                        StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, route.Id, new StringPropertyValue(json)));
+                    }
+                    else
+                    {
+                        failedRoutes.Add(route);
+                    }
+                }
+            }
+
+            int successfulRoutes = routesFromLoad.Count - failedRoutes.Count;
+
+            if (failedRoutes.Count > 0)
+            {
+                ModalAlertController.PresentOkay("Error loading some routes", $"Error loading {failedRoutes.Count} routes out of {routesFromLoad.Count} total routes from file. {successfulRoutes} routes were loaded successfully.");
+            }
+
+            if (successfulRoutes > 0)
+            {
+                Multiplayer.Broadcast($"{StateManager.Shared.PlayersManager.LocalPlayer.Name} loaded {successfulRoutes} routes from disk.");
+                Messenger.Default.Send(new RoutesDidLoadFromDisk());
+            }
+        }
+
+        public void RemoveAllRoutes()
+        {
+            using (StateManager.TransactionScope())
+            {
+                List<string> routeIdsToRemove = _routes.Keys.ToList();
+                foreach (string routeIdToRemove in routeIdsToRemove)
+                {
+                    RemoveRoute(routeIdToRemove);
+                }
+            }
+            Multiplayer.Broadcast($"{StateManager.Shared.PlayersManager.LocalPlayer.Name} deleted all routes.");
+        }
+
         private void MigrateFromJsonSaveToStorage()
         {
             Loader.Log($"Migrating pre 1.6 save data from json files to property storage");
