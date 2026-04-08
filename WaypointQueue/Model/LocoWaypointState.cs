@@ -18,8 +18,6 @@ namespace WaypointQueue
         public List<ManagedWaypoint> Waypoints { get; set; } = [];
         [Key(2)]
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
-        [Key(3)]
-        public bool PeriodicReroute { get; set; } = false;
 
         [JsonIgnore]
         [IgnoreMember]
@@ -62,8 +60,7 @@ namespace WaypointQueue
 
             return LocomotiveId == other.LocomotiveId &&
                 UnresolvedWaypoint.Equals(other.UnresolvedWaypoint) &&
-                Waypoints.SequenceEqual(other.Waypoints) &&
-                PeriodicReroute == other.PeriodicReroute;
+                Waypoints.SequenceEqual(other.Waypoints);
         }
 
         public override int GetHashCode()

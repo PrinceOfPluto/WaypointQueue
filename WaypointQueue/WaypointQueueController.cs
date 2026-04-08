@@ -119,7 +119,7 @@ namespace WaypointQueue
                     continue;
                 }
 
-                if (Loader.Settings.PeriodicReroute && entry.PeriodicReroute && _autoEngineerService.HasActiveWaypoint(ordersHelper))
+                if (_carService.ShouldPeriodicReroute(entry.Locomotive) && _autoEngineerService.HasActiveWaypoint(ordersHelper))
                 {
                     if (_timeSinceLastRerouteByLocoId.TryGetValue(entry.LocomotiveId, out float elapsed))
                     {
@@ -494,13 +494,6 @@ namespace WaypointQueue
         public void RerouteCurrentWaypoint(string locoId)
         {
             StateManager.ApplyLocal(new AutoEngineerWaypointRerouteRequest(locoId));
-        }
-
-        public void TogglePeriodicRerouteForLoco(string locoId)
-        {
-            LocoWaypointState state = ModStateManager.Shared.GetLocoWaypointState(locoId);
-            state.PeriodicReroute = !state.PeriodicReroute;
-            ModStateManager.Shared.SaveLocoWaypointState(state.LocomotiveId, state);
         }
 
         public void RefreshCurrentWaypoint(BaseLocomotive locomotive, AutoEngineerOrdersHelper ordersHelper)

@@ -59,9 +59,6 @@ namespace WaypointQueue
         [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
         [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;
 
-        [Header("Experimental")]
-        [Draw("Show option to periodically reroute locomotives automatically")] public bool PeriodicReroute = false;
-
         [Draw("Advanced settings", Collapsible = true)] public AdvancedSettings AdvancedSettings = new AdvancedSettings();
 
         public override void Save(UnityModManager.ModEntry modEntry)

@@ -52,6 +52,8 @@ namespace WaypointQueue.UI
 
         private UIPanelBuilder _scrollViewBuilder;
 
+        private ICarService _carService;
+
         protected void Awake()
         {
             Shared = this;
@@ -67,6 +69,7 @@ namespace WaypointQueue.UI
             Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
             Messenger.Default.Register<QueueDidUpdate>(this, OnQueueDidUpdate);
             Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
+            _carService = Loader.ServiceProvider.GetService<ICarService>();
         }
 
         protected void OnDisable()
@@ -229,28 +232,24 @@ namespace WaypointQueue.UI
                     return;
                 }
 
-                builder.HStack(delegate (UIPanelBuilder builder)
+                builder.HStack(delegate (UIPanelBuilder headerBuilder)
                 {
-                    builder.AddLabel($"Showing waypoints for {selectedLocomotive.Ident}");
-                    builder.Spacer();
+                    headerBuilder.AddLabel($"Showing waypoints for {selectedLocomotive.Ident}");
+                    headerBuilder.Spacer();
 
                     List<DropdownMenu.RowData> options = [];
 
                     DropdownMenu.RowData rerouteOption = new("Reroute", "Reroute the current waypoint");
-                    DropdownMenu.RowData periodicRerouteOption = new(locoWaypointState.PeriodicReroute ? DropdownMenu.CheckState.Checked : DropdownMenu.CheckState.Unchecked, "Periodic reroute", "Reroutes every few seconds");
+                    DropdownMenu.RowData periodicRerouteOption = new(_carService.ShouldPeriodicReroute(selectedLocomotive) ? DropdownMenu.CheckState.Checked : DropdownMenu.CheckState.Unchecked, "Periodic reroute", "Reroutes every few seconds");
                     DropdownMenu.RowData refreshOption = new("Refresh", "Forces a refresh of the waypoint window");
                     DropdownMenu.RowData deleteAllOption = new("Delete all", "Deletes all waypoints");
 
                     options.Add(rerouteOption);
-
-                    if (Loader.Settings.PeriodicReroute)
-                    {
-                        options.Add(periodicRerouteOption);
-                    }
+                    options.Add(periodicRerouteOption);
                     options.Add(refreshOption);
                     options.Add(deleteAllOption);
 
-                    builder.AddOptionsDropdown(options, (int value) =>
+                    headerBuilder.AddOptionsDropdown(options, (int value) =>
                     {
                         if (value == options.IndexOf(rerouteOption))
                         {
@@ -258,7 +257,8 @@ namespace WaypointQueue.UI
                         }
                         else if (value == options.IndexOf(periodicRerouteOption))
                         {
-                            WaypointQueueController.Shared.TogglePeriodicRerouteForLoco(selectedLocomotive.id);
+                            _carService.TogglePeriodicRerouteForLoco(selectedLocomotive);
+                            headerBuilder.Rebuild();
                         }
                         else if (value == options.IndexOf(refreshOption))
                         {
@@ -269,7 +269,7 @@ namespace WaypointQueue.UI
                             PresentDeleteAllModal(selectedLocomotive);
                         }
                     });
-                    builder.Spacer(8f);
+                    headerBuilder.Spacer(8f);
                 });
 
                 builder.Spacer(20f);

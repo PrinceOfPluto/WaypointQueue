@@ -57,6 +57,8 @@ namespace WaypointQueue.State
         private RefuelService _refuelService;
         private AutoEngineerService _autoEngineerService;
 
+        public static readonly string PeriodicRerouteKeyOnLoco = "waypointqueue.periodicreroute";
+
         private void OnEnable()
         {
             Shared = this;

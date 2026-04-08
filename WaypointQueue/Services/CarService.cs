@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using Track;
 using UnityEngine;
+using WaypointQueue.State;
 using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
@@ -240,6 +241,28 @@ namespace WaypointQueue.Services
         public bool IsCarLocomotiveType(Car car)
         {
             return car.Archetype == CarArchetype.LocomotiveDiesel || car.Archetype == CarArchetype.LocomotiveSteam || car.Archetype == CarArchetype.Tender;
+        }
+
+        public bool ShouldPeriodicReroute(BaseLocomotive locomotive)
+        {
+            if (locomotive.KeyValueObject.Keys.Contains(ModStateManager.PeriodicRerouteKeyOnLoco))
+            {
+                return locomotive.KeyValueObject[ModStateManager.PeriodicRerouteKeyOnLoco].BoolValue;
+            }
+            return false;
+        }
+
+        public void TogglePeriodicRerouteForLoco(BaseLocomotive locomotive)
+        {
+            bool valueToSet = true;
+
+            if (locomotive.KeyValueObject.Keys.Contains(ModStateManager.PeriodicRerouteKeyOnLoco))
+            {
+                bool prev = locomotive.KeyValueObject[ModStateManager.PeriodicRerouteKeyOnLoco].BoolValue;
+                valueToSet = !prev;
+            }
+
+            StateManager.ApplyLocal(new PropertyChange(locomotive.id, ModStateManager.PeriodicRerouteKeyOnLoco, new BoolPropertyValue(valueToSet)));
         }
     }
 }
