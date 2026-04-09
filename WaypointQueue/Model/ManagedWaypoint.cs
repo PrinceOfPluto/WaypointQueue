@@ -233,8 +233,10 @@ namespace WaypointQueue
         public bool RefuelLoaderAnimated { get; set; }
 
         [IgnoreMember]
+        [JsonIgnore]
         private string _areaName = string.Empty;
         [IgnoreMember]
+        [JsonIgnore]
         public string AreaName
         {
             get
