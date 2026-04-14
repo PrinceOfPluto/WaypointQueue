@@ -481,7 +481,7 @@ namespace WaypointQueue.UI
 
         private void BuildRouteWaypointSection(RouteDefinition route, ManagedWaypoint mw, int index, int totalWaypoints, UIPanelBuilder builder)
         {
-            if (!mw.IsValid())
+            if (!mw.IsValidForRoute())
             {
                 return;
             }

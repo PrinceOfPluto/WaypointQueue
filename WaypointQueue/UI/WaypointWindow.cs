@@ -1008,6 +1008,7 @@ namespace WaypointQueue.UI
                         destinationChoices = BuildAreaDestinationMatchDropdown(waypoint);
                         break;
                     default:
+                        destinationChoices = [];
                         break;
                 }
             }

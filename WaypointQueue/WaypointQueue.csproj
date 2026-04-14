@@ -145,6 +145,7 @@
     <Compile Include="State\RouteStorage.cs" />
     <Compile Include="State\WaypointModStorage.cs" />
     <Compile Include="State\ModStateManager.cs" />
+    <Compile Include="State\WaypointValidator.cs" />
     <Compile Include="UI\ErrorModalController.cs" />
     <Compile Include="UI\RouteLoadSaveHelper.cs" />
     <Compile Include="UI\WaypointPicker.cs" />

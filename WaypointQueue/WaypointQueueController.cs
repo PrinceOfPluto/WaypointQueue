@@ -413,6 +413,7 @@ namespace WaypointQueue
                         if (route == null)
                         {
                             Loader.LogError($"Failed to find route matching id {assignment.RouteId}");
+                            ModStateManager.Shared.RemoveRouteAssignment(assignment.LocoId);
                             continue;
                         }
                         AddWaypointsFromRoute((BaseLocomotive)loco, route, true);
@@ -420,6 +421,7 @@ namespace WaypointQueue
                     else
                     {
                         Loader.LogError($"Failed to find loco matching id {assignment.LocoId}");
+                        ModStateManager.Shared.RemoveRouteAssignment(assignment.LocoId);
                         continue;
                     }
                 }

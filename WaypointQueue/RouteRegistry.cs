@@ -9,29 +9,6 @@ namespace WaypointQueue
     {
         public static IReadOnlyDictionary<string, RouteDefinition> Routes => ModStateManager.Shared.Routes;
 
-        public static void LoadWaypointsForRoutes()
-        {
-            foreach (var route in Routes.Values)
-            {
-                if (route?.Waypoints == null) continue;
-
-                foreach (var wp in route.Waypoints)
-                {
-                    try
-                    {
-                        wp?.HandleMigration();
-                        wp?.LoadForRoute();
-                    }
-                    catch (Exception ex)
-                    {
-                        Loader.LogError($"[Routes] Failed to hydrate waypoint {wp?.Id} for route '{route?.Name}': {ex}");
-                    }
-                }
-
-                ModStateManager.Shared.SaveRoute(route);
-            }
-        }
-
         public static bool CheckIfValid(RouteDefinition route)
         {
             foreach (var wp in route.Waypoints)
@@ -43,7 +20,7 @@ namespace WaypointQueue
                 try
                 {
                     wp.HandleMigration();
-                    if (!wp.TryResolveLocation(out _))
+                    if (!wp.IsValidForRoute())
                     {
                         return false;
                     }

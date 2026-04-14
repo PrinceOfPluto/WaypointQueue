@@ -48,6 +48,16 @@ namespace WaypointQueue.State
             return null;
         }
 
+        public bool RemoveQueueByLocoId(string locoId)
+        {
+            if (_keyValueObject.Keys.Contains(locoId))
+            {
+                _keyValueObject[locoId] = null;
+                return true;
+            }
+            return false;
+        }
+
         public QueueStateStorage(KeyValueObject keyValueObject)
         {
             _keyValueObject = keyValueObject;

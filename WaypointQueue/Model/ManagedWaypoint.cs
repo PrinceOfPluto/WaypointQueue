@@ -96,7 +96,7 @@ namespace WaypointQueue
                 {
                     return loco;
                 }
-                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
+                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint");
                 return null;
             }
         }
@@ -385,19 +385,17 @@ namespace WaypointQueue
             UncouplingMode = (UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
         }
 
-        public bool IsValid()
+        public bool IsValidForRoute()
         {
-            return TryResolveLocation(out Location loc);
+            bool validLocation = TryResolveLocation(out Location loc);
+            bool validCoupleToCar = String.IsNullOrEmpty(CoupleToCarId) || TryResolveCoupleToCar(out Car coupleToCar);
+
+            return validLocation && validCoupleToCar;
         }
 
-        public bool IsValidWithLoco()
+        public bool IsValidForQueue()
         {
-            return TryResolveLocation(out Location loc) && TryResolveLocomotive(out Car loco);
-        }
-
-        public void LoadForRoute()
-        {
-            TryResolveLocation(out Location _);
+            return IsValidForRoute() && Locomotive != null;
         }
 
         internal void HandleMigration()
@@ -596,7 +594,7 @@ namespace WaypointQueue
 
         public bool TryCopyForRoute(out ManagedWaypoint copy, BaseLocomotive loco = null)
         {
-            if (IsValid())
+            if (IsValidForRoute())
             {
                 copy = ManagedWaypoint.FromPropertyValue(this.ToPropertyValue());
                 copy.Id = Guid.NewGuid().ToString();
