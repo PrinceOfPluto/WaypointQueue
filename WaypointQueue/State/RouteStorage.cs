@@ -23,8 +23,7 @@ namespace WaypointQueue.State
             Dictionary<string, RouteDefinition> pairs = [];
             foreach (var locoId in _keyValueObject.Keys)
             {
-                string json = _keyValueObject[locoId];
-                RouteDefinition route = JsonConvert.DeserializeObject<RouteDefinition>(json);
+                var route = RouteDefinition.FromPropertyValue(_keyValueObject[locoId]);
                 pairs.Add(locoId, route);
             }
             return pairs;
@@ -32,14 +31,14 @@ namespace WaypointQueue.State
 
         public void SetRoute(RouteDefinition route)
         {
-            _keyValueObject[route.Id] = JsonConvert.SerializeObject(route);
+            _keyValueObject[route.Id] = route.ToPropertyValue();
         }
 
         public RouteDefinition GetByRouteId(string routeId)
         {
             if (_keyValueObject.Keys.Contains(routeId))
             {
-                return JsonConvert.DeserializeObject<RouteDefinition>(_keyValueObject[routeId]);
+                return RouteDefinition.FromPropertyValue(_keyValueObject[routeId]);
             }
             return null;
         }
@@ -76,10 +75,19 @@ namespace WaypointQueue.State
         {
             return _keyValueObject.Observe(routeId, (Value value) =>
             {
-                string json = value.StringValue;
-                var route = JsonConvert.DeserializeObject<RouteDefinition>(_keyValueObject[routeId]);
+                var route = RouteDefinition.FromPropertyValue(value);
                 action(route);
             }, callInitial);
+        }
+
+        public void MigrateRoutesFromJsonStringsToPropertyValues()
+        {
+            foreach (var key in _keyValueObject.Keys)
+            {
+                string json = _keyValueObject[key];
+                RouteDefinition route = JsonConvert.DeserializeObject<RouteDefinition>(json);
+                _keyValueObject[key] = route.ToPropertyValue();
+            }
         }
     }
 }

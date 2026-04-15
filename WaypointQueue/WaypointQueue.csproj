@@ -65,14 +65,6 @@
       <HintPath>$(RrManagedDir)\KeyValue.Runtime.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="MessagePack">
-      <HintPath>$(RrManagedDir)\MessagePack.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MessagePack.Annotations">
-      <HintPath>$(RrManagedDir)\MessagePack.Annotations.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(RrManagedDir)\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
@@ -134,6 +126,7 @@
   <ItemGroup>
     <Compile Include="Model\CouplingException.cs" />
     <Compile Include="Model\DelayedBleedAirCutEntry.cs" />
+    <Compile Include="Model\IStorableProperty.cs" />
     <Compile Include="Model\RefuelException.cs" />
     <Compile Include="Model\UncouplingException.cs" />
     <Compile Include="Model\WaypointError.cs" />

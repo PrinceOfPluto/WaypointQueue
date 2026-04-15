@@ -531,7 +531,7 @@ namespace WaypointQueue
 
         internal void ApplyTimetableSymbolIfRequested(ManagedWaypoint waypoint)
         {
-            if (waypoint.TimetableSymbol == null) return;
+            if (String.IsNullOrEmpty(waypoint.TimetableSymbol)) return;
 
             string crewId = waypoint.Locomotive?.trainCrewId;
 

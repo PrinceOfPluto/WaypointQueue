@@ -22,8 +22,7 @@ namespace WaypointQueue.State
             Dictionary<string, LocoWaypointState> pairs = [];
             foreach (var locoId in _keyValueObject.Keys)
             {
-                string json = _keyValueObject[locoId];
-                LocoWaypointState state = JsonConvert.DeserializeObject<LocoWaypointState>(json);
+                LocoWaypointState state = LocoWaypointState.FromPropertyValue(_keyValueObject[locoId]);
                 pairs.Add(locoId, state);
             }
             return pairs;
@@ -36,15 +35,14 @@ namespace WaypointQueue.State
 
         public void SetLocoQueue(LocoWaypointState state)
         {
-            _keyValueObject[state.LocomotiveId] = JsonConvert.SerializeObject(state);
+            _keyValueObject[state.LocomotiveId] = state.ToPropertyValue();
         }
 
         public LocoWaypointState GetQueueByLocoId(string locoId)
         {
             if (_keyValueObject.Keys.Contains(locoId))
             {
-                string json = _keyValueObject[locoId];
-                LocoWaypointState state = JsonConvert.DeserializeObject<LocoWaypointState>(json);
+                LocoWaypointState state = LocoWaypointState.FromPropertyValue(_keyValueObject[locoId]);
                 return state;
             }
             return null;
@@ -82,10 +80,19 @@ namespace WaypointQueue.State
         {
             return _keyValueObject.Observe(locoId, (Value value) =>
             {
-                string json = value.StringValue;
-                var state = JsonConvert.DeserializeObject<LocoWaypointState>(_keyValueObject[locoId]);
+                LocoWaypointState state = LocoWaypointState.FromPropertyValue(value);
                 action(state);
             }, callInitial);
+        }
+
+        public void MigrateQueueStatesFromJsonStringsToPropertyValues()
+        {
+            foreach (var locoId in _keyValueObject.Keys)
+            {
+                string json = _keyValueObject[locoId];
+                LocoWaypointState state = JsonConvert.DeserializeObject<LocoWaypointState>(json);
+                _keyValueObject[locoId] = state.ToPropertyValue();
+            }
         }
     }
 }

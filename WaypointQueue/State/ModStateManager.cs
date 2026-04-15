@@ -7,7 +7,6 @@ using HarmonyLib;
 using KeyValue.Runtime;
 using Model;
 using Network;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -135,6 +134,12 @@ namespace WaypointQueue.State
                     if (_queueStateStorage.Count == 0 && _routeStorage.Count == 0 && _waypointModStorage.RouteAssignments.Count == 0)
                     {
                         MigrateFromJsonSaveToStorage();
+                    }
+
+                    if (String.IsNullOrEmpty(_waypointModStorage.Version))
+                    {
+                        _waypointModStorage.Version = "1";
+                        MigrateStorageFromJsonStringsToPropertyValues();
                     }
                 }
                 StorageToRuntime();
@@ -377,7 +382,7 @@ namespace WaypointQueue.State
             if (route != null)
             {
                 _routes[route.Id] = route;
-                _prevStateRoutes[route.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(route));
+                _prevStateRoutes[route.Id] = RouteDefinition.FromPropertyValue(route.ToPropertyValue());
                 if (!_routeObservers.ContainsKey(routeId))
                 {
                     _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
@@ -401,8 +406,7 @@ namespace WaypointQueue.State
             if (assignmentsToRemove.Count > 0)
             {
                 assignmentsToRemove.ForEach(key => _routeAssignments.Remove(key));
-                string json = JsonConvert.SerializeObject(_routeAssignments);
-                StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+                _waypointModStorage.RouteAssignments = _routeAssignments;
             }
 
             Messenger.Default.Send(new RouteDidUpdate(routeId));
@@ -422,7 +426,7 @@ namespace WaypointQueue.State
             {
                 // No old state to handle
                 _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
+                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                 Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
                 return;
             }
@@ -431,7 +435,7 @@ namespace WaypointQueue.State
             if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
             {
                 _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
+                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                 Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
                 return;
             }
@@ -440,13 +444,13 @@ namespace WaypointQueue.State
             if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
             {
                 _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
+                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                 Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
                 return;
             }
 
             _routes[newRouteState.Id] = newRouteState;
-            _prevStateRoutes[newRouteState.Id] = JsonConvert.DeserializeObject<RouteDefinition>(JsonConvert.SerializeObject(newRouteState));
+            _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
             Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
         }
 
@@ -475,8 +479,8 @@ namespace WaypointQueue.State
 
         public void SaveLocoWaypointState(string locoId, LocoWaypointState newState)
         {
-            string json = JsonConvert.SerializeObject(newState);
-            StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, new StringPropertyValue(json)));
+            var propValue = PropertyValueConverter.RuntimeToSnapshot(newState.ToPropertyValue());
+            StateManager.ApplyLocal(new PropertyChange(_queueStateStorage.ObjectId, locoId, propValue));
         }
 
         public void RemoveLocoWaypointState(string locoId)
@@ -490,8 +494,8 @@ namespace WaypointQueue.State
         public void SaveRoute(RouteDefinition routeDefinition)
         {
             routeDefinition.UpdatedAt = DateTime.Now;
-            string json = JsonConvert.SerializeObject(routeDefinition);
-            StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, routeDefinition.Id, new StringPropertyValue(json)));
+            var propValue = PropertyValueConverter.RuntimeToSnapshot(routeDefinition.ToPropertyValue());
+            StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, routeDefinition.Id, propValue));
         }
 
         public void RemoveRoute(string routeId)
@@ -502,16 +506,15 @@ namespace WaypointQueue.State
         public void SaveRouteAssignment(RouteAssignment routeAssignment)
         {
             _routeAssignments[routeAssignment.LocoId] = routeAssignment;
-            string json = JsonConvert.SerializeObject(_routeAssignments);
-            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
-
+            IPropertyValue propertyValue = PropertyValueConverter.RuntimeToSnapshot(Value.Dictionary(_routeAssignments.ToDictionary(k => k.Key, v => v.Value.ToPropertyValue())));
+            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, propertyValue));
         }
 
         public void RemoveRouteAssignment(string locoId)
         {
             _routeAssignments.Remove(locoId);
-            string json = JsonConvert.SerializeObject(_routeAssignments);
-            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, new StringPropertyValue(json)));
+            IPropertyValue propertyValue = PropertyValueConverter.RuntimeToSnapshot(Value.Dictionary(_routeAssignments.ToDictionary(k => k.Key, v => v.Value.ToPropertyValue())));
+            StateManager.ApplyLocal(new PropertyChange(_waypointModStorage.ObjectId, _waypointModStorage.KeyRouteAssignments, propertyValue));
         }
 
         public void RegisterDelayedBleedAirCars(List<Car> cars)
@@ -547,8 +550,7 @@ namespace WaypointQueue.State
                 {
                     if (RouteRegistry.CheckIfValid(route))
                     {
-                        string json = JsonConvert.SerializeObject(route);
-                        StateManager.ApplyLocal(new PropertyChange(_routeStorage.ObjectId, route.Id, new StringPropertyValue(json)));
+                        SaveRoute(route);
                     }
                     else
                     {
@@ -587,6 +589,7 @@ namespace WaypointQueue.State
         private void MigrateFromJsonSaveToStorage()
         {
             Loader.Log($"Migrating pre 1.6 save data from json files to property storage");
+            _waypointModStorage.Version = "1";
 
             foreach (var state in ModSaveManager.Shared.LoadLocoWaypointStatesFromSave())
             {
@@ -604,6 +607,13 @@ namespace WaypointQueue.State
                 routeAssignmentLookup.Add(routeAssignment.LocoId, routeAssignment);
             }
             _waypointModStorage.RouteAssignments = routeAssignmentLookup;
+        }
+
+        private void MigrateStorageFromJsonStringsToPropertyValues()
+        {
+            _queueStateStorage.MigrateQueueStatesFromJsonStringsToPropertyValues();
+            _routeStorage.MigrateRoutesFromJsonStringsToPropertyValues();
+            _waypointModStorage.MigrateModStorageFromJsonStringsToPropertyValues();
         }
 
         private void HydrateLocoWaypointStates()

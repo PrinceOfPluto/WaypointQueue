@@ -1,26 +1,22 @@
-﻿using MessagePack;
+﻿using KeyValue.Runtime;
 using Model;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using WaypointQueue.Model;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
-    [MessagePackObject(false)]
-    public class LocoWaypointState
+    public class LocoWaypointState : IStorableProperty
     {
         [JsonProperty]
-        [Key(0)]
         public string LocomotiveId { get; private set; }
-        [Key(1)]
         public List<ManagedWaypoint> Waypoints { get; set; } = [];
-        [Key(2)]
         public ManagedWaypoint UnresolvedWaypoint { get; set; }
 
         [JsonIgnore]
-        [IgnoreMember]
         public BaseLocomotive Locomotive
         {
             get
@@ -66,6 +62,42 @@ namespace WaypointQueue
         public override int GetHashCode()
         {
             return LocomotiveId.GetHashCode();
+        }
+
+        public Value ToPropertyValue()
+        {
+            Value waypointsValue = Value.Array([.. Waypoints.Select(w => w.ToPropertyValue())]);
+
+            Value unresolvedWaypointValue = UnresolvedWaypoint == null ? Value.Null() : UnresolvedWaypoint.ToPropertyValue();
+
+            var dictionary = new Dictionary<string, Value>
+            {
+                [ValueKeys.LocomotiveId] = Value.String(LocomotiveId),
+                [ValueKeys.Waypoints] = waypointsValue,
+                [ValueKeys.UnresolvedWaypoint] = unresolvedWaypointValue,
+            };
+
+            return Value.Dictionary(dictionary.ToDictionary(k => k.Key, v => v.Value));
+        }
+
+        public static LocoWaypointState FromPropertyValue(Value value)
+        {
+            if (value.IsNull || value.Type != KeyValue.Runtime.ValueType.Dictionary) { return null; }
+
+            var dict = value.DictionaryValue;
+
+            string locoId = dict[ValueKeys.LocomotiveId].StringValue;
+            List<ManagedWaypoint> waypoints = dict[ValueKeys.Waypoints].ArrayValue.ToList().Select(v => ManagedWaypoint.FromPropertyValue(v)).ToList();
+            ManagedWaypoint unresolved = ManagedWaypoint.FromPropertyValue(dict[ValueKeys.UnresolvedWaypoint]);
+
+            return new LocoWaypointState(locoId, waypoints, unresolved);
+        }
+
+        private static class ValueKeys
+        {
+            internal static readonly string LocomotiveId = "locomotive_id";
+            internal static readonly string Waypoints = "waypoints";
+            internal static readonly string UnresolvedWaypoint = "unresolved_waypoint";
         }
     }
 }
