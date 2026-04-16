@@ -40,14 +40,16 @@ namespace WaypointQueue.State
 
         private Dictionary<string, LocoWaypointState> _locoWaypointStates = [];
         private Dictionary<string, RouteDefinition> _routes = [];
-        private Dictionary<string, RouteDefinition> _prevStateRoutes = [];
         private Dictionary<string, RouteAssignment> _routeAssignments = [];
 
         private readonly Dictionary<string, IDisposable> _queueObservers = [];
         private readonly Dictionary<string, IDisposable> _routeObservers = [];
         private readonly List<IDisposable> _observers = [];
 
-        public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _queueStateStorage.GetAll();
+        private Dictionary<string, LocoWaypointState> _prevLocoWaypointStates = [];
+        private Dictionary<string, RouteDefinition> _prevRoutes = [];
+
+        public IReadOnlyDictionary<string, LocoWaypointState> LocoWaypointStates => _locoWaypointStates;
 
         public IReadOnlyDictionary<string, RouteDefinition> Routes => _routes;
 
@@ -96,8 +98,10 @@ namespace WaypointQueue.State
 
             _locoWaypointStates.Clear();
             _routes.Clear();
-            _prevStateRoutes.Clear();
             _routeAssignments.Clear();
+
+            _prevLocoWaypointStates.Clear();
+            _prevRoutes.Clear();
         }
 
         private void PrepareStorageKeyValueObjects()
@@ -197,7 +201,9 @@ namespace WaypointQueue.State
             _locoWaypointStates = new Dictionary<string, LocoWaypointState>(_queueStateStorage.GetAll());
             _routeAssignments = new Dictionary<string, RouteAssignment>(_waypointModStorage.RouteAssignments);
             _routes = new Dictionary<string, RouteDefinition>(_routeStorage.GetAll());
-            _prevStateRoutes = new(_routes);
+
+            _prevLocoWaypointStates = new Dictionary<string, LocoWaypointState>(_queueStateStorage.GetAll());
+            _prevRoutes = new Dictionary<string, RouteDefinition>(_routeStorage.GetAll());
         }
 
         private void OnQueueStorageKeyAdded(string key)
@@ -212,7 +218,7 @@ namespace WaypointQueue.State
         private void OnQueueStorageKeyRemoved(string key)
         {
             Loader.LogDebug($"Queue removed from storage for loco id: {key}");
-            if (Multiplayer.IsHost && _locoWaypointStates.TryGetValue(key, out LocoWaypointState oldState))
+            if (Multiplayer.IsHost && _prevLocoWaypointStates.TryGetValue(key, out LocoWaypointState oldState))
             {
                 using (StateManager.TransactionScope())
                 {
@@ -225,6 +231,7 @@ namespace WaypointQueue.State
             }
 
             _locoWaypointStates.Remove(key);
+            _prevLocoWaypointStates.Remove(key);
 
             if (_queueObservers.ContainsKey(key))
             {
@@ -242,10 +249,11 @@ namespace WaypointQueue.State
                 return;
             }
 
-            if (!_locoWaypointStates.TryGetValue(newState.LocomotiveId, out var oldState))
+            if (!_prevLocoWaypointStates.TryGetValue(newState.LocomotiveId, out var oldState))
             {
                 // No old state to handle
                 _locoWaypointStates[newState.LocomotiveId] = newState;
+                _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
                 Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
                 return;
             }
@@ -265,6 +273,7 @@ namespace WaypointQueue.State
                 if (WasOnlySingleWaypointChanged(oldState.Waypoints, newState.Waypoints, out var singleChangedWaypoint))
                 {
                     _locoWaypointStates[newState.LocomotiveId] = newState;
+                    _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
                     Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
                     return;
                 }
@@ -273,12 +282,14 @@ namespace WaypointQueue.State
                 if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
                 {
                     _locoWaypointStates[newState.LocomotiveId] = newState;
+                    _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
                     Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
                     return;
                 }
             }
 
             _locoWaypointStates[newState.LocomotiveId] = newState;
+            _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
             Messenger.Default.Send(new QueueDidUpdate(newState.LocomotiveId));
         }
 
@@ -387,7 +398,7 @@ namespace WaypointQueue.State
             if (route != null)
             {
                 _routes[route.Id] = route;
-                _prevStateRoutes[route.Id] = RouteDefinition.FromPropertyValue(route.ToPropertyValue());
+                _prevRoutes[route.Id] = RouteDefinition.FromPropertyValue(route.ToPropertyValue());
                 if (!_routeObservers.ContainsKey(routeId))
                 {
                     _routeObservers[route.Id] = _routeStorage.ObserveRoute(route.Id, OnRouteDidChange, false);
@@ -399,7 +410,7 @@ namespace WaypointQueue.State
         {
             Loader.LogDebug($"Route removed from storage with id: {routeId}");
             _routes.Remove(routeId);
-            _prevStateRoutes.Remove(routeId);
+            _prevRoutes.Remove(routeId);
 
             if (_routeObservers.ContainsKey(routeId))
             {
@@ -427,11 +438,11 @@ namespace WaypointQueue.State
 
             Loader.LogDebug($"Route changed for route id: {newRouteState.Id}");
 
-            if (!_prevStateRoutes.TryGetValue(newRouteState.Id, out var oldRouteState))
+            if (!_prevRoutes.TryGetValue(newRouteState.Id, out var oldRouteState))
             {
                 // No old state to handle
                 _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                 Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
                 return;
             }
@@ -443,7 +454,7 @@ namespace WaypointQueue.State
                 if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
                 {
                     _routes[newRouteState.Id] = newRouteState;
-                    _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                     Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
                     return;
                 }
@@ -452,21 +463,24 @@ namespace WaypointQueue.State
                 if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
                 {
                     _routes[newRouteState.Id] = newRouteState;
-                    _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
                     Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
                     return;
                 }
             }
 
             _routes[newRouteState.Id] = newRouteState;
-            _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+            _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
             Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
         }
 
         public LocoWaypointState GetLocoWaypointState(string locoId)
         {
-            var state = _queueStateStorage.GetQueueByLocoId(locoId);
-            return state ?? new LocoWaypointState(locoId);
+            if (_locoWaypointStates.TryGetValue(locoId, out var state))
+            {
+                return state;
+            }
+            return new LocoWaypointState(locoId);
         }
 
         public ManagedWaypoint GetWaypointById(string waypointId, string ownerId, bool forRoute)
@@ -480,7 +494,7 @@ namespace WaypointQueue.State
             }
             else
             {
-                var state = _queueStateStorage.GetQueueByLocoId(ownerId);
+                var state = GetLocoWaypointState(ownerId);
                 int index = state.Waypoints.FindIndex(w => w.Id == waypointId);
                 return index < 0 ? null : state.Waypoints[index];
             }

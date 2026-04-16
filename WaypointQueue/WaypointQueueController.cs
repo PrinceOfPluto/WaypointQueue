@@ -10,6 +10,7 @@ using Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Track;
 using UI.EngineControls;
@@ -84,7 +85,10 @@ namespace WaypointQueue
             {
                 using (StateManager.TransactionScope())
                 {
+                    long start = Stopwatch.GetTimestamp();
                     DoQueueTickUpdate();
+                    long end = Stopwatch.GetTimestamp();
+                    Loader.LogDebug($"Tick took {TimeSpan.FromTicks(end - start).TotalMilliseconds}ms");
                     HandleDelayedBleedAir();
                 }
             }
@@ -102,7 +106,11 @@ namespace WaypointQueue
             HandleLoopingRoutes();
 
             List<LocoWaypointState> listForRemoval = [];
+
+            long start = Stopwatch.GetTimestamp();
             List<LocoWaypointState> statesToProcess = [.. ModStateManager.Shared.LocoWaypointStates.Values];
+            long end = Stopwatch.GetTimestamp();
+            Loader.LogDebug($"Fetching queues took {TimeSpan.FromTicks(end - start).TotalMilliseconds}ms");
 
             foreach (LocoWaypointState entry in statesToProcess)
             {

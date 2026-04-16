@@ -48,6 +48,11 @@ namespace WaypointQueue.State
             }
             set
             {
+                if (value == null)
+                {
+                    _keyValueObject[KeyRouteAssignments] = null;
+                    return;
+                }
                 _keyValueObject[KeyRouteAssignments] = Value.Dictionary(value.ToDictionary(k => k.Key, v => v.Value.ToPropertyValue()));
             }
         }
@@ -58,12 +63,24 @@ namespace WaypointQueue.State
             {
                 if (_keyValueObject != null && _keyValueObject.Keys.Contains(KeyDelayedBleedAirCutEntries))
                 {
-                    return _keyValueObject[KeyDelayedBleedAirCutEntries].ArrayValue.Select(v => DelayedBleedAirCutEntry.FromPropertyValue(v)).ToList();
+                    Value value = _keyValueObject[KeyDelayedBleedAirCutEntries];
+
+                    if (value.IsNull || value.Type != KeyValue.Runtime.ValueType.Array)
+                    {
+                        return [];
+                    }
+
+                    return value.ArrayValue.Select(v => DelayedBleedAirCutEntry.FromPropertyValue(v)).ToList();
                 }
                 return [];
             }
             set
             {
+                if (value == null)
+                {
+                    _keyValueObject[KeyDelayedBleedAirCutEntries] = null;
+                    return;
+                }
                 _keyValueObject[KeyDelayedBleedAirCutEntries] = Value.Array(value.Select(e => e.ToPropertyValue()).ToList());
             }
         }
@@ -102,10 +119,16 @@ namespace WaypointQueue.State
         public void MigrateModStorageFromJsonStringsToPropertyValues()
         {
             string bleedAirCarsJson = _keyValueObject[KeyDelayedBleedAirCutEntries];
-            DelayedBleedAirCutEntries = JsonConvert.DeserializeObject<List<DelayedBleedAirCutEntry>>(bleedAirCarsJson);
+            if (!String.IsNullOrEmpty(bleedAirCarsJson))
+            {
+                DelayedBleedAirCutEntries = JsonConvert.DeserializeObject<List<DelayedBleedAirCutEntry>>(bleedAirCarsJson);
+            }
 
             string assignmentsJson = _keyValueObject[KeyRouteAssignments];
-            RouteAssignments = JsonConvert.DeserializeObject<Dictionary<string, RouteAssignment>>(assignmentsJson);
+            if (!String.IsNullOrEmpty(assignmentsJson))
+            {
+                RouteAssignments = JsonConvert.DeserializeObject<Dictionary<string, RouteAssignment>>(assignmentsJson);
+            }
         }
     }
 }

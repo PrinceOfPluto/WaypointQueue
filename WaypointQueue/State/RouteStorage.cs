@@ -21,10 +21,10 @@ namespace WaypointQueue.State
         public Dictionary<string, RouteDefinition> GetAll()
         {
             Dictionary<string, RouteDefinition> pairs = [];
-            foreach (var locoId in _keyValueObject.Keys)
+            foreach (var routeId in _keyValueObject.Keys)
             {
-                var route = RouteDefinition.FromPropertyValue(_keyValueObject[locoId]);
-                pairs.Add(locoId, route);
+                var route = RouteDefinition.FromPropertyValue(_keyValueObject[routeId]);
+                pairs.Add(routeId, route);
             }
             return pairs;
         }
@@ -82,11 +82,18 @@ namespace WaypointQueue.State
 
         public void MigrateRoutesFromJsonStringsToPropertyValues()
         {
-            foreach (var key in _keyValueObject.Keys)
+            Dictionary<string, RouteDefinition> pairs = [];
+
+            foreach (var routeId in _keyValueObject.Keys)
             {
-                string json = _keyValueObject[key];
+                string json = _keyValueObject[routeId];
                 RouteDefinition route = JsonConvert.DeserializeObject<RouteDefinition>(json);
-                _keyValueObject[key] = route.ToPropertyValue();
+                pairs.Add(routeId, route);
+            }
+
+            foreach (var item in pairs)
+            {
+                _keyValueObject[item.Key] = item.Value.ToPropertyValue();
             }
         }
     }
