@@ -16,6 +16,7 @@ using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.State.Events;
+using WaypointQueue.UI;
 using WaypointQueue.UUM;
 
 namespace WaypointQueue.State
@@ -257,20 +258,24 @@ namespace WaypointQueue.State
                 }
             }
 
-            // Determine whether only a single waypoint changed for the UI refresh optimization
-            if (WasOnlySingleWaypointChanged(oldState.Waypoints, newState.Waypoints, out var singleChangedWaypoint))
+            bool isQueueForSelectedLoco = TrainController.Shared.SelectedLocomotive?.id == newState.LocomotiveId;
+            if (isQueueForSelectedLoco && WaypointWindow.Shared.IsVisible)
             {
-                _locoWaypointStates[newState.LocomotiveId] = newState;
-                Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
-                return;
-            }
+                // Determine whether only a single waypoint changed for the UI refresh optimization
+                if (WasOnlySingleWaypointChanged(oldState.Waypoints, newState.Waypoints, out var singleChangedWaypoint))
+                {
+                    _locoWaypointStates[newState.LocomotiveId] = newState;
+                    Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
+                    return;
+                }
 
-            // Determine if a single waypoint was added at the end
-            if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
-            {
-                _locoWaypointStates[newState.LocomotiveId] = newState;
-                Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
-                return;
+                // Determine if a single waypoint was added at the end
+                if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
+                {
+                    _locoWaypointStates[newState.LocomotiveId] = newState;
+                    Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
+                    return;
+                }
             }
 
             _locoWaypointStates[newState.LocomotiveId] = newState;
@@ -431,22 +436,26 @@ namespace WaypointQueue.State
                 return;
             }
 
-            // Determine whether only a single waypoint changed for the UI refresh optimization
-            if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
+            bool isRouteForSelectedRoute = RouteManagerWindow.Shared.SelectedRouteId == newRouteState.Id;
+            if (isRouteForSelectedRoute && RouteManagerWindow.Shared.IsVisible)
             {
-                _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
-                Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
-                return;
-            }
+                // Determine whether only a single waypoint changed for the UI refresh optimization
+                if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
+                {
+                    _routes[newRouteState.Id] = newRouteState;
+                    _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                    Messenger.Default.Send(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
+                    return;
+                }
 
-            // Determine if a single waypoint was added at the end
-            if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
-            {
-                _routes[newRouteState.Id] = newRouteState;
-                _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
-                Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
-                return;
+                // Determine if a single waypoint was added at the end
+                if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
+                {
+                    _routes[newRouteState.Id] = newRouteState;
+                    _prevStateRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                    Messenger.Default.Send(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
+                    return;
+                }
             }
 
             _routes[newRouteState.Id] = newRouteState;

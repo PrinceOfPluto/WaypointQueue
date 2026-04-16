@@ -40,6 +40,8 @@ namespace WaypointQueue.UI
 
         public static WaypointWindow Shared { get; private set; }
 
+        public bool IsVisible => Shared.Window.IsShown;
+
         private static readonly Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
         private static readonly Dictionary<string, List<DropdownOption>> _opsDestinationOptionsByWaypointId = [];

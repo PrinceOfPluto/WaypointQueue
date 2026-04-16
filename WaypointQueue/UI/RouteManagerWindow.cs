@@ -27,6 +27,10 @@ namespace WaypointQueue.UI
 
         public static RouteManagerWindow Shared;
 
+        public bool IsVisible => Shared.Window.IsShown;
+
+        public string SelectedRouteId => _selectedRouteId?.Value ?? string.Empty;
+
         private RouteLoadSaveHelper _routeLoadSaveHelper;
 
         private readonly UIState<string> _selectedRouteId = new UIState<string>(null);
