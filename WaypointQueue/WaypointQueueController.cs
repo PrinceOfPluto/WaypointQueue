@@ -85,10 +85,7 @@ namespace WaypointQueue
             {
                 using (StateManager.TransactionScope())
                 {
-                    long start = Stopwatch.GetTimestamp();
                     DoQueueTickUpdate();
-                    long end = Stopwatch.GetTimestamp();
-                    Loader.LogDebug($"Tick took {TimeSpan.FromTicks(end - start).TotalMilliseconds}ms");
                     HandleDelayedBleedAir();
                 }
             }
@@ -107,10 +104,7 @@ namespace WaypointQueue
 
             List<LocoWaypointState> listForRemoval = [];
 
-            long start = Stopwatch.GetTimestamp();
             List<LocoWaypointState> statesToProcess = [.. ModStateManager.Shared.LocoWaypointStates.Values];
-            long end = Stopwatch.GetTimestamp();
-            Loader.LogDebug($"Fetching queues took {TimeSpan.FromTicks(end - start).TotalMilliseconds}ms");
 
             foreach (LocoWaypointState entry in statesToProcess)
             {
