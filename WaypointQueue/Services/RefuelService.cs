@@ -163,8 +163,14 @@ namespace WaypointQueue.Services
             return false;
         }
 
-        private List<string> GetValidLoadsForLoco(BaseLocomotive locomotive)
+        private List<string> GetValidLoadsForWaypoint(ManagedWaypoint waypoint)
         {
+            BaseLocomotive locomotive = waypoint.Locomotive;
+
+            if (locomotive == null)
+            {
+                return ["water", "coal", "diesel-fuel"];
+            }
             if (locomotive.Archetype == CarArchetype.LocomotiveSteam)
             {
                 return ["water", "coal"];
@@ -178,7 +184,8 @@ namespace WaypointQueue.Services
 
         public void CheckNearbyFuelLoaders(ManagedWaypoint waypoint)
         {
-            List<string> validLoads = GetValidLoadsForLoco((BaseLocomotive)waypoint.Locomotive);
+            List<string> validLoads = GetValidLoadsForWaypoint(waypoint);
+
             CarLoadTargetLoader closestLoader = null;
             float shortestDistance = 0;
 

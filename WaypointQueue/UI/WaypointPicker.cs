@@ -198,10 +198,7 @@ namespace WaypointQueue.UI
 
             _waypoint.ClearRefueling();
 
-            if (!_forRoute)
-            {
-                _refuelService.CheckNearbyFuelLoaders(_waypoint);
-            }
+            _refuelService.CheckNearbyFuelLoaders(_waypoint);
 
             _onWaypointChange(_waypoint);
         }
@@ -215,6 +212,7 @@ namespace WaypointQueue.UI
         private void HandleAddWaypointToRoute(Location location, string coupleToCarId)
         {
             ManagedWaypoint addedWaypoint = new ManagedWaypoint(null, location, coupleToCarId);
+            _refuelService.CheckNearbyFuelLoaders(addedWaypoint);
             _onWaypointInsert(addedWaypoint, _routeId);
         }
 
