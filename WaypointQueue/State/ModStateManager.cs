@@ -450,6 +450,15 @@ namespace WaypointQueue.State
             bool isRouteForSelectedRoute = RouteManagerWindow.Shared.SelectedRouteId == newRouteState.Id;
             if (isRouteForSelectedRoute && RouteManagerWindow.Shared.IsVisible)
             {
+                // Handles full refreshed needed when going from zero waypoints to one waypoint
+                if (newRouteState.Waypoints.Count == 1)
+                {
+                    _routes[newRouteState.Id] = newRouteState;
+                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                    Messenger.Default.Send(new RouteDidUpdate(newRouteState.Id));
+                    return;
+                }
+
                 // Determine whether only a single waypoint changed for the UI refresh optimization
                 if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
                 {
