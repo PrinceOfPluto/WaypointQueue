@@ -597,6 +597,11 @@ namespace WaypointQueue
                 carService.SetHandbrakesOnCut(inactiveCut);
             }
 
+            if (Loader.Settings.DoNotBottleAir)
+            {
+                carService.SetAnglecocks(inactiveCut, open: true);
+            }
+
             if (waypoint.BleedAirOnUncouple)
             {
                 if (Loader.Settings.DoNotBottleAir)
@@ -622,8 +627,7 @@ namespace WaypointQueue
                 if (adjacent != null)
                 {
                     Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
-                    float anglecockValue = Loader.Settings.DoNotBottleAir ? 1f : 0f;
-                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: anglecockValue);
+                    car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
 
                     adjacent.ApplyEndGearChange(oppositeEnd, EndGearStateKey.CutLever, 1f);

@@ -264,5 +264,15 @@ namespace WaypointQueue.Services
 
             StateManager.ApplyLocal(new PropertyChange(locomotive.id, ModStateManager.PeriodicRerouteKeyOnLoco, new BoolPropertyValue(valueToSet)));
         }
+
+        public void SetAnglecocks(List<Car> cars, bool open)
+        {
+            float value = open ? 1f : 0f;
+            foreach (Car car in cars)
+            {
+                car.ApplyEndGearChange(LogicalEnd.A, EndGearStateKey.Anglecock, f: value);
+                car.ApplyEndGearChange(LogicalEnd.B, EndGearStateKey.Anglecock, f: value);
+            }
+        }
     }
 }
