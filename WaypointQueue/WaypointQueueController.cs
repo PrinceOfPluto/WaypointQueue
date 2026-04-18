@@ -10,7 +10,6 @@ using Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Track;
 using UI.EngineControls;
@@ -109,6 +108,14 @@ namespace WaypointQueue
             foreach (LocoWaypointState entry in statesToProcess)
             {
                 List<ManagedWaypoint> waypointList = entry.Waypoints;
+
+                if (entry.Locomotive == null)
+                {
+                    Loader.LogError($"Removing orphaned queue for missing locomotive id {entry.LocomotiveId}");
+                    ModStateManager.Shared.RemoveLocoWaypointState(entry.LocomotiveId);
+                    continue;
+                }
+
                 AutoEngineerOrdersHelper ordersHelper = _autoEngineerService.GetOrdersHelper(entry.Locomotive);
 
                 if (!_autoEngineerService.IsInWaypointMode(ordersHelper))

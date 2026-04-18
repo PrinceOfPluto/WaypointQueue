@@ -731,6 +731,12 @@ namespace WaypointQueue.State
                 }
             }
 
+            foreach (var invalidLocoId in unresolvedLocomotiveIds)
+            {
+                Loader.LogError($"Removing orphaned queue for missing locomotive id {invalidLocoId}");
+                RemoveLocoWaypointState(invalidLocoId);
+            }
+
             foreach (var state in validStates)
             {
                 Loader.LogDebug($"Saving loco queue state after hydrating waypoints for loco id: {state.LocomotiveId}");
