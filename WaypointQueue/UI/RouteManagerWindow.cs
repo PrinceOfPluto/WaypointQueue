@@ -469,7 +469,7 @@ namespace WaypointQueue.UI
                     if (b)
                     {
                         route.Waypoints.Clear();
-                        RebuildWithScrolls();
+                        ModStateManager.Shared.SaveRoute(route);
                     }
                 });
         }
