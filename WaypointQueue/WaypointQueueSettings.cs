@@ -58,6 +58,7 @@ namespace WaypointQueue
         [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
         [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
         [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;
+        [Draw("Prevent tenders being uncoupled from locomotive")] public bool PreventTenderUncoupling = true;
 
         [Draw("Advanced settings", Collapsible = true)] public AdvancedSettings AdvancedSettings = new AdvancedSettings();
 

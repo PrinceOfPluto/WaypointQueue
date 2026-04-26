@@ -533,7 +533,11 @@ namespace WaypointQueue
         {
             Loader.LogDebug($"Entering PerformCut before filtering split tenders");
             int carsBeforeFilter = carsToCut.Count;
-            carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
+
+            if (Loader.Settings.PreventTenderUncoupling)
+            {
+                carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
+            }
 
             if (carsBeforeFilter > 0 && carsToCut.Count == 0)
             {
