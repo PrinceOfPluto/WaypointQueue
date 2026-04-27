@@ -1493,6 +1493,11 @@ namespace WaypointQueue.UI
                 waypoint.NumberOfCarsToCut += GetOffsetAmount();
                 onWaypointChange(waypoint);
             }).Width(24f);
+            field.AddButtonCompact("All", () =>
+            {
+                waypoint.UncouplingMode = ManagedWaypoint.UncoupleMode.AllExceptLocomotives;
+                onWaypointChange(waypoint);
+            }).Width(32f);
         }
 
         private int GetOffsetAmount()
