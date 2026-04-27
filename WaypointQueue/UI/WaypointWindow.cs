@@ -1286,17 +1286,31 @@ namespace WaypointQueue.UI
 
         private UIPanelBuilder BuildThenPerformCutToggle(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            var thenPerformCutField = builder.AddField($"Then perform cut", builder.AddToggle(() => waypoint.PostCouplingCutMode != ManagedWaypoint.PostCoupleCutType.None, delegate (bool value)
+            builder.HStack(row =>
             {
-                if (value)
+                var thenPickupField = row.AddField("Then pickup", builder.AddToggle(() => waypoint.PostCouplingCutMode != ManagedWaypoint.PostCoupleCutType.None, value =>
                 {
-                    waypoint.PostCouplingCutMode = (ManagedWaypoint.PostCoupleCutType)Loader.Settings.DefaultPostCouplingCutMode;
-                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
-                    onWaypointChange(waypoint);
-                }
-            }));
+                    if (value)
+                    {
+                        waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Pickup;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+                        onWaypointChange(waypoint);
+                    }
+                }));
+                AddLabelOnlyTooltip(thenPickupField, "Pickup", "Enabling this allows you to perform a cut immediately after coupling in order to pickup cars from that cut.");
 
-            AddLabelOnlyTooltip(thenPerformCutField, "Pickup or dropoff", "Enabling this advanced option allows you to perform a cut immediately after coupling in order to pickup or dropoff cars.");
+                var thenDropoffField = row.AddField("Then dropoff", builder.AddToggle(() => waypoint.PostCouplingCutMode != ManagedWaypoint.PostCoupleCutType.None, value =>
+                {
+                    if (value)
+                    {
+                        waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Dropoff;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+                        onWaypointChange(waypoint);
+                    }
+                }));
+                AddLabelOnlyTooltip(thenDropoffField, "Dropoff", "Enabling this allows you to perform a cut immediately after coupling in order to dropoff cars from your consist.");
+            });
+
             return builder;
         }
 
