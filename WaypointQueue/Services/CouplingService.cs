@@ -24,8 +24,8 @@ namespace WaypointQueue.Services
         public bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
             Loader.LogDebug($"Starting search for nearby coupling in straight line");
-            (Location closestTrainEnd, Location furthestTrainEnd) = carService.GetTrainEndLocations(wp, out float closestDistance, out Car closestCar, out Car furthestCar);
-            Location orientedClosestTrainEnd = Graph.Shared.LocationOrientedToward(closestTrainEnd, furthestTrainEnd);
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(wp.Locomotive, wp.Location, out float closestDistance, out Car closestCar, out Car furthestCar, out _, out _);
+            Location orientedClosestTrainEnd = Graph.Shared.LocationOrientedToward(closestTrainEndLocation, furthestTrainEndLocation);
 
             float checkDistanceInterval = AverageCarLengthMeters / 2;
             float totalDistanceChecked = 0;
@@ -54,7 +54,7 @@ namespace WaypointQueue.Services
 
             if (targetCar != null)
             {
-                LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(targetCar, closestTrainEnd);
+                LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(targetCar, closestTrainEndLocation);
                 Location bestLocation;
                 if (!targetCar[nearestEnd].IsCoupled)
                 {

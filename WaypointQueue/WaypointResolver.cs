@@ -289,7 +289,7 @@ namespace WaypointQueue
                 return false;
             }
 
-            // Begin refueling with animations
+            // After reaching the reposition waypoint, begin refueling with animations
             if (wp.CurrentlyRefueling && !wp.RefuelLoaderAnimated && Mathf.Floor(wp.Locomotive.VelocityMphAbs) == 0)
             {
                 refuelService.SetCarLoaderSequencerWantsLoading(wp, true);
@@ -302,9 +302,25 @@ namespace WaypointQueue
             // Check if done refueling
             if (wp.CurrentlyRefueling)
             {
-                if (refuelService.IsDoneRefueling(wp))
+                BaseLocomotive currentRefuelLoco = GetNextLocomotiveForRefuel(wp);
+                if (refuelService.IsDoneRefueling(currentRefuelLoco, wp))
                 {
-                    refuelService.CleanupAfterRefuel(wp, ordersHelper);
+                    if (wp.RefuelLocoIdsQueue.Count > 0)
+                    {
+                        wp.RefuelLocoIdsQueue.RemoveAt(0);
+                    }
+
+                    // check if we need to continue refueling additional locomotives
+                    BaseLocomotive nextLocoToRefuel = GetNextLocomotiveForRefuel(wp);
+                    if (nextLocoToRefuel != null)
+                    {
+                        refuelService.OrderLocomotiveToRefuel(nextLocoToRefuel, wp, ordersHelper);
+                        return false;
+                    }
+                    else
+                    {
+                        refuelService.CleanupAfterRefuel(wp, ordersHelper);
+                    }
                 }
                 else
                 {
@@ -314,6 +330,11 @@ namespace WaypointQueue
             }
 
             return true;
+        }
+
+        private BaseLocomotive GetNextLocomotiveForRefuel(ManagedWaypoint waypoint)
+        {
+            return carService.GetLocoById(waypoint.RefuelLocoIdsQueue.FirstOrDefault());
         }
 
         internal bool IsTrainStopped(ManagedWaypoint wp)
@@ -388,7 +409,7 @@ namespace WaypointQueue
             waypoint.MoveTrainPastWaypoint = false;
 
             Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
-            (_, Location furthestCarLocation) = carService.GetTrainEndLocations(waypoint, out _, out _, out _);
+            (_, Location furthestCarLocation) = carService.GetTrainEndLocations(waypoint.Locomotive, waypoint.Location, out _, out _, out _, out _, out _);
 
             float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
 

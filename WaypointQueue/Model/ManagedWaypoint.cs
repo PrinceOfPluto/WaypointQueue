@@ -199,6 +199,7 @@ namespace WaypointQueue
         public int RefuelingSpeedLimit { get; set; } = 5;
         public int MaxSpeedAfterRefueling { get; set; }
         public bool RefuelLoaderAnimated { get; set; }
+        public List<string> RefuelLocoIdsQueue { get; set; } = [];
 
         [JsonIgnore]
         private string _areaName = string.Empty;
@@ -644,6 +645,7 @@ namespace WaypointQueue
                    RefuelingSpeedLimit == other.RefuelingSpeedLimit &&
                    MaxSpeedAfterRefueling == other.MaxSpeedAfterRefueling &&
                    RefuelLoaderAnimated == other.RefuelLoaderAnimated &&
+                   RefuelLocoIdsQueue.SequenceEqual(other.RefuelLocoIdsQueue) &&
                    TimetableSymbol == other.TimetableSymbol &&
                    WillWait == other.WillWait &&
                    CurrentlyWaiting == other.CurrentlyWaiting &&
@@ -709,6 +711,7 @@ namespace WaypointQueue
                 [ValueKeys.RefuelingSpeedLimit] = Value.Int(RefuelingSpeedLimit),
                 [ValueKeys.MaxSpeedAfterRefueling] = Value.Int(MaxSpeedAfterRefueling),
                 [ValueKeys.RefuelLoaderAnimated] = Value.Bool(RefuelLoaderAnimated),
+                [ValueKeys.RefuelLocoIdsQueue] = Value.Array(RefuelLocoIdsQueue.Select(x => Value.String(x)).ToList()),
                 [ValueKeys.TimetableSymbol] = Value.String(TimetableSymbol),
                 [ValueKeys.WillWait] = Value.Bool(WillWait),
                 [ValueKeys.CurrentlyWaiting] = Value.Bool(CurrentlyWaiting),
@@ -775,6 +778,7 @@ namespace WaypointQueue
             waypoint.RefuelingSpeedLimit = dict[ValueKeys.RefuelingSpeedLimit].IntValue;
             waypoint.MaxSpeedAfterRefueling = dict[ValueKeys.MaxSpeedAfterRefueling].IntValue;
             waypoint.RefuelLoaderAnimated = dict[ValueKeys.RefuelLoaderAnimated].BoolValue;
+            waypoint.RefuelLocoIdsQueue = [.. dict[ValueKeys.RefuelLocoIdsQueue].ArrayValue.ToList().Select(v => v.StringValue)];
             waypoint.TimetableSymbol = dict[ValueKeys.TimetableSymbol].StringValue;
             waypoint.WillWait = dict[ValueKeys.WillWait].BoolValue;
             waypoint.CurrentlyWaiting = dict[ValueKeys.CurrentlyWaiting].BoolValue;
@@ -835,6 +839,7 @@ namespace WaypointQueue
             internal static string RefuelingSpeedLimit = "refueling_speed_limit";
             internal static string MaxSpeedAfterRefueling = "max_speed_after_refueling";
             internal static string RefuelLoaderAnimated = "refuel_loader_animated";
+            internal static string RefuelLocoIdsQueue = "refuel_loco_ids_queue";
             internal static string TimetableSymbol = "timetable_symbol";
             internal static string WillWait = "will_wait";
             internal static string CurrentlyWaiting = "currently_waiting";

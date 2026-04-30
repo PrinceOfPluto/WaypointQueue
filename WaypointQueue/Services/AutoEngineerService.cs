@@ -82,7 +82,7 @@ namespace WaypointQueue.Services
 
         public bool IsNearWaypoint(ManagedWaypoint waypoint)
         {
-            (Location _, Location _) = carService.GetTrainEndLocations(waypoint, out float closestDistance, out _, out _);
+            (Location _, Location _) = carService.GetTrainEndLocations(waypoint.Locomotive, waypoint.Location, out float closestDistance, out _, out _, out _, out _);
             return closestDistance < 10;
         }
 

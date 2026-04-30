@@ -16,11 +16,12 @@ namespace WaypointQueue.Services
         Car.LogicalEnd GetEndRelativeToWaypoint(Car car, Location waypointLocation, bool useFurthestEnd);
         (Car.LogicalEnd closest, Car.LogicalEnd furthest) GetEndsRelativeToLocation(Car car, Location location);
         Car.LogicalEnd GetOppositeEnd(Car.LogicalEnd logicalEnd);
-        (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance, out Car closestCar, out Car furthestCar);
+        (Location closest, Location furthest) GetTrainEndLocations(Car car, Location location, out float closestDistance, out Car closestCar, out Car furthestCar, out Car.LogicalEnd closestEnd, out Car.LogicalEnd furthestEnd);
         void SetHandbrakesOnCut(List<Car> cars);
         void UpdateCarsForAE(BaseLocomotive locomotive);
         bool IsCarLocomotiveType(Car car);
         bool ShouldPeriodicReroute(BaseLocomotive locomotive);
         void TogglePeriodicRerouteForLoco(BaseLocomotive locomotive);
+        BaseLocomotive GetLocoById(string locoId);
     }
 }

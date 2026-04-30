@@ -123,24 +123,23 @@ namespace WaypointQueue.Services
             return result;
         }
 
-
-        public (Location closest, Location furthest) GetTrainEndLocations(ManagedWaypoint waypoint, out float closestDistance, out Car closestCar, out Car furthestCar)
+        public (Location closest, Location furthest) GetTrainEndLocations(Car car, Location location, out float closestDistance, out Car closestCar, out Car furthestCar, out LogicalEnd closestEnd, out LogicalEnd furthestEnd)
         {
             Location closestLocation;
             Location furthestLocation;
 
-            List<Car> consistFromEndA = [.. waypoint.Locomotive.EnumerateCoupled(fromEnd: LogicalEnd.A)];
+            List<Car> consistFromEndA = [.. car.EnumerateCoupled(fromEnd: LogicalEnd.A)];
 
             if (consistFromEndA.Count == 1)
             {
                 Car onlyCar = consistFromEndA[0];
-                LogicalEnd closestEnd = ClosestLogicalEndTo(onlyCar, waypoint.Location);
-                LogicalEnd furthestEnd = GetOppositeEnd(closestEnd);
+                closestEnd = ClosestLogicalEndTo(onlyCar, location);
+                furthestEnd = GetOppositeEnd(closestEnd);
 
                 closestLocation = onlyCar.LocationFor(closestEnd);
                 furthestLocation = onlyCar.LocationFor(furthestEnd);
 
-                closestDistance = Graph.Shared.GetDistanceBetweenClose(closestLocation, waypoint.Location);
+                closestDistance = Graph.Shared.GetDistanceBetweenClose(closestLocation, location);
                 closestCar = onlyCar;
                 furthestCar = onlyCar;
 
@@ -149,11 +148,11 @@ namespace WaypointQueue.Services
 
             Car firstCar = consistFromEndA.First();
             Location firstLocation = firstCar.LocationFor(LogicalEnd.A);
-            float firstDistance = Graph.Shared.GetDistanceBetweenClose(firstLocation, waypoint.Location);
+            float firstDistance = Graph.Shared.GetDistanceBetweenClose(firstLocation, location);
 
             Car lastCar = consistFromEndA.Last();
             Location lastLocation = lastCar.LocationFor(LogicalEnd.B);
-            float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, waypoint.Location);
+            float lastDistance = Graph.Shared.GetDistanceBetweenClose(lastLocation, location);
 
             if (firstDistance > lastDistance)
             {
@@ -162,6 +161,8 @@ namespace WaypointQueue.Services
                 furthestLocation = firstLocation;
                 closestCar = lastCar;
                 furthestCar = firstCar;
+                closestEnd = LogicalEnd.B;
+                furthestEnd = LogicalEnd.A;
             }
             else
             {
@@ -170,6 +171,8 @@ namespace WaypointQueue.Services
                 furthestLocation = lastLocation;
                 closestCar = firstCar;
                 furthestCar = lastCar;
+                closestEnd = LogicalEnd.A;
+                furthestEnd = LogicalEnd.B;
             }
 
             return (closestLocation, furthestLocation);
@@ -273,6 +276,17 @@ namespace WaypointQueue.Services
                 car.ApplyEndGearChange(LogicalEnd.A, EndGearStateKey.Anglecock, f: value);
                 car.ApplyEndGearChange(LogicalEnd.B, EndGearStateKey.Anglecock, f: value);
             }
+        }
+
+        public BaseLocomotive GetLocoById(string locoId)
+        {
+            TrainController.Shared.TryGetCarForId(locoId, out Car carLoco);
+            if (carLoco is BaseLocomotive loco)
+            {
+                return loco;
+            }
+            Loader.LogError($"Failed to GetLocoById {locoId}");
+            return null;
         }
     }
 }
