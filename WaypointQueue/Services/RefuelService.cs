@@ -25,6 +25,8 @@ namespace WaypointQueue.Services
         private List<CarLoadTargetLoader> _carLoadTargetLoaders = [];
         private List<CarLoaderSequencer> _carLoaderSequencers = [];
 
+        private readonly Dictionary<string, float> _cachedCarLoadQuantityByFuelCarId = [];
+
         public void RebuildCollections()
         {
             _carLoadTargetLoaders.Clear();
@@ -38,9 +40,18 @@ namespace WaypointQueue.Services
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident} for waypoint");
 
-            var locosForRefuel = GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location);
-            waypoint.RefuelLocoIdsQueue = locosForRefuel.Select(l => l.id).ToList();
-            BaseLocomotive locoForRefuel = locosForRefuel.First();
+            BaseLocomotive locoForRefuel = null;
+            // Only populate the refuel loco id queue if it is currently empty
+            if (waypoint.RefuelLocoIdsQueue.Count > 0)
+            {
+                locoForRefuel = carService.GetLocoById(waypoint.RefuelLocoIdsQueue.First());
+            }
+            else
+            {
+                var locosForRefuelList = GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location);
+                waypoint.RefuelLocoIdsQueue = locosForRefuelList.Select(l => l.id).ToList();
+                locoForRefuel = locosForRefuelList.First();
+            }
 
             waypoint.CurrentlyRefueling = true;
 
@@ -58,6 +69,7 @@ namespace WaypointQueue.Services
         public void OrderLocomotiveToRefuel(BaseLocomotive locoForRefuel, ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
         {
             Location locationToMove = GetRefuelLocation(locoForRefuel, waypoint);
+            _cachedCarLoadQuantityByFuelCarId.Remove(locoForRefuel.id);
 
             Loader.Log($"Sending refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove} to refuel {locoForRefuel.Ident}");
             waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
@@ -131,7 +143,7 @@ namespace WaypointQueue.Services
                 locationToMoveToward = closestTrainEndLocation;
             }
 
-            //Loader.LogDebug($"Checking if loader is in closest end and furthest end");
+            //Loader.LogDebug($"Checking if loader is in between closest end and furthest end");
             if (IsTargetBetween(targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
             {
                 //Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
@@ -142,7 +154,7 @@ namespace WaypointQueue.Services
 
             Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
 
-            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, true, true);
+            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, false, true);
 
             return locationToMove;
         }
@@ -290,15 +302,23 @@ namespace WaypointQueue.Services
             return fuelCar;
         }
 
-        public bool IsDoneRefueling(BaseLocomotive locomotive, ManagedWaypoint waypoint)
-        {
-            return IsLocoFull(locomotive, waypoint.RefuelLoadName, waypoint.RefuelMaxCapacity) || IsLoaderEmpty(waypoint.RefuelIndustryId, waypoint.RefuelLoadName);
-        }
-
-        private bool IsLocoFull(BaseLocomotive locomotive, string refuelLoadName, float refuelMaxCapacity)
+        public bool IsLocoFull(BaseLocomotive locomotive, string refuelLoadName, float refuelMaxCapacity, out bool isIncreasing)
         {
             Car fuelCar = GetFuelCar(locomotive);
             CarLoadInfo? carLoadInfo = fuelCar.GetLoadInfo(refuelLoadName, out int slotIndex);
+            isIncreasing = false;
+
+            if (!carLoadInfo.HasValue)
+            {
+                Loader.LogError($"Locomotive {locomotive.Ident} had a null CarLoadInfo");
+                return true;
+            }
+
+            if (_cachedCarLoadQuantityByFuelCarId.TryGetValue(locomotive.id, out var oldQuantity) && oldQuantity < carLoadInfo.Value.Quantity)
+            {
+                isIncreasing = true;
+            }
+            _cachedCarLoadQuantityByFuelCarId[locomotive.id] = carLoadInfo.Value.Quantity;
 
             double refillThreshold = 25;
             if (refuelMaxCapacity - carLoadInfo.Value.Quantity < refillThreshold)
@@ -310,7 +330,7 @@ namespace WaypointQueue.Services
             return false;
         }
 
-        private bool IsLoaderEmpty(string industryId, string refuelLoadName)
+        public bool IsLoaderEmpty(string industryId, string refuelLoadName)
         {
             if (!opsControllerWrapper.TryGetIndustryById(industryId, out Industry industry))
             {

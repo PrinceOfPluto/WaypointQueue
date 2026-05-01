@@ -1,5 +1,6 @@
 ﻿using Game;
 using Game.Messages;
+using Game.Notices;
 using Game.State;
 using HarmonyLib;
 using Model;
@@ -26,6 +27,10 @@ namespace WaypointQueue
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
 
         private readonly Dictionary<string, float> _timeSpentWaitingBeforeCutLookup = [];
+
+        private readonly Dictionary<string, float> _timeSpentWaitingForRefuel = [];
+
+        private readonly Dictionary<string, HashSet<string>> _locoIdsWithTroubleRefuelingByWaypointLocoId = [];
 
         public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
@@ -193,7 +198,7 @@ namespace WaypointQueue
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
             }
 
-            if (!TryResolveFuelingOrders(wp, ordersHelper))
+            if (!TryResolveFuelingOrders(wp, ordersHelper, tickIntervalSeconds))
             {
                 return false;
             }
@@ -265,6 +270,11 @@ namespace WaypointQueue
 
         public bool CleanupBeforeRemovingWaypoint(ManagedWaypoint wp)
         {
+            if (_locoIdsWithTroubleRefuelingByWaypointLocoId.ContainsKey(wp.Locomotive.id))
+            {
+                _locoIdsWithTroubleRefuelingByWaypointLocoId.Remove(wp.Locomotive.id);
+            }
+
             if (wp.RefuelLoaderAnimated)
             {
                 try
@@ -280,7 +290,7 @@ namespace WaypointQueue
             return true;
         }
 
-        private bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
+        private bool TryResolveFuelingOrders(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             // Reposition to refuel
             if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.HasAnyCouplingOrders && !wp.MoveTrainPastWaypoint)
@@ -299,15 +309,32 @@ namespace WaypointQueue
                 return false;
             }
 
+            // Can't check refueling progress if locomotive is still moving
+            if (Mathf.Floor(wp.Locomotive.VelocityMphAbs) > 0)
+            {
+                return false;
+            }
+
             // Check if done refueling
             if (wp.CurrentlyRefueling)
             {
                 BaseLocomotive currentRefuelLoco = GetNextLocomotiveForRefuel(wp);
-                if (refuelService.IsDoneRefueling(currentRefuelLoco, wp))
+                bool locoIsFull = refuelService.IsLocoFull(currentRefuelLoco, wp.RefuelLoadName, wp.RefuelMaxCapacity, out bool isIncreasing);
+                bool loaderIsEmpty = refuelService.IsLoaderEmpty(wp.RefuelIndustryId, wp.RefuelLoadName);
+
+                if (isIncreasing)
+                {
+                    _timeSpentWaitingForRefuel[currentRefuelLoco.id] = 0;
+                }
+
+                if (locoIsFull || loaderIsEmpty)
                 {
                     if (wp.RefuelLocoIdsQueue.Count > 0)
                     {
                         wp.RefuelLocoIdsQueue.RemoveAt(0);
+                        wp.RefuelLoaderAnimated = false;
+                        refuelService.SetCarLoaderSequencerWantsLoading(wp, false);
+                        WaypointQueueController.Shared.UpdateWaypoint(wp);
                     }
 
                     // check if we need to continue refueling additional locomotives
@@ -320,6 +347,44 @@ namespace WaypointQueue
                     else
                     {
                         refuelService.CleanupAfterRefuel(wp, ordersHelper);
+                    }
+                }
+                else if (!locoIsFull && !loaderIsEmpty && !isIncreasing)
+                {
+                    if (_timeSpentWaitingForRefuel.TryGetValue(currentRefuelLoco.id, out float elapsed))
+                    {
+                        _timeSpentWaitingForRefuel[currentRefuelLoco.id] = elapsed + tickIntervalSeconds;
+                    }
+                    else
+                    {
+                        _timeSpentWaitingForRefuel[currentRefuelLoco.id] = tickIntervalSeconds;
+                    }
+
+                    if (_timeSpentWaitingForRefuel[currentRefuelLoco.id] < 10)
+                    {
+                        // wait longer before retrying refuel position
+                        return false;
+                    }
+                    else
+                    {
+                        if (!_locoIdsWithTroubleRefuelingByWaypointLocoId.ContainsKey(wp.Locomotive.id))
+                        {
+                            _locoIdsWithTroubleRefuelingByWaypointLocoId.Add(wp.Locomotive.id, []);
+                        }
+                        if (!(_locoIdsWithTroubleRefuelingByWaypointLocoId.TryGetValue(wp.Locomotive.id, out var set) && set.Contains(currentRefuelLoco.id)))
+                        {
+                            _locoIdsWithTroubleRefuelingByWaypointLocoId[wp.Locomotive.id].Add(currentRefuelLoco.id);
+
+                            string message = $"""
+                                The Auto Engineer could not accurately position {currentRefuelLoco.Ident} for refueling.
+                                
+                                Please switch {wp.Locomotive.Ident} to Manual, position {currentRefuelLoco.Ident} for refueling, and then return {wp.Locomotive.Ident} to AE Waypoint mode.
+                                """;
+                            Console.Log(message);
+                            currentRefuelLoco.PostNotice("wpq-refuel", "Cannot auto refuel");
+                            ModalAlertController.PresentOkay("Refueling Issue", message);
+                        }
+                        return false;
                     }
                 }
                 else
