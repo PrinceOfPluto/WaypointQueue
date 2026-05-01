@@ -1427,11 +1427,20 @@ namespace WaypointQueue.UI
 
         private UIPanelBuilder BuildRefuelField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            builder.AddField($"Refuel {waypoint.RefuelLoadName}", builder.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+            builder.HStack(row =>
             {
-                waypoint.WillRefuel = value;
-                onWaypointChange(waypoint);
-            }));
+                row.AddField($"Refuel {waypoint.RefuelLoadName}", row.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+                {
+                    waypoint.WillRefuel = value;
+                    onWaypointChange(waypoint);
+                }));
+                row.AddField($"Refuel All Locomotives", row.AddToggle(() => waypoint.EnableMultipleRefueling, val =>
+                {
+                    waypoint.EnableMultipleRefueling = val;
+                    onWaypointChange(waypoint);
+                }));
+            });
+            
 
             if (waypoint.WillRefuel)
             {

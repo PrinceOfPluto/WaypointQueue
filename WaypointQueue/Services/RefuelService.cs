@@ -48,7 +48,10 @@ namespace WaypointQueue.Services
             }
             else
             {
-                var locosForRefuelList = GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location);
+                var locosForRefuelList = waypoint.EnableMultipleRefueling 
+                    ? GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location)
+                    : [waypoint.Locomotive];
+
                 waypoint.RefuelLocoIdsQueue = locosForRefuelList.Select(l => l.id).ToList();
                 locoForRefuel = locosForRefuelList.First();
             }
