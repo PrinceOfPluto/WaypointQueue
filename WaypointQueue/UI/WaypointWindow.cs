@@ -223,7 +223,7 @@ namespace WaypointQueue.UI
                 {
                     builder.AddLabel("No locomotive is currently selected").HorizontalTextAlignment(TMPro.HorizontalAlignmentOptions.Center);
 
-                    if (Loader.Settings.AdvancedSettings.EnableSaveDataDebugOptions)
+                    if (Loader.Settings.AdvancedSettings.EnableSaveDataDebugOptions && Multiplayer.IsHost)
                     {
                         builder.Spacer(24f);
                         builder.HStack(row =>
