@@ -48,7 +48,7 @@ namespace WaypointQueue.Services
             }
             else
             {
-                var locosForRefuelList = waypoint.EnableMultipleRefueling 
+                var locosForRefuelList = waypoint.EnableMultipleRefueling
                     ? GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location)
                     : [waypoint.Locomotive];
 
@@ -382,7 +382,13 @@ namespace WaypointQueue.Services
             if (loaderTarget == null)
             {
                 Loader.LogError($"_carLoadTargetLoaders: {String.Join("-", _carLoadTargetLoaders.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} loader]"))}");
-                throw new RefuelException($"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
+                var message = $"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.";
+                Loader.LogError(message);
+                if (value)
+                {
+                    // Only throw if we are trying to activate the loader. If we're just cleaning up then it can fail silently.
+                    throw new RefuelException(message, waypoint);
+                }
             }
             CarLoaderSequencer sequencer = _carLoaderSequencers.Find(x => x.keyValueObject.RegisteredId == loaderTarget.keyValueObject.RegisteredId);
             if (sequencer != null)
@@ -392,7 +398,13 @@ namespace WaypointQueue.Services
             else
             {
                 Loader.LogError($"_carLoaderSequencers: {String.Join("-", _carLoaderSequencers.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} sequencer]"))}");
-                throw new RefuelException($"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.", waypoint);
+                var message = $"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.";
+                Loader.LogError(message);
+                if (value)
+                {
+                    // Only throw if we are trying to activate the loader. If we're just cleaning up then it can fail silently.
+                    throw new RefuelException(message, waypoint);
+                }
             }
         }
 
