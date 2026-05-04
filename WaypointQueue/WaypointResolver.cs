@@ -378,10 +378,10 @@ namespace WaypointQueue
                             string message = $"""
                                 The Auto Engineer could not accurately position {currentRefuelLoco.Ident} for refueling.
                                 
-                                Please switch {wp.Locomotive.Ident} to Manual, position {currentRefuelLoco.Ident} for refueling, and then return {wp.Locomotive.Ident} to AE Waypoint mode.
+                                Please switch {wp.Locomotive.Ident} to Manual, position {currentRefuelLoco.Ident} for refueling, and then return {wp.Locomotive.Ident} to AE Waypoint mode to continue the queue.
                                 """;
                             Console.Log(message);
-                            currentRefuelLoco.PostNotice("wpq-refuel", "Cannot auto refuel");
+                            currentRefuelLoco.PostNotice("wpq-refuel", "Needs help refueling!");
                             ModalAlertController.PresentOkay("Refueling Issue", message);
                         }
                         return false;
