@@ -601,14 +601,14 @@ namespace WaypointQueue
                 carService.SetHandbrakesOnCut(inactiveCut);
             }
 
-            if (Loader.Settings.DoNotBottleAir)
+            if (!waypoint.BottleAirOnUncouple)
             {
                 carService.SetAnglecocks(inactiveCut, open: true);
             }
 
             if (waypoint.BleedAirOnUncouple)
             {
-                if (Loader.Settings.DoNotBottleAir)
+                if (!waypoint.BottleAirOnUncouple)
                 {
                     ModStateManager.Shared.RegisterDelayedBleedAirCars(inactiveCut);
                 }

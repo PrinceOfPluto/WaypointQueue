@@ -1020,10 +1020,18 @@ namespace WaypointQueue.UI
                     AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
                 });
 
+                builder.HStack(row =>
+                {
+                    row.AddField("Leave air bottled", row.AddToggle(() => waypoint.BottleAirOnUncouple, delegate (bool value)
+                    {
+                        waypoint.BottleAirOnUncouple = value;
+                        onWaypointChange(waypoint);
+                    }));
                 if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
                 {
-                    BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
+                        BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
                 }
+                });
             }
 
             return builder;

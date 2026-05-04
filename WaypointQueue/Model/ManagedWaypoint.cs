@@ -32,6 +32,7 @@ namespace WaypointQueue
             ReleaseHandbrakesOnCouple = Loader.Settings.ReleaseHandbrakesByDefault;
             ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
+            BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
 
             if (Loader.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
@@ -150,6 +151,7 @@ namespace WaypointQueue
         public bool HasResolvedBrakeSystemOnCouple { get; set; }
         public bool ApplyHandbrakesOnUncouple { get; set; }
         public bool BleedAirOnUncouple { get; set; }
+        public bool BottleAirOnUncouple { get; set; }
         public virtual int NumberOfCarsToCut { get; set; }
         public virtual bool CountUncoupledFromNearestToWaypoint { get; set; } = true;
 
@@ -633,6 +635,7 @@ namespace WaypointQueue
                    HasResolvedBrakeSystemOnCouple == other.HasResolvedBrakeSystemOnCouple &&
                    ApplyHandbrakesOnUncouple == other.ApplyHandbrakesOnUncouple &&
                    BleedAirOnUncouple == other.BleedAirOnUncouple &&
+                   BottleAirOnUncouple == other.BottleAirOnUncouple &&
                    NumberOfCarsToCut == other.NumberOfCarsToCut &&
                    CountUncoupledFromNearestToWaypoint == other.CountUncoupledFromNearestToWaypoint &&
                    PostCouplingCutMode == other.PostCouplingCutMode &&
@@ -699,6 +702,7 @@ namespace WaypointQueue
                 [ValueKeys.HasResolvedBrakeSystemOnCouple] = Value.Bool(HasResolvedBrakeSystemOnCouple),
                 [ValueKeys.ApplyHandbrakesOnUncouple] = Value.Bool(ApplyHandbrakesOnUncouple),
                 [ValueKeys.BleedAirOnUncouple] = Value.Bool(BleedAirOnUncouple),
+                [ValueKeys.BottleAirOnUncouple] = Value.Bool(BottleAirOnUncouple),
                 [ValueKeys.NumberOfCarsToCut] = Value.Int(NumberOfCarsToCut),
                 [ValueKeys.CountUncoupledFromNearestToWaypoint] = Value.Bool(CountUncoupledFromNearestToWaypoint),
                 [ValueKeys.PostCouplingCutMode] = Value.Int((int)_postCouplingCutMode),
@@ -821,6 +825,15 @@ namespace WaypointQueue
                 waypoint.RefuelLocoIdsQueue = [.. dict[ValueKeys.RefuelLocoIdsQueue].ArrayValue.ToList().Select(v => v.StringValue)];
             }
 
+            if (dict.ContainsKey(ValueKeys.BottleAirOnUncouple))
+            {
+                waypoint.BottleAirOnUncouple = dict[ValueKeys.BottleAirOnUncouple].BoolValue;
+            }
+            else
+            {
+                waypoint.BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
+            }
+
             return waypoint;
         }
 
@@ -837,6 +850,7 @@ namespace WaypointQueue
             internal static string HasResolvedBrakeSystemOnCouple = "has_resolved_brake_system_on_couple";
             internal static string ApplyHandbrakesOnUncouple = "apply_handbrakes_on_uncouple";
             internal static string BleedAirOnUncouple = "bleed_air_on_uncouple";
+            internal static string BottleAirOnUncouple = "bottle_air_on_uncouple";
             internal static string NumberOfCarsToCut = "number_of_cars_to_cut";
             internal static string CountUncoupledFromNearestToWaypoint = "count_uncoupled_from_nearest_to_waypoint";
             internal static string PostCouplingCutMode = "post_coupling_cut_mode";
