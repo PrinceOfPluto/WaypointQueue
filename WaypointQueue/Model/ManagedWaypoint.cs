@@ -203,6 +203,7 @@ namespace WaypointQueue
         public bool RefuelLoaderAnimated { get; set; }
         public List<string> RefuelLocoIdsQueue { get; set; } = [];
         public bool EnableMultipleRefueling { get; set; } = true;
+        public string RefuelLoaderRegisteredId { get; set; }
 
         [JsonIgnore]
         private string _areaName = string.Empty;
@@ -718,6 +719,7 @@ namespace WaypointQueue
                 [ValueKeys.RefuelLoaderAnimated] = Value.Bool(RefuelLoaderAnimated),
                 [ValueKeys.RefuelLocoIdsQueue] = Value.Array(RefuelLocoIdsQueue.Select(x => Value.String(x)).ToList()),
                 [ValueKeys.EnableMultipleRefueling] = Value.Bool(EnableMultipleRefueling),
+                [ValueKeys.RefuelLoaderRegisteredId] = Value.String(RefuelLoaderRegisteredId),
                 [ValueKeys.TimetableSymbol] = Value.String(TimetableSymbol),
                 [ValueKeys.WillWait] = Value.Bool(WillWait),
                 [ValueKeys.CurrentlyWaiting] = Value.Bool(CurrentlyWaiting),
@@ -834,6 +836,11 @@ namespace WaypointQueue
                 waypoint.BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
             }
 
+            if (dict.ContainsKey(ValueKeys.RefuelLoaderRegisteredId))
+            {
+                waypoint.RefuelLoaderRegisteredId = dict[ValueKeys.RefuelLoaderRegisteredId].StringValue;
+            }
+
             return waypoint;
         }
 
@@ -866,6 +873,7 @@ namespace WaypointQueue
             internal static string RefuelLoaderAnimated = "refuel_loader_animated";
             internal static string RefuelLocoIdsQueue = "refuel_loco_ids_queue";
             internal static string EnableMultipleRefueling = "enable_multiple_refueling";
+            internal static string RefuelLoaderRegisteredId = "refuel_loader_registered_id";
             internal static string TimetableSymbol = "timetable_symbol";
             internal static string WillWait = "will_wait";
             internal static string CurrentlyWaiting = "currently_waiting";

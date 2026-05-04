@@ -272,12 +272,13 @@ namespace WaypointQueue.Services
 
             if (closestLoader != null)
             {
-                Loader.Log($"Using {closestLoader.load.name} loader at {closestLoader.transform?.position}");
+                Loader.Log($"Using loader named \"{closestLoader.load.name}\" with key value registered id {closestLoader.keyValueObject.RegisteredId} loader at {closestLoader.transform?.position}");
                 Vector3 loaderPosition = WorldTransformer.WorldToGame(closestLoader.transform.position);
                 // CarLoadTargetLoader uses game position for loading logic, not graph Location
                 waypoint.SerializableRefuelPoint = new SerializableVector3(loaderPosition.x, loaderPosition.y, loaderPosition.z);
                 // Water towers will have a null source industry
                 waypoint.RefuelIndustryId = closestLoader.sourceIndustry?.identifier;
+                waypoint.RefuelLoaderRegisteredId = closestLoader.keyValueObject.RegisteredId;
                 waypoint.RefuelLoadName = closestLoader.load.name;
                 waypoint.WillRefuel = true;
             }
@@ -382,7 +383,7 @@ namespace WaypointQueue.Services
             if (loaderTarget == null)
             {
                 Loader.LogError($"_carLoadTargetLoaders: {String.Join("-", _carLoadTargetLoaders.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} loader]"))}");
-                var message = $"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.";
+                var message = $"Cannot find valid CarLoadTargetLoader for \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint} with registered id {waypoint.RefuelLoaderRegisteredId}.";
                 Loader.LogError(message);
                 if (value)
                 {
@@ -398,7 +399,7 @@ namespace WaypointQueue.Services
             else
             {
                 Loader.LogError($"_carLoaderSequencers: {String.Join("-", _carLoaderSequencers.Select(c => $"[{c.keyValueObject.RegisteredId}, {waypoint.RefuelLoadName} sequencer]"))}");
-                var message = $"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint}.";
+                var message = $"Cannot find valid CarLoaderSequencer for loader target {loaderTarget.name} with load \"{waypoint.RefuelLoadName}\" at point {waypoint.RefuelPoint} with registered id {loaderTarget.keyValueObject.RegisteredId}.";
                 Loader.LogError(message);
                 if (value)
                 {
@@ -410,10 +411,22 @@ namespace WaypointQueue.Services
 
         private CarLoadTargetLoader FindCarLoadTargetLoader(ManagedWaypoint waypoint)
         {
-            Vector3 worldPosition = WorldTransformer.GameToWorld(waypoint.RefuelPoint);
-            //Loader.LogDebug($"Starting search for target loader matching world point {worldPosition}");
-            CarLoadTargetLoader loader = _carLoadTargetLoaders.Find(l => l.transform.position == worldPosition);
-            //Loader.LogDebug($"Found matching {loader.load.name} loader at game point {waypoint.RefuelPoint}");
+            CarLoadTargetLoader loader = null;
+            // First try to find by registered id
+            if (!String.IsNullOrEmpty(waypoint.RefuelLoaderRegisteredId))
+            {
+                loader = _carLoadTargetLoaders.Find(l => l.keyValueObject.RegisteredId == waypoint.RefuelLoaderRegisteredId);
+            }
+
+            // If that fails, then try to find by position
+            if (loader == null)
+            {
+                Vector3 worldPosition = WorldTransformer.GameToWorld(waypoint.RefuelPoint);
+                //Loader.LogDebug($"Starting search for target loader matching world point {worldPosition}");
+                loader = _carLoadTargetLoaders.Find(l => l.transform.position == worldPosition);
+                //Loader.LogDebug($"Found matching {loader.load.name} loader at game point {waypoint.RefuelPoint}");
+            }
+
             return loader;
         }
     }
