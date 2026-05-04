@@ -434,9 +434,21 @@ namespace WaypointQueue
                             carService.SetHandbrakesOnCut(block);
                         }
 
+                        if (!waypoint.BottleAirOnUncouple)
+                        {
+                            carService.SetAnglecocks(block, open: true);
+                        }
+
                         if (waypoint.BleedAirOnUncouple)
                         {
-                            carService.BleedAirOnCut(block);
+                            if (!waypoint.BottleAirOnUncouple)
+                            {
+                                ModStateManager.Shared.RegisterDelayedBleedAirCars(block);
+                            }
+                            else
+                            {
+                                carService.BleedAirOnCut(block);
+                            }
                         }
                     }
                 }

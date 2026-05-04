@@ -542,6 +542,7 @@ namespace WaypointQueue.UI
             {
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
+            AddLeaveAirBottledToggle(waypoint, builder, onWaypointChange);
         }
 
         private void BuildUncoupleToggle(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
@@ -1032,11 +1033,8 @@ namespace WaypointQueue.UI
 
                 builder.HStack(row =>
                 {
-                    row.AddField("Leave air bottled", row.AddToggle(() => waypoint.BottleAirOnUncouple, delegate (bool value)
-                    {
-                        waypoint.BottleAirOnUncouple = value;
-                        onWaypointChange(waypoint);
-                    }));
+                    AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
+
                     if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
                     {
                         BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
@@ -1197,10 +1195,15 @@ namespace WaypointQueue.UI
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
 
-            if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+            builder.HStack(row =>
             {
-                BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
-            }
+                AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
+
+                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                {
+                    BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
+                }
+            });
 
             return builder;
         }
@@ -1285,10 +1288,15 @@ namespace WaypointQueue.UI
                 AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
             });
 
-            if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+            builder.HStack(row =>
             {
-                BuildMakeUncoupledCarsActiveField(waypoint, builder, onWaypointChange);
-            }
+                AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
+
+                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                {
+                    BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
+                }
+            });
 
             return builder;
         }
@@ -1559,6 +1567,15 @@ namespace WaypointQueue.UI
             builder.AddField("Apply handbrakes", builder.AddToggle(() => waypoint.ApplyHandbrakesOnUncouple, delegate (bool value)
             {
                 waypoint.ApplyHandbrakesOnUncouple = value;
+                onWaypointChange(waypoint);
+            }));
+        }
+
+        private void AddLeaveAirBottledToggle(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            builder.AddField("Leave air bottled", builder.AddToggle(() => waypoint.BottleAirOnUncouple, delegate (bool value)
+            {
+                waypoint.BottleAirOnUncouple = value;
                 onWaypointChange(waypoint);
             }));
         }
