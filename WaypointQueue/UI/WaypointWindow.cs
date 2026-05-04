@@ -1559,7 +1559,7 @@ namespace WaypointQueue.UI
 
         private void AddBleedAirAndSetBrakeToggles(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
-            builder.AddField("Bleed air", builder.AddToggle(() => waypoint.BleedAirOnUncouple, delegate (bool value)
+            builder.AddField("Bleed cylinders", builder.AddToggle(() => waypoint.BleedAirOnUncouple, delegate (bool value)
             {
                 waypoint.BleedAirOnUncouple = value;
                 onWaypointChange(waypoint);
