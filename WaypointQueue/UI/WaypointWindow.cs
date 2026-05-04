@@ -112,6 +112,8 @@ namespace WaypointQueue.UI
                 ManagedWaypoint lastWaypoint = waypointList.Last();
 
                 BuildWaypointSection(lastWaypoint.Id, lastWaypoint.LocomotiveId, waypointList.Count - 1, waypointList.Count, _scrollViewBuilder, onWaypointChange: OnWaypointChange, onWaypointDelete: OnWaypointDelete, onWaypointReorder: OnWaypointReorder, onWaypointInsert: OnWaypointInsert, cachePanelByWaypointId: CachePanelBuilderByWaypointId, false);
+
+                Invoke(nameof(ScrollToBottom), 0f);
             }
         }
 
@@ -131,6 +133,14 @@ namespace WaypointQueue.UI
             {
                 Invoke(nameof(HandleScrollUpdate), 0f);
             }
+        }
+
+        private void ScrollToBottom()
+        {
+            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            if (scrollRect == null) return;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
+            scrollRect.verticalNormalizedPosition = 0f;
         }
 
         private void HandleScrollUpdate()
@@ -1027,10 +1037,10 @@ namespace WaypointQueue.UI
                         waypoint.BottleAirOnUncouple = value;
                         onWaypointChange(waypoint);
                     }));
-                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
-                {
+                    if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                    {
                         BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
-                }
+                    }
                 });
             }
 
