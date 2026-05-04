@@ -739,6 +739,33 @@ namespace WaypointQueue.State
             Multiplayer.Broadcast($"{StateManager.Shared.PlayersManager.LocalPlayer.Name} deleted all routes.");
         }
 
+        public void ResetAllWaypointModSaveData()
+        {
+            if (Multiplayer.IsHost)
+            {
+                Multiplayer.Broadcast($"{StateManager.Shared.PlayersManager.LocalPlayer.Name} is resetting all saved waypoint data.");
+                Loader.Log($"Resetting all saved waypoint data");
+                _waypointModStorage.ResetData();
+                _queueStateStorage.ResetData();
+                _routeStorage.ResetData();
+
+                _queueObservers.Values.ToList().ForEach(o => o.Dispose());
+                _queueObservers.Clear();
+
+                _routeObservers.Values.ToList().ForEach(o => o.Dispose());
+                _routeObservers.Clear();
+
+                _locoWaypointStates.Clear();
+                _routes.Clear();
+                _routeAssignments.Clear();
+
+                _prevLocoWaypointStates.Clear();
+                _prevRoutes.Clear();
+
+                _waypointModStorage.Version = "1";
+            }
+        }
+
         private void MigrateFromJsonSaveToStorage()
         {
             Loader.Log($"Migrating pre 1.6 save data from json files to property storage");

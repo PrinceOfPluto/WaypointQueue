@@ -96,5 +96,11 @@ namespace WaypointQueue.State
                 _keyValueObject[item.Key] = item.Value.ToPropertyValue();
             }
         }
+
+        public void ResetData()
+        {
+            var dictionary = new Dictionary<string, Value>();
+            _keyValueObject.ResetData(dictionary, SetValueOrigin.Local);
+        }
     }
 }

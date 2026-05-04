@@ -222,6 +222,17 @@ namespace WaypointQueue.UI
                 if (selectedLocomotive == null)
                 {
                     builder.AddLabel("No locomotive is currently selected").HorizontalTextAlignment(TMPro.HorizontalAlignmentOptions.Center);
+
+                    if (Loader.Settings.AdvancedSettings.EnableSaveDataDebugOptions)
+                    {
+                        builder.Spacer(24f);
+                        builder.HStack(row =>
+                        {
+                            row.Spacer(16f);
+                            row.AddLabel("Debug Options");
+                            BuildNoLocomotiveSelectedOptionsMenu(row);
+                        });
+                    }
                     return;
                 }
 
@@ -464,6 +475,41 @@ namespace WaypointQueue.UI
                 if (!string.IsNullOrEmpty(waypoint.Notes))
                 {
                     builder.AddField("Notes", builder.AddLabel(waypoint.Notes));
+                }
+            });
+        }
+
+        private void BuildNoLocomotiveSelectedOptionsMenu(UIPanelBuilder builder)
+        {
+            List<DropdownMenu.RowData> options = [];
+            options.Add(new("Delete all Waypoint Queue save data", "Removes all Waypoint Queue data stored on this save file"));
+            builder.AddOptionsDropdown(options, value =>
+            {
+                if (value == 0)
+                {
+                    ModalAlertController.Present($"Delete ALL Waypoint Queue data stored on this save?", """
+                                    It is highly recommended to first backup your save and export any saved routes.
+                                    
+                                    This will delete ALL queues and routes stored on this save.
+                                    
+                                    This cannot be undone!
+                                    """,
+                    [
+                        (true, "Delete"),
+                                    (false, "Cancel")
+                    ], delegate (bool b)
+                    {
+                        if (b)
+                        {
+                            ModalAlertController.Present($"Are you REALLY sure you want to delete ALL Waypoint Queue save data?", "This cannot be undone!", [(true, "Delete"), (false, "Cancel")], b =>
+                            {
+                                if (b)
+                                {
+                                    ModStateManager.Shared.ResetAllWaypointModSaveData();
+                                }
+                            });
+                        }
+                    });
                 }
             });
         }
@@ -1440,7 +1486,7 @@ namespace WaypointQueue.UI
                     onWaypointChange(waypoint);
                 }));
             });
-            
+
 
             if (waypoint.WillRefuel)
             {

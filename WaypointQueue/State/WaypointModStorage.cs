@@ -130,5 +130,11 @@ namespace WaypointQueue.State
                 RouteAssignments = JsonConvert.DeserializeObject<Dictionary<string, RouteAssignment>>(assignmentsJson);
             }
         }
+
+        public void ResetData()
+        {
+            var dictionary = new Dictionary<string, Value>();
+            _keyValueObject.ResetData(dictionary, SetValueOrigin.Local);
+        }
     }
 }

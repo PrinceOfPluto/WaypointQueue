@@ -78,5 +78,6 @@ namespace WaypointQueue
         [DrawHeader("Warning! Do NOT enable these settings unless you understand what these options mean.", Color = "red")]
         [Draw("Enable \"Then perform cut\" after coupling by default")] public bool ShowPostCouplingCutByDefault = false;
         [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
+        [Draw("Show waypoint save data debug options")] public bool EnableSaveDataDebugOptions = false;
     }
 }
