@@ -780,8 +780,6 @@ namespace WaypointQueue
             waypoint.RefuelingSpeedLimit = dict[ValueKeys.RefuelingSpeedLimit].IntValue;
             waypoint.MaxSpeedAfterRefueling = dict[ValueKeys.MaxSpeedAfterRefueling].IntValue;
             waypoint.RefuelLoaderAnimated = dict[ValueKeys.RefuelLoaderAnimated].BoolValue;
-            waypoint.RefuelLocoIdsQueue = [.. dict[ValueKeys.RefuelLocoIdsQueue].ArrayValue.ToList().Select(v => v.StringValue)];
-            waypoint.EnableMultipleRefueling = dict[ValueKeys.EnableMultipleRefueling].BoolValue;
             waypoint.TimetableSymbol = dict[ValueKeys.TimetableSymbol].StringValue;
             waypoint.WillWait = dict[ValueKeys.WillWait].BoolValue;
             waypoint.CurrentlyWaiting = dict[ValueKeys.CurrentlyWaiting].BoolValue;
@@ -812,6 +810,16 @@ namespace WaypointQueue
             waypoint.CurrentlyWaitingBeforeCutting = dict[ValueKeys.CurrentlyWaitingBeforeCutting].BoolValue; ;
             waypoint.StatusLabel = dict[ValueKeys.StatusLabel].StringValue;
             waypoint.Errors = [.. dict[ValueKeys.Errors].ArrayValue.ToList().Select(e => WaypointError.FromPropertyValue(e))];
+
+            if (dict.ContainsKey(ValueKeys.EnableMultipleRefueling))
+            {
+                waypoint.EnableMultipleRefueling = dict[ValueKeys.EnableMultipleRefueling].BoolValue;
+            }
+
+            if (dict.ContainsKey(ValueKeys.RefuelLocoIdsQueue))
+            {
+                waypoint.RefuelLocoIdsQueue = [.. dict[ValueKeys.RefuelLocoIdsQueue].ArrayValue.ToList().Select(v => v.StringValue)];
+            }
 
             return waypoint;
         }
