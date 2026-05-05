@@ -68,6 +68,7 @@ namespace WaypointQueue.State
             Messenger.Default.Register<MapWillLoadEvent>(this, OnMapWillLoad);
             Messenger.Default.Register<MapDidUnloadEvent>(this, OnMapDidUnload);
             Messenger.Default.Register<PropertiesDidRestore>(this, OnPropertiesDidRestore);
+            Messenger.Default.Register<ProgressionStateDidChange>(this, OnProgressionStateDidChange);
             _waypointResolver = Loader.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
             _autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
@@ -192,6 +193,11 @@ namespace WaypointQueue.State
             }, false));
 
             WaypointQueueController.Shared.RestartCoroutine();
+        }
+
+        private void OnProgressionStateDidChange(ProgressionStateDidChange evt)
+        {
+            _refuelService.RebuildCollections();
         }
 
         private void StorageToRuntime()
