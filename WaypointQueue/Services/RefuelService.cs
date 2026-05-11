@@ -324,7 +324,7 @@ namespace WaypointQueue.Services
             }
             _cachedCarLoadQuantityByFuelCarId[locomotive.id] = carLoadInfo.Value.Quantity;
 
-            double refillThreshold = 25;
+            double refillThreshold = 1;
             if (refuelMaxCapacity - carLoadInfo.Value.Quantity < refillThreshold)
             {
                 Loader.Log($"Fuel car {fuelCar.Ident} is full");
