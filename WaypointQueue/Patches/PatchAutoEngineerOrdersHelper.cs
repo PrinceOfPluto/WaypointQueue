@@ -28,6 +28,12 @@ namespace WaypointQueue
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
             //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
 
+            if (!isAnyModifierPressed && Loader.Settings.MakeAppendDefaultWithoutKeybinding)
+            {
+                isAppendingWaypoint = true;
+                isAnyModifierPressed = true;
+            }
+
             BaseLocomotive loco = (BaseLocomotive)____locomotive;
 
             // Setting a waypoint without one of the modifiers will reset the locomotive's waypoint list

@@ -33,6 +33,7 @@ namespace WaypointQueue
         [Draw("Activate insert next waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will insert it in the queue directly after the current waypoint.")] public KeyBinding insertNextWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftShift };
         [Draw("Toggle Waypoints window")] public KeyBinding toggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
         [Draw("Toggle Route Manager window")] public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
+        [Draw("Make append waypoint the default without keybinding")] public bool MakeAppendDefaultWithoutKeybinding = true;
 
         [Header("UI")]
         [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
