@@ -32,6 +32,7 @@ namespace WaypointQueue
 
         private readonly Dictionary<string, HashSet<string>> _locoIdsWithTroubleRefuelingByWaypointLocoId = [];
 
+        private readonly int _refuelTimeoutSeconds = 15;
         public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             if (wp.Errors.Any())
@@ -360,7 +361,7 @@ namespace WaypointQueue
                         _timeSpentWaitingForRefuel[currentRefuelLoco.id] = tickIntervalSeconds;
                     }
 
-                    if (_timeSpentWaitingForRefuel[currentRefuelLoco.id] < 10)
+                    if (_timeSpentWaitingForRefuel[currentRefuelLoco.id] < _refuelTimeoutSeconds)
                     {
                         // wait longer before retrying refuel position
                         return false;
