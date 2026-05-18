@@ -28,12 +28,28 @@ namespace WaypointQueue
             LocomotiveId = locomotive?.id ?? null;
             LocationString = Graph.Shared.LocationToString(location);
             CoupleToCarId = coupleToCarId;
+
             ConnectAirOnCouple = Loader.Settings.ConnectAirByDefault;
             ReleaseHandbrakesOnCouple = Loader.Settings.ReleaseHandbrakesByDefault;
             ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
             BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
+
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
+
+            if (Input.GetKey(Loader.Settings.CoupleToNearestShortcutKey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
+            {
+                CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)Loader.Settings.DefaultCouplingSearchMode;
+            }
+            else if (Input.GetKey(Loader.Settings.UncoupleShortcutKey.keyCode))
+            {
+                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+            }
+            else if (Input.GetKey(Loader.Settings.KickingShortcutKey.keyCode))
+            {
+                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+                ConfigureForKicking();
+            }
 
             if (Loader.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
             {
@@ -556,6 +572,18 @@ namespace WaypointQueue
             int day = WaitUntilDay == TodayOrTomorrow.Today ? currentTime.Day : currentTime.Day + 1;
             waitUntilTime = new GameDateTime(day, 0).AddingMinutes(inputMinutesAfterMidnight);
             WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
+        }
+
+        public void ConfigureForKicking()
+        {
+            StopAtWaypoint = false;
+            WillLimitPassingSpeed = true;
+            WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
+            if (Loader.Settings.UncheckAirAndBrakesForKick)
+            {
+                ApplyHandbrakesOnUncouple = false;
+                BleedAirOnUncouple = false;
+            }
         }
 
         public void ClearWaiting()
