@@ -33,6 +33,9 @@ namespace WaypointQueue
         private readonly Dictionary<string, HashSet<string>> _locoIdsWithTroubleRefuelingByWaypointLocoId = [];
 
         private readonly int _refuelTimeoutSeconds = 15;
+
+        private readonly string _refuelNoticeKey = "wpq-refuel";
+
         public bool HandleUnresolvedWaypoint(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper, float tickIntervalSeconds)
         {
             if (wp.Errors.Any())
@@ -273,7 +276,17 @@ namespace WaypointQueue
         {
             if (_locoIdsWithTroubleRefuelingByWaypointLocoId.ContainsKey(wp.Locomotive.id))
             {
+                foreach (var locoId in _locoIdsWithTroubleRefuelingByWaypointLocoId[wp.Locomotive.id])
+                {
+                    TrainController.Shared.TryGetCarForId(locoId, out Car carLoco);
+                    if (carLoco is BaseLocomotive loco)
+                    {
+                        loco.PostNotice(_refuelNoticeKey, String.Empty);
+                    }
+                }
                 _locoIdsWithTroubleRefuelingByWaypointLocoId.Remove(wp.Locomotive.id);
+                // return early since we don't want to put away the loader equipment yet
+                return true;
             }
 
             if (wp.RefuelLoaderAnimated)
