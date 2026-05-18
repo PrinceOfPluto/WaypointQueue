@@ -324,14 +324,15 @@ namespace WaypointQueue.Services
             }
             _cachedCarLoadQuantityByFuelCarId[locomotive.id] = carLoadInfo.Value.Quantity;
 
-            double refillThreshold = 1;
-            if (refuelMaxCapacity - carLoadInfo.Value.Quantity < refillThreshold)
+            LoadSlot loadSlot = fuelCar.Definition.LoadSlots[slotIndex];
+
+            bool isFullVanilla = carLoadInfo.Value.Quantity / loadSlot.MaximumCapacity > 0.999f;
+
+            if (isFullVanilla)
             {
                 Loader.Log($"Fuel car {fuelCar.Ident} is full");
-                return true;
             }
-            //Loader.LogDebug($"Loco is not full yet");
-            return false;
+            return isFullVanilla;
         }
 
         public bool IsLoaderEmpty(string industryId, string refuelLoadName)
