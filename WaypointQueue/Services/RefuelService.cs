@@ -36,7 +36,7 @@ namespace WaypointQueue.Services
             _carLoaderSequencers = [.. UnityEngine.Object.FindObjectsOfType<CarLoaderSequencer>()];
         }
 
-        public void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
+        public void OrderToRefuel(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper, out List<BaseLocomotive> locosForRefuelList)
         {
             Loader.Log($"Beginning order to refuel {waypoint.Locomotive.Ident} for waypoint");
 
@@ -45,10 +45,11 @@ namespace WaypointQueue.Services
             if (waypoint.RefuelLocoIdsQueue.Count > 0)
             {
                 locoForRefuel = carService.GetLocoById(waypoint.RefuelLocoIdsQueue.First());
+                locosForRefuelList = [waypoint.Locomotive];
             }
             else
             {
-                var locosForRefuelList = waypoint.EnableMultipleRefueling
+                locosForRefuelList = waypoint.EnableMultipleRefueling
                     ? GetCoupledLocosForRefuel(waypoint.Locomotive, waypoint.RefuelLoadName, waypoint.Location)
                     : [waypoint.Locomotive];
 

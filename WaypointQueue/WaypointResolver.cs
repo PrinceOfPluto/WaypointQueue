@@ -309,7 +309,8 @@ namespace WaypointQueue
             // Reposition to refuel
             if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.HasAnyCouplingOrders && !wp.MoveTrainPastWaypoint)
             {
-                refuelService.OrderToRefuel(wp, ordersHelper);
+                refuelService.OrderToRefuel(wp, ordersHelper, out var locosForRefuelList);
+                locosForRefuelList.ForEach(l => _timeSpentWaitingForRefuel.Remove(l.id));
                 return false;
             }
 
@@ -343,6 +344,8 @@ namespace WaypointQueue
 
                 if (locoIsFull || loaderIsEmpty)
                 {
+                    _timeSpentWaitingForRefuel.Remove(currentRefuelLoco.id);
+
                     if (wp.RefuelLocoIdsQueue.Count > 0)
                     {
                         wp.RefuelLocoIdsQueue.RemoveAt(0);
