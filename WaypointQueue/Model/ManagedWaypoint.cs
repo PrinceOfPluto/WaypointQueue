@@ -37,15 +37,15 @@ namespace WaypointQueue
 
             WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
 
-            if (Input.GetKey(Loader.Settings.CoupleToNearestShortcutKey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
+            if (Input.GetKey(Loader.Settings.CoupleToNearestShortcutHotkey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
             {
                 CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)Loader.Settings.DefaultCouplingSearchMode;
             }
-            else if (Input.GetKey(Loader.Settings.UncoupleShortcutKey.keyCode))
+            else if (Input.GetKey(Loader.Settings.UncoupleShortcutHotkey.keyCode))
             {
                 UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
             }
-            else if (Input.GetKey(Loader.Settings.KickingShortcutKey.keyCode))
+            else if (Input.GetKey(Loader.Settings.KickingShortcutHotkey.keyCode))
             {
                 UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
                 ConfigureForKicking();

@@ -21,14 +21,14 @@ namespace WaypointQueue
             //Loader.LogDebug($"SetWaypoint prefix");
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
-            bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeLegacyKey.keyCode);
-            bool isReplacingWaypoint = Input.GetKey(Loader.Settings.replaceWaypointModeLegacyKey.keyCode);
-            bool isInsertingNext = Input.GetKey(Loader.Settings.insertNextWaypointModeLegacyKey.keyCode);
+            bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeKey.keyCode);
+            bool isReplacingWaypoint = Input.GetKey(Loader.Settings.replaceWaypointModeKey.keyCode);
+            bool isInsertingNext = Input.GetKey(Loader.Settings.insertNextWaypointModeKey.keyCode);
 
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
             //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
 
-            if (!isAnyModifierPressed && Loader.Settings.MakeAppendDefaultWithoutKeybinding)
+            if (!isAnyModifierPressed && Loader.Settings.MakeAppendDefaultWithoutHotkeybinding)
             {
                 isAppendingWaypoint = true;
                 isAnyModifierPressed = true;
