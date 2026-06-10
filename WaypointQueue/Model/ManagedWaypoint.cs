@@ -220,6 +220,7 @@ namespace WaypointQueue
         public List<string> RefuelLocoIdsQueue { get; set; } = [];
         public bool EnableMultipleRefueling { get; set; } = true;
         public string RefuelLoaderRegisteredId { get; set; }
+        public bool RepositioningToRetryRefuel { get; set; }
 
         [JsonIgnore]
         private string _areaName = string.Empty;
@@ -675,6 +676,7 @@ namespace WaypointQueue
                    RefuelMaxCapacity.Equals(other.RefuelMaxCapacity) &&
                    WillRefuel == other.WillRefuel &&
                    CurrentlyRefueling == other.CurrentlyRefueling &&
+                   RepositioningToRetryRefuel == other.RepositioningToRetryRefuel &&
                    RefuelingSpeedLimit == other.RefuelingSpeedLimit &&
                    MaxSpeedAfterRefueling == other.MaxSpeedAfterRefueling &&
                    RefuelLoaderAnimated == other.RefuelLoaderAnimated &&
@@ -742,6 +744,7 @@ namespace WaypointQueue
                 [ValueKeys.RefuelMaxCapacity] = Value.Float(RefuelMaxCapacity),
                 [ValueKeys.WillRefuel] = Value.Bool(WillRefuel),
                 [ValueKeys.CurrentlyRefueling] = Value.Bool(CurrentlyRefueling),
+                [ValueKeys.RepositioningToRetryRefuel] = Value.Bool(RepositioningToRetryRefuel),
                 [ValueKeys.RefuelingSpeedLimit] = Value.Int(RefuelingSpeedLimit),
                 [ValueKeys.MaxSpeedAfterRefueling] = Value.Int(MaxSpeedAfterRefueling),
                 [ValueKeys.RefuelLoaderAnimated] = Value.Bool(RefuelLoaderAnimated),
@@ -811,6 +814,7 @@ namespace WaypointQueue
             waypoint.RefuelMaxCapacity = dict[ValueKeys.RefuelMaxCapacity].FloatValue;
             waypoint.WillRefuel = dict[ValueKeys.WillRefuel].BoolValue;
             waypoint.CurrentlyRefueling = dict[ValueKeys.CurrentlyRefueling].BoolValue;
+            waypoint.RepositioningToRetryRefuel = dict[ValueKeys.RepositioningToRetryRefuel].BoolValue;
             waypoint.RefuelingSpeedLimit = dict[ValueKeys.RefuelingSpeedLimit].IntValue;
             waypoint.MaxSpeedAfterRefueling = dict[ValueKeys.MaxSpeedAfterRefueling].IntValue;
             waypoint.RefuelLoaderAnimated = dict[ValueKeys.RefuelLoaderAnimated].BoolValue;
@@ -896,6 +900,7 @@ namespace WaypointQueue
             internal static string RefuelMaxCapacity = "refuel_max_capacity";
             internal static string WillRefuel = "will_refuel";
             internal static string CurrentlyRefueling = "currently_refueling";
+            internal static string RepositioningToRetryRefuel = "repositioning_to_retry_refuel";
             internal static string RefuelingSpeedLimit = "refueling_speed_limit";
             internal static string MaxSpeedAfterRefueling = "max_speed_after_refueling";
             internal static string RefuelLoaderAnimated = "refuel_loader_animated";

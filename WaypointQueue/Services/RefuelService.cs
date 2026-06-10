@@ -110,7 +110,7 @@ namespace WaypointQueue.Services
                 throw new RefuelException($"Failed to get track graph location from refuel game point {waypoint.RefuelPoint}.", waypoint);
             }
 
-            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(locomotive, waypoint.Location, out _, out _, out _, out _, out _);
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(locomotive, targetLoaderLocation, out _, out _, out _, out _, out _);
 
             LogicalEnd furthestFuelCarEnd = carService.ClosestLogicalEndTo(fuelCar, furthestTrainEndLocation);
             LogicalEnd closestFuelCarEnd = carService.GetOppositeEnd(furthestFuelCarEnd);
@@ -430,6 +430,31 @@ namespace WaypointQueue.Services
             }
 
             return loader;
+        }
+
+        public void RepositionToRetryRefueling(ManagedWaypoint waypoint, BaseLocomotive currentRefuelLoco, AutoEngineerOrdersHelper ordersHelper)
+        {
+            _cachedCarLoadQuantityByFuelCarId.Remove(currentRefuelLoco.id);
+
+            BaseLocomotive locomotive = waypoint.Locomotive;
+
+            if (!Graph.Shared.TryGetLocationFromGamePoint(waypoint.RefuelPoint, 10f, out Location targetLoaderLocation))
+            {
+                throw new RefuelException($"Failed to get track graph location from refuel game point {waypoint.RefuelPoint}.", waypoint);
+            }
+
+            (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(locomotive, targetLoaderLocation, out _, out _, out _, out _, out _);
+
+            Location orientedFurthestEnd = Graph.Shared.LocationOrientedToward(furthestTrainEndLocation, targetLoaderLocation);
+
+            float distanceToMoveAwayFromLoader = 10;
+            Location locationToMove = Graph.Shared.LocationByMoving(orientedFurthestEnd, distanceToMoveAwayFromLoader);
+
+            Loader.Log($"Sending retry refueling waypoint for {waypoint.Locomotive.Ident} to {locationToMove} to refuel {currentRefuelLoco.Ident}");
+            waypoint.StatusLabel = $"Moving to refuel {waypoint.RefuelLoadName}";
+            waypoint.OverwriteLocation(locationToMove);
+            waypoint.StopAtWaypoint = true;
+            autoEngineerService.SendToWaypoint(ordersHelper, locationToMove);
         }
     }
 }
