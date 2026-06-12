@@ -203,9 +203,9 @@ namespace WaypointQueue.Services
             return false;
         }
 
-        public LogicalEnd GetEndRelativeToWaypoint(Car car, Location waypointLocation, bool useFurthestEnd)
+        public LogicalEnd GetEndRelativeToLocation(Car car, Location location, bool useFurthestEnd)
         {
-            LogicalEnd closestEnd = car.ClosestLogicalEndTo(waypointLocation, Graph.Shared);
+            LogicalEnd closestEnd = car.ClosestLogicalEndTo(location, Graph.Shared);
             LogicalEnd furthestEnd = closestEnd == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
             return useFurthestEnd ? furthestEnd : closestEnd;
         }
@@ -287,6 +287,18 @@ namespace WaypointQueue.Services
             }
             Loader.LogError($"Failed to GetLocoById {locoId}");
             return null;
+        }
+
+        // Copied from AutoEngineerPlanner.CalculateTotalLength
+        public static float CalculateTotalLength(List<Car> cars)
+        {
+            float num = 0f;
+            foreach (Car item in cars)
+            {
+                num += item.carLength;
+            }
+
+            return num + 1.04f * (float)(cars.Count - 1);
         }
     }
 }

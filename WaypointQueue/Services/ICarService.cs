@@ -13,7 +13,7 @@ namespace WaypointQueue.Services
         List<Car> EnumerateCoupled(Car car, Car.LogicalEnd fromEnd);
         List<Car> EnumerateAdjacentCarsTowardEnd(Car car, Car.LogicalEnd directionToCount, bool inclusive = false);
         List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut);
-        Car.LogicalEnd GetEndRelativeToWaypoint(Car car, Location waypointLocation, bool useFurthestEnd);
+        Car.LogicalEnd GetEndRelativeToLocation(Car car, Location waypointLocation, bool useFurthestEnd);
         (Car.LogicalEnd closest, Car.LogicalEnd furthest) GetEndsRelativeToLocation(Car car, Location location);
         Car.LogicalEnd GetOppositeEnd(Car.LogicalEnd logicalEnd);
         (Location closest, Location furthest) GetTrainEndLocations(Car car, Location location, out float closestDistance, out Car closestCar, out Car furthestCar, out Car.LogicalEnd closestEnd, out Car.LogicalEnd furthestEnd);

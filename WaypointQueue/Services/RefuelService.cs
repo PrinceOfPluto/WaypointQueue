@@ -116,11 +116,11 @@ namespace WaypointQueue.Services
             LogicalEnd closestFuelCarEnd = carService.GetOppositeEnd(furthestFuelCarEnd);
 
             List<Car> coupledCarsToEnd = carService.EnumerateAdjacentCarsTowardEnd(fuelCar, furthestFuelCarEnd, inclusive: true);
-            float distanceFromFurthestEndOfTrainToFuelCarInclusive = CalculateTotalLength(coupledCarsToEnd);
+            float distanceFromFurthestEndOfTrainToFuelCarInclusive = CarService.CalculateTotalLength(coupledCarsToEnd);
 
             float distanceFromClosestFuelCarEndToSlot = Vector3.Distance(fuelCar.LocationFor(closestFuelCarEnd).GetPosition().ZeroY(), loadSlotPosition.ZeroY());
 
-            float totalTrainLength = CalculateTotalLength([.. locomotive.EnumerateCoupled()]);
+            float totalTrainLength = CarService.CalculateTotalLength([.. locomotive.EnumerateCoupled()]);
 
             //Loader.LogDebug($"Total train length is {totalTrainLength}");
             //Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
@@ -129,8 +129,25 @@ namespace WaypointQueue.Services
             Location locationToMoveToward = new();
             float distanceToMove = 0;
 
+            Vector3 targetLoaderPosition = targetLoaderLocation.GetPosition();
+            Vector3 closestTrainEndPosition = closestTrainEndLocation.GetPosition();
+            Vector3 furthestTrainEndPosition = furthestTrainEndLocation.GetPosition();
+
+            // Some small locomotives may have a load slot outside the calculated train end positions
+            bool slotBeyondFurthestEnd = IsTargetBetween(furthestTrainEndPosition, loadSlotPosition, closestTrainEndPosition, inclusive: true);
+            bool slotBeyondClosestEnd = IsTargetBetween(closestTrainEndPosition, loadSlotPosition, furthestTrainEndPosition, inclusive: true);
+
+            var clampedSlotPosition = loadSlotPosition;
+            if (slotBeyondClosestEnd)
+            {
+                clampedSlotPosition = closestTrainEndPosition;
+            } else if (slotBeyondFurthestEnd)
+            {
+                clampedSlotPosition = furthestTrainEndPosition;
+            }
+
             //Loader.LogDebug($"Checking if slot is in between loader and closest end");
-            if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition()))
+            if (IsTargetBetween(clampedSlotPosition, targetLoaderPosition, closestTrainEndPosition, inclusive: true))
             {
                 // need to move toward the far end
                 //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
@@ -139,7 +156,7 @@ namespace WaypointQueue.Services
             }
 
             //Loader.LogDebug($"Checking if slot is in between loader and furthest end");
-            if (IsTargetBetween(loadSlotPosition, targetLoaderLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
+            if (IsTargetBetween(clampedSlotPosition, targetLoaderPosition, furthestTrainEndPosition, inclusive: true))
             {
                 // need to move toward the near end
                 //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
@@ -148,7 +165,7 @@ namespace WaypointQueue.Services
             }
 
             //Loader.LogDebug($"Checking if loader is in between closest end and furthest end");
-            if (IsTargetBetween(targetLoaderLocation.GetPosition(), closestTrainEndLocation.GetPosition(), furthestTrainEndLocation.GetPosition()))
+            if (IsTargetBetween(targetLoaderPosition, closestTrainEndPosition, furthestTrainEndPosition))
             {
                 //Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
                 distanceToMove = -distanceToMove;
@@ -188,12 +205,22 @@ namespace WaypointQueue.Services
             return vector;
         }
 
-        private bool IsTargetBetween(Vector3 target, Vector3 positionA, Vector3 positionB)
+        private bool IsTargetBetween(Vector3 target, Vector3 positionA, Vector3 positionB, bool inclusive = false)
         {
             // If target is in the middle, the distance between either end to the target will always be less than the length from one end to the other
             float distanceAToTarget = Vector3.Distance(positionA.ZeroY(), target.ZeroY());
 
+            if (inclusive && distanceAToTarget == 0)
+            {
+                return true;
+            }
+
             float distanceBToTarget = Vector3.Distance(positionB.ZeroY(), target.ZeroY());
+
+            if (inclusive && distanceBToTarget == 0)
+            {
+                return true;
+            }
 
             float distanceAtoB = Vector3.Distance(positionA.ZeroY(), positionB.ZeroY());
 
@@ -283,18 +310,6 @@ namespace WaypointQueue.Services
                 waypoint.RefuelLoadName = closestLoader.load.name;
                 waypoint.WillRefuel = true;
             }
-        }
-
-        // Copied from AutoEngineerPlanner.CalculateTotalLength
-        private float CalculateTotalLength(List<Car> cars)
-        {
-            float num = 0f;
-            foreach (Car item in cars)
-            {
-                num += item.carLength;
-            }
-
-            return num + 1.04f * (float)(cars.Count - 1);
         }
 
         private Car GetFuelCar(BaseLocomotive locomotive)

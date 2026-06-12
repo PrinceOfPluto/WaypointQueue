@@ -322,7 +322,8 @@ namespace WaypointQueue
             if (wp.WillRefuel && !wp.CurrentlyRefueling && !wp.HasAnyCouplingOrders && !wp.MoveTrainPastWaypoint)
             {
                 refuelService.OrderToRefuel(wp, ordersHelper, out var locosForRefuelList);
-                locosForRefuelList.ForEach(l => {
+                locosForRefuelList.ForEach(l =>
+                {
                     _timeSpentWaitingForRefuel.Remove(l.id);
                     _refuelRetryAttemptsByLocoId.Remove(l.id);
                 });
