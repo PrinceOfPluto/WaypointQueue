@@ -48,6 +48,7 @@ namespace WaypointQueue
 
         public static float WaypointTickInterval = 0.5f;
         private readonly Dictionary<string, float> _timeSinceLastRerouteByLocoId = [];
+        private readonly Queue<string> _rerouteRequestLocoIdQueue = [];
 
         private void Awake()
         {
@@ -86,6 +87,7 @@ namespace WaypointQueue
                 {
                     DoQueueTickUpdate();
                     HandleDelayedBleedAir();
+                    HandleRerouteRequestQueue();
                 }
             }
             catch (Exception e)
@@ -141,8 +143,7 @@ namespace WaypointQueue
 
                     if (_timeSinceLastRerouteByLocoId[entry.LocomotiveId] > 4f)
                     {
-                        _timeSinceLastRerouteByLocoId[entry.LocomotiveId] = 0;
-                        RerouteCurrentWaypoint(entry.LocomotiveId);
+                        _rerouteRequestLocoIdQueue.Enqueue(entry.LocomotiveId);
                     }
                 }
 
@@ -230,6 +231,16 @@ namespace WaypointQueue
                 }
             }
             ModStateManager.Shared.OverwriteDelayedBleedAirCars(entriesToPersist);
+        }
+
+        private void HandleRerouteRequestQueue()
+        {
+            if (_rerouteRequestLocoIdQueue.Count > 0)
+            {
+                string locoId = _rerouteRequestLocoIdQueue.Dequeue();
+                _timeSinceLastRerouteByLocoId[locoId] = 0;
+                RerouteCurrentWaypoint(locoId);
+            }
         }
 
         [HarmonyPrefix]
