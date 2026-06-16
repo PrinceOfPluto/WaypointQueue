@@ -814,7 +814,6 @@ namespace WaypointQueue
             waypoint.RefuelMaxCapacity = dict[ValueKeys.RefuelMaxCapacity].FloatValue;
             waypoint.WillRefuel = dict[ValueKeys.WillRefuel].BoolValue;
             waypoint.CurrentlyRefueling = dict[ValueKeys.CurrentlyRefueling].BoolValue;
-            waypoint.RepositioningToRetryRefuel = dict[ValueKeys.RepositioningToRetryRefuel].BoolValue;
             waypoint.RefuelingSpeedLimit = dict[ValueKeys.RefuelingSpeedLimit].IntValue;
             waypoint.MaxSpeedAfterRefueling = dict[ValueKeys.MaxSpeedAfterRefueling].IntValue;
             waypoint.RefuelLoaderAnimated = dict[ValueKeys.RefuelLoaderAnimated].BoolValue;
@@ -871,6 +870,11 @@ namespace WaypointQueue
             if (dict.ContainsKey(ValueKeys.RefuelLoaderRegisteredId))
             {
                 waypoint.RefuelLoaderRegisteredId = dict[ValueKeys.RefuelLoaderRegisteredId].StringValue;
+            }
+
+            if (dict.ContainsKey(ValueKeys.RepositioningToRetryRefuel))
+            {
+                waypoint.RepositioningToRetryRefuel = dict[ValueKeys.RepositioningToRetryRefuel].BoolValue;
             }
 
             return waypoint;
