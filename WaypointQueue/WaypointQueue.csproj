@@ -41,14 +41,10 @@
   </PropertyGroup>
   <!-- Railroader -->
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(RrManagedDir)\Assembly-CSharp.dll</HintPath>
+    <Reference Include="Railroader">
+      <HintPath>$(RrManagedDir)\Railroader.dll</HintPath>
       <Private>False</Private>
     </Reference>
-  </ItemGroup>
-  <!-- Mod Loader -->
-  <ItemGroup>
-    <PackageReference Include="UnityModManager" Version="0.32.4" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <!-- Null Checking -->
   <ItemGroup>
