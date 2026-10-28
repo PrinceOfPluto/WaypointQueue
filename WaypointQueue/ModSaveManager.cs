@@ -1,5 +1,4 @@
-﻿using GalaSoft.MvvmLight.Messaging;
-using Game.Events;
+﻿using Game.Events;
 using Game.Persistence;
 using HarmonyLib;
 using Newtonsoft.Json;
@@ -7,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
@@ -30,13 +28,13 @@ namespace WaypointQueue
         private void OnEnable()
         {
             Shared = this;
-            Messenger.Default.Register<MapDidUnloadEvent>(this, OnMapDidUnload);
+            EventBus.Subscribe<MapDidUnloadEvent>(this, OnMapDidUnload);
         }
 
         private void OnDisable()
         {
             Shared = null;
-            Messenger.Default.Unregister(this);
+            EventBus.Unsubscribe(this);
         }
 
         private void OnMapDidUnload(MapDidUnloadEvent mapDidUnloadEvent)
@@ -81,19 +79,19 @@ namespace WaypointQueue
                 string fullSavePath = PathForSavedWaypoints(_saveName);
                 if (!File.Exists(fullSavePath))
                 {
-                    Loader.Log($"No saved waypoints file found for {fullSavePath}");
+                    ModLocator.Loader.Log($"No saved waypoints file found for {fullSavePath}");
                     return [];
                 }
 
-                Loader.Log($"Loading from {fullSavePath}");
+                ModLocator.Loader.Log($"Loading from {fullSavePath}");
                 string json = File.ReadAllText(fullSavePath);
                 var waypointSaveState = JsonConvert.DeserializeObject<WaypointSaveState>(json);
-                Loader.Log($"Deserialized waypoints v{waypointSaveState.Version} with {waypointSaveState.WaypointStates.Count} entries");
+                ModLocator.Loader.Log($"Deserialized waypoints v{waypointSaveState.Version} with {waypointSaveState.WaypointStates.Count} entries");
                 return waypointSaveState.WaypointStates;
             }
             catch (Exception e)
             {
-                Loader.Log($"Failed to load waypoints for {_saveName}: {e}");
+                ModLocator.Loader.Log($"Failed to load waypoints for {_saveName}: {e}");
                 return [];
             }
         }
@@ -110,18 +108,18 @@ namespace WaypointQueue
 
                 if (!File.Exists(fullSavePath))
                 {
-                    Loader.Log($"[RouteAssign] No assignments for save '{_saveName}', cleared.");
+                    ModLocator.Loader.Log($"[RouteAssign] No assignments for save '{_saveName}', cleared.");
                     return [];
                 }
 
                 var json = File.ReadAllText(fullSavePath);
                 var data = JsonConvert.DeserializeObject<RouteAssignmentSaveState>(json);
-                Loader.Log($"[RouteAssign] Loaded {data.Assignments?.Count ?? 0} assignments for '{_saveName}'.");
+                ModLocator.Loader.Log($"[RouteAssign] Loaded {data.Assignments?.Count ?? 0} assignments for '{_saveName}'.");
                 return data.Assignments;
             }
             catch (Exception e)
             {
-                Loader.Log($"[RouteAssign] Load failed for '{_saveName}': {e}");
+                ModLocator.Loader.Log($"[RouteAssign] Load failed for '{_saveName}': {e}");
                 return [];
             }
         }
@@ -138,18 +136,18 @@ namespace WaypointQueue
 
                 if (!File.Exists(fullSavePath))
                 {
-                    Loader.Log($"[Routes] No routes for save '{_saveName}', cleared.");
+                    ModLocator.Loader.Log($"[Routes] No routes for save '{_saveName}', cleared.");
                     return [];
                 }
 
                 string json = File.ReadAllText(fullSavePath);
                 RouteDefinitionSaveState data = JsonConvert.DeserializeObject<RouteDefinitionSaveState>(json);
-                Loader.Log($"[Routes] Loaded {data.RouteDefinitions?.Count ?? 0} routes for '{_saveName}'.");
+                ModLocator.Loader.Log($"[Routes] Loaded {data.RouteDefinitions?.Count ?? 0} routes for '{_saveName}'.");
                 return data.RouteDefinitions;
             }
             catch (Exception e)
             {
-                Loader.Log($"[Routes] Load failed for '{_saveName}': {e}");
+                ModLocator.Loader.Log($"[Routes] Load failed for '{_saveName}': {e}");
                 return [];
             }
         }

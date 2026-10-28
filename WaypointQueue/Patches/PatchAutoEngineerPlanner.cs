@@ -10,7 +10,6 @@ using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.Services;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 using static Model.AI.AutoEngineer;
 
 namespace WaypointQueue
@@ -22,8 +21,8 @@ namespace WaypointQueue
         [HarmonyPatch("UpdateTargets")]
         static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, float direction, ref AutoEngineer ____engineer)
         {
-            AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
-            ICarService carService = Loader.ServiceProvider.GetService<ICarService>();
+            AutoEngineerService autoEngineerService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
+            ICarService carService = ModLocator.ServiceProvider.GetService<ICarService>();
             try
             {
                 if (____engineer == null || ____engineer?.Locomotive == null)
@@ -43,13 +42,13 @@ namespace WaypointQueue
 
                 if (waypointState.Waypoints.Count == 0 || waypointState.UnresolvedWaypoint == null)
                 {
-                    Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
+                    ModLocator.Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
                     return;
                 }
 
                 if (waypointState.UnresolvedWaypoint?.LocationString != ordersHelper.Orders.Waypoint?.LocationString)
                 {
-                    Loader.LogDebug($"Loco {loco.Ident} unresolved waypoint to {waypointState.UnresolvedWaypoint?.LocationString} did not match {ordersHelper.Orders.Waypoint?.LocationString}");
+                    ModLocator.Loader.LogDebug($"Loco {loco.Ident} unresolved waypoint to {waypointState.UnresolvedWaypoint?.LocationString} did not match {ordersHelper.Orders.Waypoint?.LocationString}");
                 }
 
                 // Only update targets if we are not stopping
@@ -62,7 +61,7 @@ namespace WaypointQueue
 
                 if (targets == null)
                 {
-                    Loader.LogDebug($"Targets object was null");
+                    ModLocator.Loader.LogDebug($"Targets object was null");
                     return;
                 }
 
@@ -85,7 +84,7 @@ namespace WaypointQueue
                     {
                         (Location closestTrainEnd, Location _) = carService.GetTrainEndLocations(waypointState.UnresolvedWaypoint.Locomotive, waypointState.UnresolvedWaypoint.Location, out float closestDistance, out var _, out var _, out _, out _);
 
-                        GraphRouteSearchExtension.TryFindDistance(Graph.Shared, closestTrainEnd, waypointState.UnresolvedWaypoint.Location, out float totalDistance, out float traverseTimeSeconds);
+                        GraphRouteSearchExtension.TryFindDistance(Graph.Shared, closestTrainEnd, waypointState.UnresolvedWaypoint.Location, out float totalDistance);
 
                         Targets.Target t = updatedTargets[indexOfWaypoint];
                         if (Mathf.Abs(totalDistance - t.Distance) < 10f)
@@ -96,7 +95,7 @@ namespace WaypointQueue
                     }
                     else
                     {
-                        Loader.LogDebug($"Did not find waypoint target");
+                        ModLocator.Loader.LogDebug($"Did not find waypoint target");
                     }
                 }
 
@@ -107,12 +106,12 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.LogDebug($"AllTargetsFI was null");
+                    ModLocator.Loader.LogDebug($"AllTargetsFI was null");
                 }
             }
             catch (Exception e)
             {
-                Loader.LogError($"UpdateTargetsPostfix exception: {e}");
+                ModLocator.Loader.LogError($"UpdateTargetsPostfix exception: {e}");
             }
         }
 
@@ -166,7 +165,7 @@ namespace WaypointQueue
                 }
                 catch (Exception ex)
                 {
-                    Loader.LogError($"High-speed waypoint distance calc failed: {ex}");
+                    ModLocator.Loader.LogError($"High-speed waypoint distance calc failed: {ex}");
                     return;
                 }
 
@@ -177,7 +176,7 @@ namespace WaypointQueue
             }
             catch (Exception ex)
             {
-                Loader.LogError($"IsWaypointSatisfiedPostfix failed: {ex}");
+                ModLocator.Loader.LogError($"IsWaypointSatisfiedPostfix failed: {ex}");
             }
         }
     }

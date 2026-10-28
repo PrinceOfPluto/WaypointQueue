@@ -1,58 +1,72 @@
-﻿using GalaSoft.MvvmLight.Messaging;
-using Game.Events;
+﻿using Game.Events;
 using HarmonyLib;
 using System;
 using System.Reflection;
 using UnityEngine;
-using UnityModManagerNet;
+using Railroader.Modding;
 using WaypointQueue.Services;
 using WaypointQueue.State;
 using WaypointQueue.UI;
 using WaypointQueue.Wrappers;
+using System.IO;
 
-namespace WaypointQueue.UUM
+namespace WaypointQueue
 {
-    public static class Loader
+    public class Loader : IModEntryPoint
     {
-        public static UnityModManager.ModEntry ModEntry { get; private set; }
-        public static Harmony HarmonyInstance { get; private set; }
-        public static WaypointQueueController Instance { get; private set; }
+        public IModContext ModContext { get; private set; }
+        public Harmony HarmonyInstance { get; private set; }
+        public WaypointQueueController Instance { get; private set; }
 
-        public static WaypointWindow WaypointWindow { get; private set; }
-        public static RouteManagerWindow RouteManagerWindow { get; private set; }
+        public WaypointWindow WaypointWindow { get; private set; }
+        public RouteManagerWindow RouteManagerWindow { get; private set; }
 
-        public static WaypointQueueSettings Settings { get; private set; }
+        public WaypointQueueSettings Settings { get; private set; }
+        private string settingsPath;
 
-        internal static ServiceProvider ServiceProvider { get; private set; }
+        internal ServiceProvider ServiceProvider { get; private set; }
 
-        private static bool MapHasLoaded = false;
+        private bool MapHasLoaded = false;
 
-        public static GameObject QueueStorageGO { get; private set; }
+        public GameObject QueueStorageGO { get; private set; }
 
-        public static GameObject RouteStorageGO { get; private set; }
+        public GameObject RouteStorageGO { get; private set; }
 
-        private static bool Load(UnityModManager.ModEntry modEntry)
+        public static string QueueStorageGOName = "WaypointQueueStateStorage";
+        public static string RouteStorageGOName = "WaypointQueueRouteStorage";
+
+        public void OnModLoad(IModContext modContext)
         {
-            if (ModEntry != null)
+            if (ModContext != null)
             {
-                modEntry.Logger.Warning("WaypointQueue is already loaded!");
-                return false;
+                modContext.Log.Warning("WaypointQueue is already loaded!");
             }
-            Log($"Loading WaypointQueue assembly version {Assembly.GetExecutingAssembly().GetName().Version}");
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            if (assembly == null)
+            {
+                modContext.Log.Error("WaypointQueue assembly is null");
+            }
+            AssemblyName assemblyName = assembly.GetName();
+            if (assemblyName == null)
+            {
+                modContext.Log.Error("WaypointQueue assembly name is null");
+            }
+            //Log($"Loading WaypointQueue assembly version {Assembly.GetExecutingAssembly().GetName().Version}");
 
-            ModEntry = modEntry;
-            Settings = UnityModManager.ModSettings.Load<WaypointQueueSettings>(modEntry);
+            ModContext = modContext;
+            ModLocator.Loader = this;
 
+            settingsPath = Path.Combine(modContext.ModDirectory, "settings.json");
+            Settings = WaypointQueueSettings.Load(settingsPath);
+            ModLocator.Settings = Settings;
+
+            ServiceProvider = new ServiceProvider();
+            ModLocator.ServiceProvider = ServiceProvider;
             ConfigureServices();
 
-            Messenger.Default.Register<MapDidLoadEvent>(modEntry, OnMapDidLoad);
+            EventBus.Subscribe<MapDidLoadEvent>(OnMapDidLoad);
 
-            ModEntry.OnUnload = Unload;
-            ModEntry.OnGUI = OnGUI;
-            ModEntry.OnSaveGUI = OnSaveGUI;
-            ModEntry.OnUpdate = OnUpdate;
-
-            HarmonyInstance = new Harmony(modEntry.Info.Id);
+            HarmonyInstance = new Harmony(ModContext.ModIdentifier);
             //Harmony.DEBUG = true;
 
             try
@@ -61,14 +75,17 @@ namespace WaypointQueue.UUM
 
                 var waypointQueueGO = new GameObject("WaypointQueue");
                 Instance = waypointQueueGO.AddComponent<WaypointQueueController>();
+                ModLocator.QueueController = Instance;
                 waypointQueueGO.AddComponent<WaypointCarPicker>();
                 waypointQueueGO.AddComponent<ErrorModalController>();
                 waypointQueueGO.AddComponent<WaypointPicker>();
                 waypointQueueGO.AddComponent<ModStateManager>();
                 waypointQueueGO.AddComponent<ModSaveManager>();
+                WaypointWindow = waypointQueueGO.AddComponent<WaypointWindow>();
+                RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
 
-                QueueStorageGO = new GameObject("WaypointQueueStateStorage");
-                RouteStorageGO = new GameObject("WaypointQueueRouteStorage");
+                QueueStorageGO = new GameObject(QueueStorageGOName);
+                RouteStorageGO = new GameObject(RouteStorageGOName);
 
                 UnityEngine.Object.DontDestroyOnLoad(waypointQueueGO);
                 UnityEngine.Object.DontDestroyOnLoad(QueueStorageGO);
@@ -81,19 +98,15 @@ namespace WaypointQueue.UUM
             }
             catch (Exception ex)
             {
-                modEntry.Logger.LogException($"Failed to load {modEntry.Info.DisplayName}:", ex);
-                Unload(modEntry);
-                return false;
+                modContext.Log.Error(ex, $"Failed to load {modContext.ModIdentifier}:");
             }
-
-            return true;
         }
 
-        private static void ConfigureServices()
+        private void ConfigureServices()
         {
             // This is a bit ugly but it provides the benefit of dependency injection
             // without the overhead of requiring an extra DI package
-            ServiceProvider = new ServiceProvider();
+            
 
             ServiceProvider.AddSingleton<IOpsControllerWrapper>(new OpsControllerWrapper());
 
@@ -132,83 +145,51 @@ namespace WaypointQueue.UUM
                 ));
         }
 
-        private static void OnUpdate(UnityModManager.ModEntry modEntry, float delta)
+        public void OnModUnload()
         {
-            if (Settings.toggleWaypointPanelKey.Down() && WaypointWindow != null)
-            {
-                WaypointWindow.Toggle();
-            }
-
-            if (Settings.toggleRoutesPanelKey.Down() && RouteManagerWindow != null)
-            {
-                RouteManagerWindow.Toggle();
-            }
-
-        }
-
-        private static bool Unload(UnityModManager.ModEntry modEntry)
-        {
-            HarmonyInstance.UnpatchAll(modEntry.Info.Id);
+            HarmonyInstance.UnpatchAll(ModContext.ModIdentifier);
 
             if (Instance != null) UnityEngine.Object.DestroyImmediate(Instance.gameObject);
             Instance = null;
-
-            if (WaypointWindow != null) UnityEngine.Object.DestroyImmediate(WaypointWindow.gameObject);
-            WaypointWindow = null;
-
-            if (RouteManagerWindow != null) UnityEngine.Object.DestroyImmediate(RouteManagerWindow.gameObject);
-            RouteManagerWindow = null;
 
             if (QueueStorageGO != null) UnityEngine.Object.DestroyImmediate(QueueStorageGO.gameObject);
             QueueStorageGO = null;
 
             if (RouteStorageGO != null) UnityEngine.Object.DestroyImmediate(RouteStorageGO.gameObject);
             RouteStorageGO = null;
-
-            return true;
         }
 
-        private static void OnGUI(UnityModManager.ModEntry modEntry)
-        {
-            Settings.Draw(modEntry);
-        }
-
-        private static void OnSaveGUI(UnityModManager.ModEntry modEntry)
-        {
-            Settings.Save(modEntry);
-        }
-
-        private static void OnMapDidLoad(MapDidLoadEvent @event)
+        private void OnMapDidLoad(MapDidLoadEvent @event)
         {
             MapHasLoaded = true;
 
             InitWindows();
         }
 
-        private static void InitWindows()
+        private void InitWindows()
         {
-            WindowHelper.CreateWindow<WaypointWindow>(null);
-            WaypointWindow = WaypointWindow.Shared;
+            WaypointWindow.Register();
+            //WindowManager.Shared.RegisterCustomWindow(waypointWindowDef);
+            //var waypointWindowHandle = CustomWindowHandle.Create(waypointWindowDef.Identifier);
+            RouteManagerWindow.Register();
 
-            WindowHelper.CreateWindow<RouteManagerWindow>(null);
-            RouteManagerWindow = RouteManagerWindow.Shared;
+            //var routeManagerWindowDef = RouteManagerWindow.GetCustomWindowDefinition();
+            //WindowManager.Shared.RegisterCustomWindow(routeManagerWindowDef);
         }
 
-        public static void Log(string str)
+        public void Log(string str)
         {
-            ModEntry?.Logger.Log(str);
+            ModContext.Log.Info(str);
         }
 
-        public static void LogDebug(string str)
+        public void LogDebug(string str)
         {
-#if DEBUG
-            ModEntry?.Logger.Log(str);
-#endif
+            ModContext.Log.Debug(str);
         }
 
-        public static void LogError(string str)
+        public void LogError(string str)
         {
-            ModEntry?.Logger.Error(str);
+            ModContext.Log.Error(str);
         }
     }
 }

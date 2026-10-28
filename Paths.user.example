@@ -2,5 +2,6 @@
 	<PropertyGroup>
 		<!-- Change this path to match your Railroader game installation directory -->
 		<RrInstallDir>C:\Program Files (x86)\Steam\steamapps\common\Railroader</RrInstallDir>
+		<RrHomeDir>C:\Users\USERNAME\Documents</RrHomeDir>
 	</PropertyGroup>
 </Project>

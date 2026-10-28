@@ -1,4 +1,4 @@
-﻿using GalaSoft.MvvmLight.Messaging;
+﻿using Game.Events;
 using Game.State;
 using Network;
 using System;
@@ -7,27 +7,28 @@ using System.Linq;
 using UI;
 using UI.Builder;
 using UI.Common;
+using UI.Windows;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.State;
 using WaypointQueue.State.Events;
-using WaypointQueue.UUM;
 
 
 namespace WaypointQueue.UI
 {
     [RequireComponent(typeof(Window))]
-    public class RouteManagerWindow : WindowBase
+    public class RouteManagerWindow : MonoBehaviour
     {
-        public override string WindowIdentifier => "RouteManagerPanel";
-        public override string Title => "Routes";
-        public override Vector2Int DefaultSize => new Vector2Int(800, 560);
-        public override Window.Position DefaultPosition => Window.Position.Center;
-        public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
+        public static string WindowIdentifier => "RouteManagerPanel";
+        public static string Title => "Routes";
+        public static Vector2Int DefaultSize => new Vector2Int(800, 560);
+        public static Window.Position DefaultPosition => Window.Position.Center;
+        public static Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
 
         public static RouteManagerWindow Shared;
+        private CustomWindow _customWindow;
 
-        public bool IsVisible => Shared.Window.IsShown;
+        public bool IsVisible => WindowManager.Shared.IsWindowOpen(WindowIdentifier);
 
         public string SelectedRouteId => _selectedRouteId?.Value ?? string.Empty;
 
@@ -57,6 +58,28 @@ namespace WaypointQueue.UI
             Descending
         }
 
+        public void Register()
+        {
+            var windowDef = new CustomWindowDefinition
+            {
+                Title = Title,
+                Identifier = WindowIdentifier,
+                Config = WindowConfig.Resizable(DefaultSize, new Vector2Int(1100, Screen.height), Window.Position.Center),
+                BuilderAction = Populate
+            };
+            WindowManager.Shared.RegisterCustomWindow(windowDef);
+        }
+
+        public void Toggle()
+        {
+            WindowManager.Shared.ToggleWindow(WindowIdentifier);
+
+            if (_customWindow == null)
+            {
+                _customWindow = WindowManager.Shared.GetCustomWindow(WindowIdentifier);
+            }
+        }
+
         protected void Awake()
         {
             Shared = this;
@@ -69,10 +92,10 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
-            Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
-            Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
-            Messenger.Default.Register<RouteDidUpdate>(this, OnRouteDidUpdate);
-            Messenger.Default.Register<RoutesDidLoadFromDisk>(this, OnRoutesDidLoadFromDisk);
+            EventBus.Subscribe<WaypointDidUpdate>(this, OnWaypointDidUpdate);
+            EventBus.Subscribe<WaypointWasAppended>(this, OnWaypointWasAppended);
+            EventBus.Subscribe<RouteDidUpdate>(this, OnRouteDidUpdate);
+            EventBus.Subscribe<RoutesDidLoadFromDisk>(this, OnRoutesDidLoadFromDisk);
             _routeLoadSaveHelper = new RouteLoadSaveHelper();
 
             if (string.IsNullOrEmpty(_selectedRouteId.Value) && RouteRegistry.Routes.Count > 0)
@@ -83,12 +106,12 @@ namespace WaypointQueue.UI
 
         protected void OnDisable()
         {
-            Messenger.Default.Unregister(this);
+            EventBus.Unsubscribe(this);
         }
 
         private void OnRouteDidUpdate(RouteDidUpdate routeDidUpdateEvent)
         {
-            if (routeDidUpdateEvent.RouteId == _selectedRouteId.Value && Shared.Window.IsShown)
+            if (routeDidUpdateEvent.RouteId == _selectedRouteId.Value && _customWindow.Window.IsShown)
             {
                 RebuildWithScrolls();
             }
@@ -101,9 +124,9 @@ namespace WaypointQueue.UI
                 return;
             }
 
-            if (waypointDidUpdateEvent.RouteId == _selectedRouteId.Value && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && Shared.Window.IsShown)
+            if (waypointDidUpdateEvent.RouteId == _selectedRouteId.Value && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && _customWindow.Window.IsShown)
             {
-                Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for route {_selectedRouteId.Value}");
+                ModLocator.Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for route {_selectedRouteId.Value}");
                 panelBuilder.Rebuild();
             }
         }
@@ -115,7 +138,7 @@ namespace WaypointQueue.UI
                 return;
             }
 
-            if (waypointWasAppendedEvent.RouteId == _selectedRouteId.Value && Shared.Window.IsShown)
+            if (waypointWasAppendedEvent.RouteId == _selectedRouteId.Value && _customWindow.Window.IsShown)
             {
                 RouteDefinition route = RouteRegistry.GetById(_selectedRouteId.Value);
                 List<ManagedWaypoint> waypointList = route.Waypoints;
@@ -127,37 +150,15 @@ namespace WaypointQueue.UI
 
         private void OnRoutesDidLoadFromDisk(RoutesDidLoadFromDisk _)
         {
-            if (Shared.Window.IsShown)
+            if (_customWindow.Window.IsShown)
             {
                 RebuildWithScrolls();
             }
         }
 
-        public void Show()
-        {
-            Loader.LogDebug("Showing RouteManager window");
-            Rebuild();
-
-            WindowPersistence.SetInitialPositionSize(
-                Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing
-            );
-            Window.ShowWindow();
-        }
-
-        public void Hide()
-        {
-            Window.CloseWindow();
-        }
-
-        public void Toggle()
-        {
-            if (Window.IsShown) Hide();
-            else Show();
-        }
-
         private void RebuildWithScrolls()
         {
-            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
+            var scrollRects = _customWindow.Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
 
             _scrollPositions.Clear();
             foreach (var sr in scrollRects)
@@ -165,14 +166,14 @@ namespace WaypointQueue.UI
                 _scrollPositions.Add(sr.verticalNormalizedPosition);
             }
 
-            Rebuild();
+            _customWindow.Rebuild();
 
             Invoke(nameof(RestoreScrolls), 0f);
         }
 
         private void RestoreScrolls()
         {
-            var scrollRects = Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
+            var scrollRects = _customWindow.Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
 
             var count = Mathf.Min(scrollRects.Length, _scrollPositions.Count);
             for (int i = 0; i < count; i++)
@@ -182,11 +183,11 @@ namespace WaypointQueue.UI
             }
         }
 
-        public override void Populate(UIPanelBuilder builder)
+        public void Populate(UIPanelBuilder builder)
         {
             panelsByWaypointId.Clear();
 
-            builder.Spacing = 0f;
+            //builder.Spacing = 0f;
             var filteredRoutes = RouteRegistry.Routes.Values;
 
             if (!string.IsNullOrWhiteSpace(_searchFilter))
@@ -313,7 +314,7 @@ namespace WaypointQueue.UI
                 _selectedRouteId,
                 (detail, route) =>
                 {
-                    detail.Spacing = 12f;
+                    //detail.Spacing = 12f;
 
                     if (route == null)
                     {
@@ -368,7 +369,7 @@ namespace WaypointQueue.UI
                     detail.FieldLabelWidth = 80f;
                     detail.VStack(stack =>
                     {
-                        stack.Spacing = 2f;
+                        //stack.Spacing = 2f;
                         stack.AddField("Name", stack.AddInputField(route.Name, newName =>
                         {
                             RouteRegistry.Rename(route, newName);
@@ -538,7 +539,7 @@ namespace WaypointQueue.UI
                     }
                     else
                     {
-                        Loader.LogDebug($"Failed to copy waypoint {mw.Id} to route {route}");
+                        ModLocator.Loader.LogDebug($"Failed to copy waypoint {mw.Id} to route {route}");
                     }
                 }
             }
@@ -563,7 +564,7 @@ namespace WaypointQueue.UI
                 }
                 else
                 {
-                    Loader.LogDebug($"Failed to copy waypoint {mw.Id} to route {route}");
+                    ModLocator.Loader.LogDebug($"Failed to copy waypoint {mw.Id} to route {route}");
                 }
             }
 

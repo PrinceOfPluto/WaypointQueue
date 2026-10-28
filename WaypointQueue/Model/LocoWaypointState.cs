@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using WaypointQueue.Model;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
@@ -26,7 +25,7 @@ namespace WaypointQueue
                 {
                     return loco;
                 }
-                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
+                ModLocator.Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint state entry");
                 return null;
             }
         }

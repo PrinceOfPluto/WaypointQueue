@@ -22,7 +22,7 @@ namespace WaypointQueue
             {
                 if (_shared == null)
                 {
-                    _shared = UnityEngine.Object.FindObjectOfType<WaypointCarPicker>();
+                    _shared = FindAnyObjectByType<WaypointCarPicker>();
                 }
 
                 return _shared;

@@ -1,5 +1,6 @@
-﻿using UnityEngine;
-using UnityModManagerNet;
+﻿using System.IO;
+using UnityEngine;
+using WaypointQueue.Model;
 
 namespace WaypointQueue
 {
@@ -25,71 +26,111 @@ namespace WaypointQueue
         Dropoff = ManagedWaypoint.PostCoupleCutType.Dropoff,
     }
 
-    public class WaypointQueueSettings : UnityModManager.ModSettings, IDrawable
+    [System.Serializable]
+    public class WaypointQueueSettings
     {
-        [Header("Keybindings")]
-        [Draw("Activate append waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will add it to the end of the locomotive's waypoint queue.")]
-        public KeyBinding queuedWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftControl };
-        [Draw("Activate replace waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will replace the current waypoint but keep the rest of the existing waypoint queue.")]
-        public KeyBinding replaceWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftAlt };
-        [Draw("Activate insert next waypoint mode", Tooltip = "Setting a waypoint while this key is pressed will insert it in the queue directly after the current waypoint.")]
-        public KeyBinding insertNextWaypointModeKey = new KeyBinding() { keyCode = KeyCode.LeftShift };
+        public int Version { get; set; } = 2;
 
-        [Draw("Create waypoint with couple to nearest enabled", Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with couple to nearest enabled.")]
-        public KeyBinding CoupleToNearestShortcutHotkey = new() { keyCode = KeyCode.None };
-        [Draw("Create waypoint with uncouple enabled", Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with uncoupling enabled.")]
-        public KeyBinding UncoupleShortcutHotkey = new() { keyCode = KeyCode.None };
-        [Draw("Create waypoint with kicking enabled", Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with kicking enabled.")]
-        public KeyBinding KickingShortcutHotkey = new() { keyCode = KeyCode.None };
+        // Setting a waypoint while this key is pressed will add it to the end of the locomotive's waypoint queue
+        public KeyBinding queuedWaypointModeKey = new KeyBinding() { keyCode = KeyCode.None };
 
-        [Draw("Toggle Waypoints window")] public KeyBinding toggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
-        [Draw("Toggle Route Manager window")] public KeyBinding toggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
-        [Draw("Make append waypoint the default without keybinding")] public bool MakeAppendDefaultWithoutHotkeybinding = false;
+        // Setting a waypoint while this key is pressed will replace the current waypoint but keep the rest of the existing waypoint queue
+        public KeyBinding replaceWaypointModeKey = new KeyBinding() { keyCode = KeyCode.None };
 
-        [Header("UI")]
-        [Draw("Show time info in dropdown for timetable train symbol")] public bool ShowTimeInTrainSymbolDropdown = true;
+        // Setting a waypoint while this key is pressed will insert it in the queue directly after the current waypoint
+        public KeyBinding insertNextWaypointModeKey = new KeyBinding() { keyCode = KeyCode.None };
 
-        [Header("Coupling settings")]
-        [Draw("Connect air by default when coupling")] public bool ConnectAirByDefault = true;
-        [Draw("Release handbrakes by default when coupling")] public bool ReleaseHandbrakesByDefault = true;
-        [Draw("Nearby coupling search distance in car lengths", DrawType.Slider, Precision = 0, Min = 1, Max = 100, Tooltip = "Distance to search for nearby coupling. Measured in car lengths of about 40 ft each")] public float NearbyCouplingSearchDistanceInCarLengths = 10;
-        [Draw("Default coupling search mode", DrawType.ToggleGroup)] public CoupleSearchModeDefaultOptions DefaultCouplingSearchMode = CoupleSearchModeDefaultOptions.BySpecificCar;
+        // Setting a waypoint while this key is pressed will create a waypoint with couple to nearest enabled
+        public KeyBinding CoupleToNearestShortcutHotkey = new() { keyCode = KeyCode.LeftControl };
 
-        [Header("Uncoupling settings")]
-        [Draw("Bleed air cylinders by default when uncoupling")] public bool BleedAirByDefault = true;
-        [Draw("Leave anglecock open by default after cutting cars (do not bottle air)")] public bool DoNotBottleAir = false;
-        [Draw("Apply handbrakes by default when uncoupling")] public bool ApplyHandbrakesByDefault = true;
-        [Draw("Max seconds to wait for train to fully stop before uncoupling", DrawType.Slider, Precision = 0, Min = 5, Max = 120, Tooltip = "Trains will wait to uncouple until the consist is considered at fully rest\nor until this many seconds have passed, whichever happens sooner.\nIf you are encountering trains unexpectedly re-coupling after being uncoupled,\nit is recommended to increase this timeout value.")] public float WaitBeforeCuttingTimeout = 15f;
-        [Draw("Handbrake percentage", DrawType.Slider, Precision = 2, Min = 0, Max = 1, Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")] public float HandbrakePercentOnUncouple = 0.1f;
-        [Draw("Handbrake minimum", Precision = 0, Min = 1, Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length ")] public int MinimumHandbrakesOnUncouple = 2;
-        [Draw("Default uncoupling mode", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
-        [Draw("Default post-coupling cut mode", DrawType.ToggleGroup)] public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
-        [Draw("Default uncoupling mode when performing post-coupling cuts", DrawType.ToggleGroup)] public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
+        // Setting a waypoint while this key is pressed will create a waypoint with uncoupling enabled
+        public KeyBinding UncoupleShortcutHotkey = new() { keyCode = KeyCode.LeftAlt };
 
-        [Header("Custom Defaults")]
-        [Draw("Passing speed limit for kicking cars", Min = 0, Max = 45)] public int PassingSpeedForKickingCars = 7;
-        [Draw("Kick button unchecks bleeding air and applying handbrakes on uncouple")] public bool UncheckAirAndBrakesForKick = true;
-        [Draw("Do not automatically set passing speed limit when not stopping at waypoint")] public bool DoNotLimitPassingSpeedDefault = true;
-        [Draw("Prevent tenders being uncoupled from locomotive")] public bool PreventTenderUncoupling = true;
+        // Setting a waypoint while this key is pressed will create a waypoint with kicking enabled
+        public KeyBinding KickingShortcutHotkey = new() { keyCode = KeyCode.LeftShift };
 
-        [Draw("Advanced settings", Collapsible = true)] public AdvancedSettings AdvancedSettings = new AdvancedSettings();
+        public KeyBinding ToggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
 
-        public override void Save(UnityModManager.ModEntry modEntry)
+        public KeyBinding ToggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
+
+        public bool MakeAppendDefaultWithoutHotkeybinding = true;
+
+        // Show time info in dropdown for timetable train symbol
+        public bool ShowTimeInTrainSymbolDropdown = true;
+
+        // Connect air by default when coupling
+        public bool ConnectAirByDefault = true;
+
+        // Release handbrakes by default when coupling
+        public bool ReleaseHandbrakesByDefault = true;
+
+        // Nearby coupling search distance in car lengths
+        // DrawType.Slider, Precision = 0, Min = 1, Max = 100
+        // Distance to search for nearby coupling. Measured in car lengths of about 40 ft each
+        public float NearbyCouplingSearchDistanceInCarLengths = 10;
+
+        public CoupleSearchModeDefaultOptions DefaultCouplingSearchMode = CoupleSearchModeDefaultOptions.BySpecificCar;
+
+        // Bleed air cylinders by default when uncoupling
+        public bool BleedAirByDefault = true;
+
+        // Leave anglecock open by default after cutting cars (do not bottle air)
+        public bool DoNotBottleAir = false;
+
+        //Apply handbrakes by default when uncoupling
+        public bool ApplyHandbrakesByDefault = true;
+
+        // Max seconds to wait for train to fully stop before uncoupling
+        // DrawType.Slider, Precision = 0, Min = 5, Max = 120
+        // Trains will wait to uncouple until the consist is considered at fully rest or until this many seconds have passed, whichever happens sooner
+        // If you are encountering trains unexpectedly re-coupling after being uncoupled, it is recommended to increase this timeout value
+        public float WaitBeforeCuttingTimeout = 15f;
+
+        // Handbrake percentage
+        // DrawType.Slider, Precision = 2, Min = 0, Max = 1
+        // Handbrakes will be set on this percentage of uncoupled cars
+        public float HandbrakePercentOnUncouple = 0.1f;
+
+        // Handbrake minimum
+        // At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length
+        public int MinimumHandbrakesOnUncouple = 2;
+
+        public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
+
+        public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
+
+        public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
+
+        public int PassingSpeedForKickingCars = 7;
+
+        // Kick button unchecks bleeding air and applying handbrakes on uncouple
+        public bool UncheckAirAndBrakesForKick = true;
+
+        // Do not automatically set passing speed limit when not stopping at waypoint
+        public bool DoNotLimitPassingSpeedDefault = true;
+
+        // Prevent tenders being uncoupled from locomotive
+        public bool PreventTenderUncoupling = true;
+
+        public static WaypointQueueSettings Load(string path)
         {
-            Save(this, modEntry);
+            if (File.Exists(path)) {
+                try
+                {
+                    string json = File.ReadAllText(path);
+                    return JsonUtility.FromJson<WaypointQueueSettings>(json);
+                }
+                catch (System.Exception)
+                {
+                }
+            }
+            return new WaypointQueueSettings();
         }
 
-        public void OnChange()
+        public void Save(string path)
         {
+            string json = JsonUtility.ToJson(this, prettyPrint: true);
+            File.WriteAllText(path, json);
         }
-    }
-
-    [DrawFields(DrawFieldMask.Public)]
-    public class AdvancedSettings
-    {
-        [DrawHeader("Warning! Do NOT enable these settings unless you understand what these options mean.", Color = "red")]
-        [Draw("Enable \"Then perform cut\" after coupling by default")] public bool ShowPostCouplingCutByDefault = false;
-        [Draw("Enable \"Then uncouple\" by default")] public bool EnableThenUncoupleByDefault = false;
-        [Draw("Show waypoint save data debug options")] public bool EnableSaveDataDebugOptions = false;
     }
 }

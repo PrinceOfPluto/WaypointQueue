@@ -17,7 +17,6 @@ using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.UI;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
@@ -75,8 +74,8 @@ namespace WaypointQueue
 
         private void HandleProcessingError(string orderType, Exception exception, ManagedWaypoint wp)
         {
-            Loader.LogError($"Exception while processing waypoint: {exception}");
-            Loader.Log($"Waypoint configuration:\n{wp}");
+            ModLocator.Loader.LogError($"Exception while processing waypoint: {exception}");
+            ModLocator.Loader.Log($"Waypoint configuration:\n{wp}");
             wp.Errors.Add(new WaypointError(errorType: orderType, message: exception.Message));
             wp.StatusLabel = "Paused due to error";
             WaypointQueueController.Shared.UpdateWaypoint(wp);
@@ -93,7 +92,7 @@ namespace WaypointQueue
                 return true;
             }
 
-            // Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
+            // ModLocator.Loader.LogDebug($"Trying to handle unresolved waypoint for {wp.Locomotive.Ident}:\n {wp.ToString()}");
             if (!wp.StopAtWaypoint)
             {
                 if (wp.MoveTrainPastWaypoint)
@@ -104,7 +103,7 @@ namespace WaypointQueue
                     }
                     else
                     {
-                        Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                        ModLocator.Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
                     }
                 }
 
@@ -122,7 +121,7 @@ namespace WaypointQueue
                     {
                         wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                         WaypointQueueController.Shared.UpdateWaypoint(wp);
-                        Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                        ModLocator.Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                     }
                 }
 
@@ -166,7 +165,7 @@ namespace WaypointQueue
                 }
                 else
                 {
-                    Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
+                    ModLocator.Loader.LogError($"Failed to move {wp.Locomotive.Ident} past the waypoint");
                 }
             }
 
@@ -181,7 +180,7 @@ namespace WaypointQueue
                 {
                     wp.CouplingSearchMode = ManagedWaypoint.CoupleSearchMode.None;
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
-                    Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
+                    ModLocator.Loader.LogError($"{wp.Locomotive.Ident} cannot find a nearby car to couple.");
                 }
             }
 
@@ -220,11 +219,11 @@ namespace WaypointQueue
                 _timeSpentWaitingBeforeCutLookup[wp.Id] = 0f;
             }
 
-            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && _timeSpentWaitingBeforeCutLookup[wp.Id] < Loader.Settings.WaitBeforeCuttingTimeout)
+            if (wp.StopAtWaypoint && !IsTrainStopped(wp) && wp.HasAnyCutOrders && _timeSpentWaitingBeforeCutLookup[wp.Id] < ModLocator.Settings.WaitBeforeCuttingTimeout)
             {
                 if (!wp.CurrentlyWaitingBeforeCutting)
                 {
-                    Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
+                    ModLocator.Loader.Log($"{wp.Locomotive.Ident} is waiting until train is at rest to resolve cut orders");
                     wp.CurrentlyWaitingBeforeCutting = true;
                     wp.StatusLabel = $"Waiting until at rest to cut cars";
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
@@ -235,13 +234,13 @@ namespace WaypointQueue
                     _timeSpentWaitingBeforeCutLookup[wp.Id] += tickIntervalSeconds;
                 }
 
-                if (_timeSpentWaitingBeforeCutLookup[wp.Id] < Loader.Settings.WaitBeforeCuttingTimeout)
+                if (_timeSpentWaitingBeforeCutLookup[wp.Id] < ModLocator.Settings.WaitBeforeCuttingTimeout)
                 {
                     return false;
                 }
                 else
                 {
-                    Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {Loader.Settings.WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
+                    ModLocator.Loader.Log($"{wp.Locomotive.Ident} proceeding with cut after waiting {ModLocator.Settings.WaitBeforeCuttingTimeout} seconds from zero absolute velocity floor");
                 }
             }
 
@@ -301,8 +300,8 @@ namespace WaypointQueue
                 }
                 catch (Exception e)
                 {
-                    Loader.LogError($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadName} loader equipment: {e}");
-                    Console.Log($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadName} loader equipment.");
+                    ModLocator.Loader.LogError($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadId} loader equipment: {e}");
+                    Console.Log($"{wp.Locomotive.Ident} failed to put away the {wp.RefuelLoadId} loader equipment.");
                 }
             }
             return true;
@@ -335,7 +334,7 @@ namespace WaypointQueue
             {
                 refuelService.SetCarLoaderSequencerWantsLoading(wp, true);
                 wp.RefuelLoaderAnimated = true;
-                wp.StatusLabel = $"Refueling {wp.RefuelLoadName}";
+                wp.StatusLabel = $"Refueling {wp.RefuelLoadId}";
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }
@@ -350,8 +349,8 @@ namespace WaypointQueue
             if (wp.CurrentlyRefueling)
             {
                 BaseLocomotive currentRefuelLoco = GetNextLocomotiveForRefuel(wp);
-                bool locoIsFull = refuelService.IsLocoFull(currentRefuelLoco, wp.RefuelLoadName, wp.RefuelMaxCapacity, out bool isIncreasing);
-                bool loaderIsEmpty = refuelService.IsLoaderEmpty(wp.RefuelIndustryId, wp.RefuelLoadName);
+                bool locoIsFull = refuelService.IsLocoFull(currentRefuelLoco, wp.RefuelLoadId, wp.RefuelMaxCapacity, out bool isIncreasing);
+                bool loaderIsEmpty = refuelService.IsLoaderEmpty(wp.RefuelIndustryId, wp.RefuelLoadId);
 
                 if (isIncreasing)
                 {
@@ -500,7 +499,7 @@ namespace WaypointQueue
         {
             if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
             {
-                Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
+                ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
                 wp.ClearWaiting();
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
@@ -522,7 +521,7 @@ namespace WaypointQueue
                 wp.StatusLabel = "Waiting before continuing";
                 wp.WaitUntilGameTotalSeconds = waitUntilTime.TotalSeconds;
                 wp.CurrentlyWaiting = true;
-                Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
+                ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} waiting {wp.WaitForDurationMinutes}m until {waitUntilTime}");
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
             }
@@ -538,13 +537,13 @@ namespace WaypointQueue
                     wp.SetWaitUntilByMinutes(time.Minutes, out GameDateTime waitUntilTime);
                     wp.StatusLabel = "Waiting before continuing";
                     wp.CurrentlyWaiting = true;
-                    Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
+                    ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} waiting until {waitUntilTime}");
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
                     return true;
                 }
                 else
                 {
-                    Loader.LogError($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
+                    ModLocator.Loader.LogError($"Error parsing time: \"{wp.WaitUntilTimeString}\"");
                     Toast.Present("Waypoint wait time must be in HH:MM 24-hour format.");
                     return false;
                 }
@@ -557,7 +556,7 @@ namespace WaypointQueue
             waypoint.StopAtWaypoint = true;
             waypoint.MoveTrainPastWaypoint = false;
 
-            Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
+            ModLocator.Loader.Log($"Beginning order to clear {waypoint.Locomotive.Ident} train past the waypoint");
             (_, Location furthestCarLocation) = carService.GetTrainEndLocations(waypoint.Locomotive, waypoint.Location, out _, out _, out _, out _, out _);
 
             float totalTrainLength = GetTrainLength(waypoint.Locomotive as BaseLocomotive);
@@ -580,7 +579,7 @@ namespace WaypointQueue
             waypoint.OverwriteLocation(locationToMove);
             WaypointQueueController.Shared.UpdateWaypoint(waypoint);
 
-            Loader.Log($"Sending train of {waypoint.Locomotive.Ident} to {locationToMove} past the waypoint");
+            ModLocator.Loader.Log($"Sending train of {waypoint.Locomotive.Ident} to {locationToMove} past the waypoint");
             autoEngineerService.SendToWaypoint(ordersHelper, locationToMove);
             return true;
         }
@@ -595,7 +594,7 @@ namespace WaypointQueue
         private void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
-            Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
+            ModLocator.Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
             foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
             {
                 if (waypoint.ConnectAirOnCouple)
@@ -630,8 +629,8 @@ namespace WaypointQueue
                 {
                     string message = $"Waypoint for {waypoint.Locomotive.Ident} was configured to perform a post-coupling cut by count with {waypoint.NumberOfCarsToCut} cars to cut, but since no cars can be cut it will remain coupled to all cars.";
                     Console.Log(message);
-                    Loader.Log(message);
-                    Loader.Log($"Waypoint was: {waypoint}");
+                    ModLocator.Loader.Log(message);
+                    ModLocator.Loader.Log($"Waypoint was: {waypoint}");
                     return;
                 }
             }
@@ -654,7 +653,7 @@ namespace WaypointQueue
 
                 if (carsToCut.Count == 0 && isPickup)
                 {
-                    Loader.Log($"Pickup all except locomotives found zero cars to cut.");
+                    ModLocator.Loader.Log($"Pickup all except locomotives found zero cars to cut.");
                     return;
                 }
             }
@@ -663,8 +662,8 @@ namespace WaypointQueue
             {
                 string message = $"Waypoint for {waypoint.Locomotive.Ident} was configured to perform a post-coupling cut, but since no cars can be cut it will remain coupled to all cars.";
                 Console.Log(message);
-                Loader.Log(message);
-                Loader.Log($"Waypoint was: {waypoint}");
+                ModLocator.Loader.Log(message);
+                ModLocator.Loader.Log($"Waypoint was: {waypoint}");
                 return;
             }
 
@@ -673,7 +672,7 @@ namespace WaypointQueue
 
         private void ResolveUncouplingOrders(ManagedWaypoint waypoint)
         {
-            Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
+            ModLocator.Loader.Log($"Resolving uncoupling orders for {waypoint.Locomotive.Ident}");
             List<Car> carsToCut = [];
             if (waypoint.WillUncoupleByCount && waypoint.NumberOfCarsToCut > 0)
             {
@@ -726,7 +725,7 @@ namespace WaypointQueue
             }
 
             StateManager.ApplyLocal(new RequestSetTrainCrewTimetableSymbol(crewId, waypoint.TimetableSymbol));
-            Loader.Log($"[Timetable] {(waypoint.TimetableSymbol ?? "None")} for {waypoint.Locomotive.Ident}");
+            ModLocator.Loader.Log($"[Timetable] {(waypoint.TimetableSymbol ?? "None")} for {waypoint.Locomotive.Ident}");
         }
     }
 }

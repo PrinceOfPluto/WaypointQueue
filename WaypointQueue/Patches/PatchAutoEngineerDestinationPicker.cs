@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Track;
-using UI;
+using UI.Waypoints;
 using UnityEngine;
 using UnityEngine.Pool;
 

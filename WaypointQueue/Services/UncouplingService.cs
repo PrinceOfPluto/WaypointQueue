@@ -9,7 +9,6 @@ using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
 using static WaypointQueue.CarUtils;
@@ -45,12 +44,12 @@ namespace WaypointQueue
             if (wp.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Pickup)
             {
                 carsToCut = CalculateCutForPickupByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
-                Loader.Log($"Pickup seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+                ModLocator.Loader.Log($"Pickup seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
             }
             if (wp.PostCouplingCutMode == ManagedWaypoint.PostCoupleCutType.Dropoff)
             {
                 carsToCut = CalculateCutForDropoffByCount(fullConsist, indexOfCoupledCar, wp.NumberOfCarsToCut);
-                Loader.Log($"Dropoff seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
+                ModLocator.Loader.Log($"Dropoff seeking to cut {CarListToString(carsToCut)} from {CarListToString(fullConsist)}");
             }
 
             return carsToCut;
@@ -61,7 +60,7 @@ namespace WaypointQueue
             int maxCarsAvailableToPickup = indexOfCoupledCar + 1;
 
             int clampedNumberOfCarsToCut = Mathf.Clamp(carsToPickup, 0, maxCarsAvailableToPickup);
-            Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
+            ModLocator.Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
 
             int lowestIndexToPickup = indexOfCoupledCar - clampedNumberOfCarsToCut + 1;
 
@@ -74,7 +73,7 @@ namespace WaypointQueue
             int maxCarsAvailableToDropoff = consist.Count - indexOfCoupledCar - 1;
 
             int clampedNumberOfCarsToCut = Mathf.Clamp(carsToDropoff, 0, maxCarsAvailableToDropoff);
-            Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
+            ModLocator.Loader.LogDebug($"Clamped number of cars to cut is {clampedNumberOfCarsToCut}");
 
             int highestIndexToDropoff = indexOfCoupledCar + clampedNumberOfCarsToCut;
             List<Car> carsToCut = consist.GetRange(0, highestIndexToDropoff + 1);
@@ -388,9 +387,8 @@ namespace WaypointQueue
 
         public void UncoupleAllExceptLocomotives(ManagedWaypoint waypoint)
         {
-            Loader.Log($"Resolving uncoupling all except locomotives for {waypoint.Locomotive.Ident}");
+            ModLocator.Loader.Log($"Resolving uncoupling all except locomotives for {waypoint.Locomotive.Ident}");
             List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(LogicalEnd.A)];
-            List<CarArchetype> locoArchetypes = [CarArchetype.LocomotiveDiesel, CarArchetype.LocomotiveSteam, CarArchetype.Tender];
 
             List<List<Car>> listOfCarBlocks = [[]];
 
@@ -403,8 +401,8 @@ namespace WaypointQueue
                 if (i < consist.Count - 1)
                 {
                     Car nextCar = consist[i + 1];
-                    bool currentCarIsLocoType = locoArchetypes.Contains(currentCar.Archetype);
-                    bool nextCarIsLocoType = locoArchetypes.Contains(nextCar.Archetype);
+                    bool currentCarIsLocoType = currentCar.CarType.IsLocomotive || currentCar.CarType.IsTender;
+                    bool nextCarIsLocoType = nextCar.CarType.IsLocomotive || currentCar.CarType.IsTender;
 
                     if ((currentCarIsLocoType && !nextCarIsLocoType) || (!currentCarIsLocoType && nextCarIsLocoType))
                     {
@@ -423,11 +421,11 @@ namespace WaypointQueue
 
                     if (i != listOfCarBlocks.Count - 1)
                     {
-                        Loader.Log($"Uncoupling {lastCar.Ident} on logical end B for block {block.Count} cars");
+                        ModLocator.Loader.Log($"Uncoupling {lastCar.Ident} on logical end B for block {block.Count} cars");
                         UncoupleCar(lastCar, LogicalEnd.B);
                     }
 
-                    if (!locoArchetypes.Contains(lastCar.Archetype))
+                    if (!lastCar.CarType.IsLocomotive && !lastCar.CarType.IsTender)
                     {
                         if (waypoint.ApplyHandbrakesOnUncouple)
                         {
@@ -543,10 +541,10 @@ namespace WaypointQueue
 
         public List<Car> PerformCut(List<Car> carsToCut, ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Entering PerformCut before filtering split tenders");
+            ModLocator.Loader.LogDebug($"Entering PerformCut before filtering split tenders");
             int carsBeforeFilter = carsToCut.Count;
 
-            if (Loader.Settings.PreventTenderUncoupling)
+            if (ModLocator.Settings.PreventTenderUncoupling)
             {
                 carsToCut = carService.FilterAnySplitLocoTenderPairs(carsToCut);
             }
@@ -554,7 +552,7 @@ namespace WaypointQueue
             if (carsBeforeFilter > 0 && carsToCut.Count == 0)
             {
                 string errorMessage = $"No valid cars can be cut for {waypoint.Locomotive.Ident} due to a restriction on separating a locomotive from its tender.";
-                Loader.LogError($"{errorMessage} Car count before filter was {carsBeforeFilter}. Car count after filter was 0.");
+                ModLocator.Loader.LogError($"{errorMessage} Car count before filter was {carsBeforeFilter}. Car count after filter was 0.");
                 throw new UncouplingException(errorMessage, waypoint);
             }
 
@@ -569,18 +567,18 @@ namespace WaypointQueue
             if (carsToCut.Count > fullConsistFromEndA.Count)
             {
                 string errorMessage = $"Cannot uncouple more cars than exist in {waypoint.Locomotive.Ident}'s consist.";
-                Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                ModLocator.Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
                 throw new UncouplingException(errorMessage, waypoint);
             }
 
             if (carsToCut.Count == fullConsistFromEndA.Count)
             {
                 string errorMessage = $"{carsToCut.Count} cars were calculated to be cut from {waypoint.Locomotive.Ident}'s consist of {fullConsistFromEndA.Count} cars.";
-                Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                ModLocator.Loader.LogError($"{errorMessage}\nCars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
                 throw new UncouplingException(errorMessage, waypoint);
             }
 
-            Loader.Log($"Uncoupling {carsToCut.Count} cars from consist of {fullConsistFromEndA.Count} cars:\n" +
+            ModLocator.Loader.Log($"Uncoupling {carsToCut.Count} cars from consist of {fullConsistFromEndA.Count} cars:\n" +
                 $"cutting: {CarListToString(carsToCut)}\n" +
                 $"from: {CarListToString(fullConsistFromEndA)}\n" +
                 $"as: {(waypoint.TakeUncoupledCarsAsActiveCut ? "active cut" : "inactive cut")}");
@@ -595,12 +593,12 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.LogError($"Error while attempting to uncouple car: {e}");
-                Loader.LogError($"Cars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
+                ModLocator.Loader.LogError($"Error while attempting to uncouple car: {e}");
+                ModLocator.Loader.LogError($"Cars to cut: {CarListToString(carsToCut)}\nConsist: {CarListToString(fullConsistFromEndA)}");
                 throw new UncouplingException(e.Message, waypoint, e);
             }
 
-            Loader.Log($"Uncoupling {carToUncouple.Ident} on end {LogicalEndToString(endToUncouple)} for cut of {carsToCut.Count} cars");
+            ModLocator.Loader.Log($"Uncoupling {carToUncouple.Ident} on end {LogicalEndToString(endToUncouple)} for cut of {carsToCut.Count} cars");
 
             UncoupleCar(carToUncouple, endToUncouple);
 
@@ -635,14 +633,14 @@ namespace WaypointQueue
         private void UncoupleCar(Car car, LogicalEnd endToUncouple)
         {
             LogicalEnd oppositeEnd = endToUncouple == LogicalEnd.A ? LogicalEnd.B : LogicalEnd.A;
-            Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {LogicalEndToString(endToUncouple)}");
+            ModLocator.Loader.LogDebug($"Trying to uncouple {car.Ident} on logical end {LogicalEndToString(endToUncouple)}");
 
             if (StateManager.IsHost && car.set != null)
             {
                 Car adjacent = car.CoupledTo(endToUncouple);
                 if (adjacent != null)
                 {
-                    Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
+                    ModLocator.Loader.Log($"Uncoupling {car.Ident} and {adjacent.Ident}");
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.Anglecock, f: 0f);
                     car.ApplyEndGearChange(endToUncouple, EndGearStateKey.IsAirConnected, boolValue: false);
 

@@ -6,7 +6,6 @@ using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 using Location = Track.Location;
 
 namespace WaypointQueue
@@ -21,14 +20,14 @@ namespace WaypointQueue
             //Loader.LogDebug($"SetWaypoint prefix");
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
-            bool isAppendingWaypoint = Input.GetKey(Loader.Settings.queuedWaypointModeKey.keyCode);
-            bool isReplacingWaypoint = Input.GetKey(Loader.Settings.replaceWaypointModeKey.keyCode);
-            bool isInsertingNext = Input.GetKey(Loader.Settings.insertNextWaypointModeKey.keyCode);
+            bool isAppendingWaypoint = Input.GetKey(ModLocator.Settings.queuedWaypointModeKey.keyCode);
+            bool isReplacingWaypoint = Input.GetKey(ModLocator.Settings.replaceWaypointModeKey.keyCode);
+            bool isInsertingNext = Input.GetKey(ModLocator.Settings.insertNextWaypointModeKey.keyCode);
 
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
             //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
 
-            if (!isAnyModifierPressed && Loader.Settings.MakeAppendDefaultWithoutHotkeybinding)
+            if (!isAnyModifierPressed && ModLocator.Settings.MakeAppendDefaultWithoutHotkeybinding)
             {
                 isAppendingWaypoint = true;
                 isAnyModifierPressed = true;
@@ -89,7 +88,7 @@ namespace WaypointQueue
         [HarmonyPatch(nameof(AutoEngineerOrdersHelper.ClearWaypoint))]
         static bool ClearWaypointPrefix(ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
-            WaypointResolver resolver = Loader.ServiceProvider.GetService<WaypointResolver>();
+            WaypointResolver resolver = ModLocator.ServiceProvider.GetService<WaypointResolver>();
             if (WaypointQueueController.Shared.TryGetActiveWaypointFor((BaseLocomotive)____locomotive, out ManagedWaypoint waypoint))
             {
                 resolver.CleanupBeforeRemovingWaypoint(waypoint);

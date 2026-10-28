@@ -4,7 +4,6 @@ using TMPro;
 using UI.Builder;
 using UI.Common;
 using UnityEngine;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
 {
@@ -17,7 +16,7 @@ namespace WaypointQueue.UI
             {
                 if (_shared == null)
                 {
-                    _shared = FindObjectOfType<ErrorModalController>();
+                    _shared = FindAnyObjectByType<ErrorModalController>();
                 }
 
                 return _shared;
@@ -31,10 +30,10 @@ namespace WaypointQueue.UI
 
         public void ShowProcessingErrorModal(string errorMessage, string orderType, ManagedWaypoint wp)
         {
-            Loader.LogDebug("Present processing error modal");
+            ModLocator.Loader.LogDebug("Present processing error modal");
             ModalAlertController.Present((UIPanelBuilder builder, Action dismiss) =>
             {
-                builder.Spacing = 16f;
+                //builder.Spacing = 16f;
                 builder.AddLabel("Waypoint Error Detected", delegate (TMP_Text text)
                 {
                     text.fontSize = 22f;
@@ -92,10 +91,10 @@ namespace WaypointQueue.UI
 
         public void ShowTickErrorModal(string errorMessage)
         {
-            Loader.LogDebug("Present tick error modal");
+            ModLocator.Loader.LogDebug("Present tick error modal");
             ModalAlertController.Present((UIPanelBuilder builder, Action dismiss) =>
             {
-                builder.Spacing = 16f;
+                //builder.Spacing = 16f;
                 builder.AddLabel("Waypoint Error Detected", delegate (TMP_Text text)
                 {
                     text.fontSize = 22f;

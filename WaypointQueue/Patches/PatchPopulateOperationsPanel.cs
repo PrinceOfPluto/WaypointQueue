@@ -1,13 +1,12 @@
 ﻿using HarmonyLib;
 using Model;
-using Model.Definition;
 using System.Collections.Generic;
 using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
+using UI.Windows;
 using WaypointQueue.State;
 using WaypointQueue.UI;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
@@ -22,7 +21,7 @@ namespace WaypointQueue
 
             var carID = car.id;
 
-            if (!car.Archetype.IsLocomotive()) return;
+            if (!car.CarType.IsLocomotive) return;
 
             List<RouteDefinition> routes = [.. ModStateManager.Shared.Routes.Values];
 
@@ -75,13 +74,7 @@ namespace WaypointQueue
 
                     row.AddButtonCompact("Show", () =>
                     {
-                        var win = Loader.RouteManagerWindow;
-                        if (win == null)
-                        {
-                            WindowHelper.CreateWindow<RouteManagerWindow>(null);
-                            win = RouteManagerWindow.Shared;
-                        }
-                        win.Show();
+                        WindowManager.Shared.ShowWindow(RouteManagerWindow.WindowIdentifier);
                     });
                 }));
 

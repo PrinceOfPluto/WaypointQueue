@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using TMPro;
 using UI.Builder;
 using UI.Common;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue.State
 {
@@ -56,18 +55,18 @@ namespace WaypointQueue.State
 
         public static void LogValidationMessage(ValidationMessage message)
         {
-            Loader.LogError($"Validation error for {message.Scope}: {message.Message}");
+            ModLocator.Loader.LogError($"Validation error for {message.Scope}: {message.Message}");
         }
 
         public static void PresentValidationMessageModal(List<ValidationMessage> queueMessages, List<ValidationMessage> routeMessages)
         {
-            Loader.LogError($"Presenting validation error modal with the following errors");
+            ModLocator.Loader.LogError($"Presenting validation error modal with the following errors");
             queueMessages.ForEach(v => LogValidationMessage(v));
             routeMessages.ForEach(v => LogValidationMessage(v));
 
             ModalAlertController.Present((UIPanelBuilder builder, Action dismiss) =>
             {
-                builder.Spacing = 16f;
+                //builder.Spacing = 16f;
                 builder.AddLabel("Invalid waypoint data detected", delegate (TMP_Text text)
                 {
                     text.fontSize = 22f;

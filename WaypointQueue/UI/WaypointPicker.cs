@@ -7,10 +7,10 @@ using System.Collections.Generic;
 using Track;
 using UI;
 using UI.Common;
+using UI.Waypoints;
 using UnityEngine;
 using UnityEngine.Pool;
 using WaypointQueue.Services;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
 {
@@ -48,7 +48,7 @@ namespace WaypointQueue.UI
             {
                 if (_shared == null)
                 {
-                    _shared = FindObjectOfType<WaypointPicker>();
+                    _shared = FindAnyObjectByType<WaypointPicker>();
                 }
 
                 return _shared;
@@ -57,12 +57,12 @@ namespace WaypointQueue.UI
 
         private void Awake()
         {
-            _refuelService = Loader.ServiceProvider.GetService<RefuelService>();
+            _refuelService = ModLocator.ServiceProvider.GetService<RefuelService>();
         }
 
         private void InitWaypointMarker()
         {
-            Loader.LogDebug($"Waypoint adjuster InitWaypointMarker");
+            ModLocator.Loader.LogDebug($"Waypoint adjuster InitWaypointMarker");
             Transform destinationMarker = Traverse.Create(AutoEngineerDestinationPicker.Shared).Field<Transform>("destinationMarker").Value;
             _waypointMarker = destinationMarker;
         }
@@ -76,7 +76,7 @@ namespace WaypointQueue.UI
                     return false;
                 }
 
-                return GameInput.shared.PrimaryPressEndedThisFrame;
+                return GameInput.Shared.PrimaryPressEndedThisFrame;
             }
         }
 
@@ -277,7 +277,7 @@ namespace WaypointQueue.UI
             }
 
             _waypointMarker.gameObject.SetActive(value: false);
-            Loader.LogDebug($"WaypointPicker Hit: {valueOrDefault.Location} {valueOrDefault.CarInfo?.car} {valueOrDefault.CarInfo?.end}");
+            ModLocator.Loader.LogDebug($"WaypointPicker Hit: {valueOrDefault.Location} {valueOrDefault.CarInfo?.car} {valueOrDefault.CarInfo?.end}");
             _onWaypointSelected(location, valueOrDefault.CarInfo?.car?.id ?? "");
             Cancel();
         }

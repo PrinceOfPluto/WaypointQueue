@@ -1,11 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<Import Project="$(SolutionDir)Paths.user" Condition="Exists('$(SolutionDir)Paths.user')" />
 
 	<PropertyGroup>
 		<!-- Change this path to match your Railroader game installation directory -->
 		<RrManagedDir>$(RrInstallDir)\Railroader_Data\Managed</RrManagedDir>
-		<ModDirectory>$(RrInstallDir)\Mods\$(AssemblyName)\</ModDirectory>
+		<ModDirectory>$(RrHomeDir)\Mods\$(AssemblyName)\</ModDirectory>
 		<ModAssembly>$(ModDirectory)$(AssemblyName).dll</ModAssembly>
 		<TargetFrameworkProfile />
 	</PropertyGroup>
@@ -51,8 +51,8 @@
 	</ItemGroup>
 	<!-- Unity -->
 	<ItemGroup>
-		<Reference Include="Definition">
-			<HintPath>$(RrManagedDir)\Definition.dll</HintPath>
+		<Reference Include="Railroader">
+			<HintPath>$(RrManagedDir)\Railroader.dll</HintPath>
 			<Private>True</Private>
 		</Reference>
 		<Reference Include="KeyValue.Runtime">

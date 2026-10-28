@@ -6,7 +6,6 @@ using Track;
 using Track.Search;
 using UI.EngineControls;
 using WaypointQueue.Model;
-using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
 
@@ -23,13 +22,13 @@ namespace WaypointQueue.Services
 
         public bool FindNearbyCouplingInStraightLine(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Starting search for nearby coupling in straight line");
+            ModLocator.Loader.LogDebug($"Starting search for nearby coupling in straight line");
             (Location closestTrainEndLocation, Location furthestTrainEndLocation) = carService.GetTrainEndLocations(wp.Locomotive, wp.Location, out float closestDistance, out Car closestCar, out Car furthestCar, out _, out _);
             Location orientedClosestTrainEnd = Graph.Shared.LocationOrientedToward(closestTrainEndLocation, furthestTrainEndLocation);
 
             float checkDistanceInterval = AverageCarLengthMeters / 2;
             float totalDistanceChecked = 0;
-            float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
+            float searchRadius = ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
             List<Car> consist = wp.Locomotive.EnumerateCoupled().ToList();
 
             Car targetCar = null;
@@ -38,7 +37,7 @@ namespace WaypointQueue.Services
                 totalDistanceChecked += checkDistanceInterval;
                 try
                 {
-                    Loader.LogDebug($"Checking for coupling ahead by moving {totalDistanceChecked}");
+                    ModLocator.Loader.LogDebug($"Checking for coupling ahead by moving {totalDistanceChecked}");
                     Location checkLocation = Graph.Shared.LocationByMoving(orientedClosestTrainEnd, totalDistanceChecked, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
                     targetCar = trainControllerWrapper.CheckForCarAtLocation(checkLocation);
                     if (targetCar != null && !consist.Contains(targetCar))
@@ -73,18 +72,18 @@ namespace WaypointQueue.Services
                 wp.CoupleToCarId = targetCar.id;
                 wp.OverwriteLocation(bestLocation);
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
-                Loader.Log($"Sending target coupling waypoint for {wp.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
+                ModLocator.Loader.Log($"Sending target coupling waypoint for {wp.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
                 autoEngineerService.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
                 return true;
             }
 
-            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within straight line track search distance of {Loader.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
+            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within straight line track search distance of {ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
         }
 
         public bool FindNearbyCouplingInRadius(ManagedWaypoint wp, AutoEngineerOrdersHelper ordersHelper)
         {
-            Loader.LogDebug($"Starting search for nearby coupling in radius");
-            float searchRadius = Loader.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
+            ModLocator.Loader.LogDebug($"Starting search for nearby coupling in radius");
+            float searchRadius = ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
             List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
             List<string> nearbyCarIds = [.. trainControllerWrapper
                 .GetNearbyCarIds(wp.Location, searchRadius)
@@ -104,7 +103,7 @@ namespace WaypointQueue.Services
                     }
 
                     LogicalEnd nearestEnd = carService.ClosestLogicalEndTo(car, wp.Location);
-                    Graph.Shared.TryFindDistance(wp.Location, car.LocationFor(nearestEnd), out float totalDistance, out float traverseTimeSeconds);
+                    GraphRouteSearchExtension.TryFindDistance(Graph.Shared, wp.Location, car.LocationFor(nearestEnd), out float totalDistance);
                     if (totalDistance < bestMatchDistance)
                     {
                         bestMatchCar = car;
@@ -127,12 +126,12 @@ namespace WaypointQueue.Services
 
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
 
-                Loader.Log($"Sending nearby coupling waypoint for {wp.Locomotive.Ident} to {adjustedLocation} with coupling to {bestMatchCar.Ident}");
+                ModLocator.Loader.Log($"Sending nearby coupling waypoint for {wp.Locomotive.Ident} to {adjustedLocation} with coupling to {bestMatchCar.Ident}");
                 autoEngineerService.SendToWaypoint(ordersHelper, adjustedLocation, bestMatchCar.id);
                 return true;
             }
 
-            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within search radius of {Loader.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
+            throw new CouplingException($"Found no nearby cars to couple for {wp.Locomotive.Ident} within search radius of {ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths} car lengths.", wp);
         }
 
         public bool FindSpecificCouplingTarget(ManagedWaypoint waypoint, AutoEngineerOrdersHelper ordersHelper)
@@ -149,17 +148,17 @@ namespace WaypointQueue.Services
 
             if (!targetCar[nearestEnd].IsCoupled)
             {
-                Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
+                ModLocator.Loader.Log($"Closest end of {targetCar.Ident} is available to couple");
                 bestLocation = GetCouplerLocation(targetCar, nearestEnd);
             }
             else if (!targetCar[carService.GetOppositeEnd(nearestEnd)].IsCoupled)
             {
-                Loader.Log($"Furthest end of {targetCar.Ident} is available to couple");
+                ModLocator.Loader.Log($"Furthest end of {targetCar.Ident} is available to couple");
                 bestLocation = GetCouplerLocation(targetCar, carService.GetOppositeEnd(nearestEnd));
             }
             else
             {
-                Loader.LogError($"Both ends of {targetCar.Ident} are unavailable to couple");
+                ModLocator.Loader.LogError($"Both ends of {targetCar.Ident} are unavailable to couple");
                 throw new CouplingException($"Both ends of {targetCar.Ident} are unavailable for {waypoint.Locomotive.Ident} to couple", waypoint);
             }
 
@@ -173,7 +172,7 @@ namespace WaypointQueue.Services
                 waypoint.CoupleToCarId = targetCar.id;
                 waypoint.OverwriteLocation(bestLocation);
                 WaypointQueueController.Shared.UpdateWaypoint(waypoint);
-                Loader.Log($"Sending target coupling waypoint for {waypoint.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
+                ModLocator.Loader.Log($"Sending target coupling waypoint for {waypoint.Locomotive.Ident} to {bestLocation} with coupling to {targetCar.Ident}");
                 autoEngineerService.SendToWaypoint(ordersHelper, bestLocation, targetCar.id);
                 return true;
             }

@@ -9,7 +9,6 @@ using System.Linq;
 using Track;
 using UnityEngine;
 using WaypointQueue.Model;
-using WaypointQueue.UUM;
 using static Model.Ops.OpsController;
 
 namespace WaypointQueue
@@ -26,40 +25,40 @@ namespace WaypointQueue
         {
             Version = 1;
             LocomotiveId = locomotive?.id ?? null;
-            LocationString = Graph.Shared.LocationToString(location);
+            LocationString = Graph.LocationToString(location);
             CoupleToCarId = coupleToCarId;
 
-            ConnectAirOnCouple = Loader.Settings.ConnectAirByDefault;
-            ReleaseHandbrakesOnCouple = Loader.Settings.ReleaseHandbrakesByDefault;
-            ApplyHandbrakesOnUncouple = Loader.Settings.ApplyHandbrakesByDefault;
-            BleedAirOnUncouple = Loader.Settings.BleedAirByDefault;
-            BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
+            ConnectAirOnCouple = ModLocator.Settings.ConnectAirByDefault;
+            ReleaseHandbrakesOnCouple = ModLocator.Settings.ReleaseHandbrakesByDefault;
+            ApplyHandbrakesOnUncouple = ModLocator.Settings.ApplyHandbrakesByDefault;
+            BleedAirOnUncouple = ModLocator.Settings.BleedAirByDefault;
+            BottleAirOnUncouple = ! ModLocator.Settings.DoNotBottleAir;
 
-            WillLimitPassingSpeed = !Loader.Settings.DoNotLimitPassingSpeedDefault;
+            WillLimitPassingSpeed = ! ModLocator.Settings.DoNotLimitPassingSpeedDefault;
 
-            if (Input.GetKey(Loader.Settings.CoupleToNearestShortcutHotkey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
+            if (Input.GetKey( ModLocator.Settings.CoupleToNearestShortcutHotkey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
             {
-                CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)Loader.Settings.DefaultCouplingSearchMode;
+                CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode) ModLocator.Settings.DefaultCouplingSearchMode;
             }
-            else if (Input.GetKey(Loader.Settings.UncoupleShortcutHotkey.keyCode))
+            else if (Input.GetKey( ModLocator.Settings.UncoupleShortcutHotkey.keyCode))
             {
-                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+                UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
             }
-            else if (Input.GetKey(Loader.Settings.KickingShortcutHotkey.keyCode))
+            else if (Input.GetKey( ModLocator.Settings.KickingShortcutHotkey.keyCode))
             {
-                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+                UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
                 ConfigureForKicking();
             }
 
-            if (Loader.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
-            {
-                UncouplingMode = (UncoupleMode)Loader.Settings.DefaultUncouplingMode;
-            }
+            //if (ModLocator.Settings.AdvancedSettings.EnableThenUncoupleByDefault)
+            //{
+            //    UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
+            //}
 
-            if (Loader.Settings.AdvancedSettings.ShowPostCouplingCutByDefault && !String.IsNullOrEmpty(coupleToCarId))
-            {
-                SetDefaultPostCouplingCut();
-            }
+            //if (ModLocator.Settings.AdvancedSettings.ShowPostCouplingCutByDefault && !String.IsNullOrEmpty(coupleToCarId))
+            //{
+            //    SetDefaultPostCouplingCut();
+            //}
         }
 
         public enum WaitType
@@ -113,7 +112,7 @@ namespace WaypointQueue
                 {
                     return loco;
                 }
-                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint");
+                ModLocator.Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint");
                 return null;
             }
         }
@@ -140,7 +139,7 @@ namespace WaypointQueue
                 }
                 catch (Exception e)
                 {
-                    Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
+                    ModLocator.Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
                     _location = Location.Invalid;
                     return _location;
                 }
@@ -194,7 +193,7 @@ namespace WaypointQueue
         [JsonIgnore]
         public bool CanRefuelNearby
         {
-            get { return RefuelPoint != null && RefuelLoadName != null && RefuelLoadName.Length > 0; }
+            get { return RefuelPoint != null && RefuelLoadId != null && RefuelLoadId.Length > 0; }
         }
 
         [JsonIgnore]
@@ -210,7 +209,7 @@ namespace WaypointQueue
         public SerializableVector3 SerializableRefuelPoint { get; set; }
 
         public string RefuelIndustryId { get; set; }
-        public string RefuelLoadName { get; set; }
+        public string RefuelLoadId { get; set; }
         public float RefuelMaxCapacity { get; set; }
         public bool WillRefuel { get; set; }
         public bool CurrentlyRefueling { get; set; }
@@ -268,10 +267,10 @@ namespace WaypointQueue
                 CoupleToCarId = null;
                 CouplingSearchText = "";
 
-                if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None && Loader.Settings.AdvancedSettings.ShowPostCouplingCutByDefault)
-                {
-                    SetDefaultPostCouplingCut();
-                }
+                //if (value != CoupleSearchMode.None && PostCouplingCutMode == PostCoupleCutType.None &&  ModLocator.Settings.AdvancedSettings.ShowPostCouplingCutByDefault)
+                //{
+                //    SetDefaultPostCouplingCut();
+                //}
             }
         }
 
@@ -403,8 +402,8 @@ namespace WaypointQueue
 
         private void SetDefaultPostCouplingCut()
         {
-            PostCouplingCutMode = (PostCoupleCutType)Loader.Settings.DefaultPostCouplingCutMode;
-            UncouplingMode = (UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+            PostCouplingCutMode = (PostCoupleCutType) ModLocator.Settings.DefaultPostCouplingCutMode;
+            UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
         }
 
         public bool IsValidForRoute()
@@ -430,13 +429,13 @@ namespace WaypointQueue
 
         private void MigrateFromVersion0To1()
         {
-            Loader.LogDebug($"Migrating waypoint {Id} from version 0 to version 1");
+            ModLocator.Loader.LogDebug($"Migrating waypoint {Id} from version 0 to version 1");
             Version = 1;
 #pragma warning disable 0618
             // below is the only area where this obsolete field should be used
             if (SeekNearbyCoupling)
             {
-                Loader.LogDebug($"Setting waypoint id {Id} CouplingSearchMode to Nearest as migration from SeekNearbyCoupling");
+                ModLocator.Loader.LogDebug($"Setting waypoint id {Id} CouplingSearchMode to Nearest as migration from SeekNearbyCoupling");
                 CouplingSearchMode = CoupleSearchMode.Nearest;
                 SeekNearbyCoupling = false; // set to false so it doesn't get saved as true in the future
             }
@@ -444,13 +443,13 @@ namespace WaypointQueue
 
             if (HasAnyCouplingOrders && NumberOfCarsToCut == 0 && (PostCouplingCutMode == PostCoupleCutType.Pickup || PostCouplingCutMode == PostCoupleCutType.Dropoff))
             {
-                Loader.LogDebug($"Setting waypoint id {Id} PostCouplingCutMode to none since there are coupling orders with zero cars to cut for a pickup or dropoff");
+                ModLocator.Loader.LogDebug($"Setting waypoint id {Id} PostCouplingCutMode to none since there are coupling orders with zero cars to cut for a pickup or dropoff");
                 PostCouplingCutMode = PostCoupleCutType.None;
             }
 
             if (!HasAnyCouplingOrders && UncouplingMode == UncoupleMode.None && NumberOfCarsToCut > 0)
             {
-                Loader.LogDebug($"Setting waypoint id {Id} UncouplingMode to ByCount since there are {NumberOfCarsToCut} cars to cut");
+                ModLocator.Loader.LogDebug($"Setting waypoint id {Id} UncouplingMode to ByCount since there are {NumberOfCarsToCut} cars to cut");
                 UncouplingMode = UncoupleMode.ByCount;
             }
         }
@@ -460,11 +459,11 @@ namespace WaypointQueue
             // loco is null if false
             if (TrainController.Shared.TryGetCarForId(LocomotiveId, out loco))
             {
-                Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
+                ModLocator.Loader.LogDebug($"Loaded locomotive {loco.Ident} for ManagedWaypoint");
             }
             else
             {
-                Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
+                ModLocator.Loader.LogError($"Failed to resolve locomotive {LocomotiveId} for waypoint {Id}");
             }
             return loco != null;
         }
@@ -474,12 +473,12 @@ namespace WaypointQueue
             try
             {
                 loc = Graph.Shared.ResolveLocationString(LocationString);
-                Loader.LogDebug($"Loaded clamped location {Location} with area {AreaName} for waypoint {Id}");
+                ModLocator.Loader.LogDebug($"Loaded clamped location {Location} with area {AreaName} for waypoint {Id}");
                 return true;
             }
             catch (Exception e)
             {
-                Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
+                ModLocator.Loader.LogError($"Failed to resolve location string {LocationString}: {e}");
                 loc = default;
                 return false;
             }
@@ -501,7 +500,7 @@ namespace WaypointQueue
             }
             catch (Exception e)
             {
-                Loader.LogError($"Failed to resolve car id {CoupleToCarId}: {e}");
+                ModLocator.Loader.LogError($"Failed to resolve car id {CoupleToCarId}: {e}");
             }
             car = null;
             return false;
@@ -540,7 +539,7 @@ namespace WaypointQueue
             }
             catch (InvalidOpsCarPositionException)
             {
-                Loader.LogError($"Failed to resolve track destination by id {UncoupleDestinationId}  for waypoint id {Id}");
+                ModLocator.Loader.LogError($"Failed to resolve track destination by id {UncoupleDestinationId}  for waypoint id {Id}");
                 return false;
             }
         }
@@ -550,7 +549,7 @@ namespace WaypointQueue
             Industry industryMatch = OpsController.Shared.AllIndustries.Where(i => i.identifier == UncoupleDestinationId).FirstOrDefault();
             if (industryMatch == null)
             {
-                Loader.LogError($"Failed to resolve industry by id {UncoupleDestinationId} for waypoint id {Id}");
+                ModLocator.Loader.LogError($"Failed to resolve industry by id {UncoupleDestinationId} for waypoint id {Id}");
                 return false;
             }
             return true;
@@ -561,7 +560,7 @@ namespace WaypointQueue
             Area areaMatch = OpsController.Shared.Areas.Where(i => i.identifier == UncoupleDestinationId).FirstOrDefault();
             if (areaMatch == null)
             {
-                Loader.LogError($"Failed to resolve area by id {UncoupleDestinationId} for waypoint id {Id}");
+                ModLocator.Loader.LogError($"Failed to resolve area by id {UncoupleDestinationId} for waypoint id {Id}");
                 return false;
             }
             return true;
@@ -579,8 +578,8 @@ namespace WaypointQueue
         {
             StopAtWaypoint = false;
             WillLimitPassingSpeed = true;
-            WaypointTargetSpeed = Loader.Settings.PassingSpeedForKickingCars;
-            if (Loader.Settings.UncheckAirAndBrakesForKick)
+            WaypointTargetSpeed = ModLocator.Settings.PassingSpeedForKickingCars;
+            if ( ModLocator.Settings.UncheckAirAndBrakesForKick)
             {
                 ApplyHandbrakesOnUncouple = false;
                 BleedAirOnUncouple = false;
@@ -593,7 +592,7 @@ namespace WaypointQueue
             {
                 WaitingWasSkipped = true;
             }
-            Loader.LogDebug($"Clear waiting for {Locomotive.Ident} at {LocationString}");
+            ModLocator.Loader.LogDebug($"Clear waiting for {Locomotive.Ident} at {LocationString}");
             WillWait = false;
             CurrentlyWaiting = false;
             DurationOrSpecificTime = WaitType.Duration;
@@ -606,7 +605,7 @@ namespace WaypointQueue
         public void ClearRefueling()
         {
             WillRefuel = false;
-            RefuelLoadName = null;
+            RefuelLoadId = null;
             RefuelIndustryId = null;
         }
 
@@ -623,7 +622,7 @@ namespace WaypointQueue
         {
             Location clampedLocation = loc.Clamped();
             _location = clampedLocation;
-            LocationString = Graph.Shared.LocationToString(clampedLocation);
+            LocationString = Graph.LocationToString(clampedLocation);
         }
 
         public bool TryCopyForRoute(out ManagedWaypoint copy, BaseLocomotive loco = null)
@@ -672,7 +671,7 @@ namespace WaypointQueue
                    TakeUncoupledCarsAsActiveCut == other.TakeUncoupledCarsAsActiveCut &&
                    SerializableRefuelPoint.Equals(other.SerializableRefuelPoint) &&
                    RefuelIndustryId == other.RefuelIndustryId &&
-                   RefuelLoadName == other.RefuelLoadName &&
+                   RefuelLoadId == other.RefuelLoadId &&
                    RefuelMaxCapacity.Equals(other.RefuelMaxCapacity) &&
                    WillRefuel == other.WillRefuel &&
                    CurrentlyRefueling == other.CurrentlyRefueling &&
@@ -740,7 +739,7 @@ namespace WaypointQueue
                 [ValueKeys.TakeUncoupledCarsAsActiveCut] = Value.Bool(TakeUncoupledCarsAsActiveCut),
                 [ValueKeys.SerializableRefuelPoint] = SerializableRefuelPoint.ToPropertyValue(),
                 [ValueKeys.RefuelIndustryId] = Value.String(RefuelIndustryId),
-                [ValueKeys.RefuelLoadName] = Value.String(RefuelLoadName),
+                [ValueKeys.RefuelLoadName] = Value.String(RefuelLoadId),
                 [ValueKeys.RefuelMaxCapacity] = Value.Float(RefuelMaxCapacity),
                 [ValueKeys.WillRefuel] = Value.Bool(WillRefuel),
                 [ValueKeys.CurrentlyRefueling] = Value.Bool(CurrentlyRefueling),
@@ -810,7 +809,7 @@ namespace WaypointQueue
             waypoint.TakeUncoupledCarsAsActiveCut = dict[ValueKeys.TakeUncoupledCarsAsActiveCut].BoolValue;
             waypoint.SerializableRefuelPoint = SerializableVector3.FromPropertyValue(dict[ValueKeys.SerializableRefuelPoint]);
             waypoint.RefuelIndustryId = dict[ValueKeys.RefuelIndustryId].StringValue;
-            waypoint.RefuelLoadName = dict[ValueKeys.RefuelLoadName].StringValue;
+            waypoint.RefuelLoadId = dict[ValueKeys.RefuelLoadName].StringValue;
             waypoint.RefuelMaxCapacity = dict[ValueKeys.RefuelMaxCapacity].FloatValue;
             waypoint.WillRefuel = dict[ValueKeys.WillRefuel].BoolValue;
             waypoint.CurrentlyRefueling = dict[ValueKeys.CurrentlyRefueling].BoolValue;
@@ -864,7 +863,7 @@ namespace WaypointQueue
             }
             else
             {
-                waypoint.BottleAirOnUncouple = !Loader.Settings.DoNotBottleAir;
+                waypoint.BottleAirOnUncouple = ! ModLocator.Settings.DoNotBottleAir;
             }
 
             if (dict.ContainsKey(ValueKeys.RefuelLoaderRegisteredId))

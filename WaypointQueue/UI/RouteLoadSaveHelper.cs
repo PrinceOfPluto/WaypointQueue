@@ -8,7 +8,6 @@ using UI.Builder;
 using UI.Common;
 using UnityEngine;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 using static WaypointQueue.ModSaveManager;
 
 namespace WaypointQueue.UI
@@ -53,7 +52,7 @@ namespace WaypointQueue.UI
             ModalAlertController.Present(delegate (UIPanelBuilder builder, Action dismissAction)
             {
                 UIPanelBuilder alertBuilder = builder;
-                builder.Spacing = 16f;
+                //builder.Spacing = 16f;
                 string title;
                 string subtitle;
                 switch (mode)
@@ -200,7 +199,7 @@ namespace WaypointQueue.UI
 
                 string json = File.ReadAllText(path);
                 RouteDefinitionSaveState data = JsonConvert.DeserializeObject<RouteDefinitionSaveState>(json);
-                Loader.Log($"Loaded {data.RouteDefinitions?.Count ?? 0} routes from '{_filename}'.");
+                ModLocator.Loader.Log($"Loaded {data.RouteDefinitions?.Count ?? 0} routes from '{_filename}'.");
 
                 ModStateManager.Shared.RegisterRoutesFromLoad(data.RouteDefinitions);
             }

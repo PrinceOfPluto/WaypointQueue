@@ -18,7 +18,7 @@
   <PropertyGroup>
     <!-- Change this path to match your Railroader game installation directory -->
     <RrManagedDir>$(RrInstallDir)\Railroader_Data\Managed</RrManagedDir>
-    <ModDirectory>$(RrInstallDir)\Mods\$(AssemblyName)\</ModDirectory>
+    <ModDirectory>$(RrHomeDir)\Mods\$(AssemblyName)\</ModDirectory>
     <ModAssembly>$(ModDirectory)$(AssemblyName).dll</ModAssembly>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -45,18 +45,21 @@
       <HintPath>$(RrManagedDir)\Railroader.dll</HintPath>
       <Private>False</Private>
     </Reference>
+	<Reference Include="Railroader.Modding">
+		<HintPath>$(RrManagedDir)\Railroader.Modding.dll</HintPath>
+		<Private>False</Private>
+	</Reference>
   </ItemGroup>
   <!-- Null Checking -->
   <ItemGroup>
+    <PackageReference Include="Lib.Harmony">
+      <Version>2.4.3</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
   </ItemGroup>
   <!-- Unity -->
   <ItemGroup>
-    <Reference Include="Definition">
-      <HintPath>$(RrManagedDir)\Definition.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="KeyValue.Runtime">
       <HintPath>$(RrManagedDir)\KeyValue.Runtime.dll</HintPath>
       <Private>False</Private>
@@ -120,6 +123,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model\KeyBinding.cs" />
     <Compile Include="Model\CouplingException.cs" />
     <Compile Include="Model\DelayedBleedAirCutEntry.cs" />
     <Compile Include="Model\IStorableProperty.cs" />
@@ -128,6 +132,7 @@
     <Compile Include="Model\WaypointError.cs" />
     <Compile Include="Model\WaypointProcessingException.cs" />
     <Compile Include="Model\QueueTickException.cs" />
+    <Compile Include="ModLocator.cs" />
     <Compile Include="Patches\PatchAutoEngineerWaypointOverlayController.cs" />
     <Compile Include="Patches\PatchNoticeManager.cs" />
     <Compile Include="Patches\PatchTrainController.cs" />
@@ -177,8 +182,6 @@
     <Compile Include="WaypointResolver.cs" />
     <Compile Include="UI\WaypointWindow.cs" />
     <Compile Include="WaypointQueueSettings.cs" />
-    <Compile Include="UI\WindowBase.cs" />
-    <Compile Include="UI\WindowHelper.cs" />
     <Compile Include="Wrappers\TrainControllerWrapper.cs" />
   </ItemGroup>
   <ItemGroup>

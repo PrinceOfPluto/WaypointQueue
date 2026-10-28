@@ -6,7 +6,6 @@ using System;
 using System.Reflection;
 using Track;
 using UI.EngineControls;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue.Services
 {
@@ -14,8 +13,8 @@ namespace WaypointQueue.Services
     {
         public void SendToWaypoint(AutoEngineerOrdersHelper ordersHelper, Location location, string coupleToCarId = null)
         {
-            (Location, string)? maybeWaypoint = (location.Clamped(), coupleToCarId);
-            ordersHelper.SetOrdersValue(null, null, null, null, maybeWaypoint);
+            OrderWaypoint maybeOrderWaypoint = new OrderWaypoint(location.Clamped().ToString(), coupleToCarId);
+            ordersHelper.SetOrdersValue(null, null, null, null, maybeOrderWaypoint);
         }
 
         public void SendToWaypoint(BaseLocomotive loco, Location location, string coupleToCarId = null)
@@ -41,7 +40,7 @@ namespace WaypointQueue.Services
 
         public void CancelActiveOrders(BaseLocomotive loco)
         {
-            Loader.Log($"Canceling active orders for {loco.Ident}");
+            ModLocator.Loader.Log($"Canceling active orders for {loco.Ident}");
             AutoEngineerOrdersHelper ordersHelper = GetOrdersHelper(loco);
 
             if (ordersHelper.Mode == AutoEngineerMode.Waypoint)

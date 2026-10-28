@@ -1,5 +1,5 @@
-﻿using GalaSoft.MvvmLight.Messaging;
-using Game;
+﻿using Game;
+using Game.Events;
 using HarmonyLib;
 using Model;
 using Model.Ops;
@@ -16,31 +16,31 @@ using UI;
 using UI.Builder;
 using UI.Common;
 using UI.CompanyWindow;
+using UI.Windows;
 using UnityEngine;
 using UnityEngine.UI;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.State;
 using WaypointQueue.State.Events;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue.UI
 {
     [RequireComponent(typeof(Window))]
-    public class WaypointWindow : WindowBase
+    public class WaypointWindow : MonoBehaviour
     {
-        public override string WindowIdentifier => "WaypointPanel";
-        public override string Title => "Waypoints";
+        public static string WindowIdentifier => "WaypointPanel";
+        public static string Title => "Waypoints";
 
-        public override Vector2Int DefaultSize => new Vector2Int(450, 500);
+        public static Vector2Int DefaultSize => new Vector2Int(450, 500);
 
-        public override Window.Position DefaultPosition => Window.Position.LowerRight;
+        public static Window.Position DefaultPosition => Window.Position.LowerRight;
 
-        public override Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
+        public Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
 
         public static WaypointWindow Shared { get; private set; }
 
-        public bool IsVisible => Shared.Window.IsShown;
+        public bool IsVisible => WindowManager.Shared.IsWindowOpen(WindowIdentifier);
 
         private static readonly Dictionary<string, UIPanelBuilder> panelsByWaypointId = [];
 
@@ -56,6 +56,30 @@ namespace WaypointQueue.UI
 
         private ICarService _carService;
 
+        private CustomWindow _customWindow;
+
+        public void Register()
+        {
+            var waypointWindowDef = new CustomWindowDefinition
+            {
+                Title = Title,
+                Identifier = WindowIdentifier,
+                Config = WindowConfig.Resizable(DefaultSize, new Vector2Int(650, Screen.height), Window.Position.LowerRight),
+                BuilderAction = Populate
+            };
+            WindowManager.Shared.RegisterCustomWindow(waypointWindowDef);
+        }
+
+        public void Toggle()
+        {
+            WindowManager.Shared.ToggleWindow(WindowIdentifier);
+
+            if (_customWindow == null)
+            {
+                _customWindow = WindowManager.Shared.GetCustomWindow(WindowIdentifier);
+            }
+        }
+
         protected void Awake()
         {
             Shared = this;
@@ -68,31 +92,31 @@ namespace WaypointQueue.UI
 
         protected void OnEnable()
         {
-            Messenger.Default.Register<WaypointDidUpdate>(this, OnWaypointDidUpdate);
-            Messenger.Default.Register<QueueDidUpdate>(this, OnQueueDidUpdate);
-            Messenger.Default.Register<WaypointWasAppended>(this, OnWaypointWasAppended);
-            _carService = Loader.ServiceProvider.GetService<ICarService>();
+            EventBus.Subscribe<WaypointDidUpdate>(this, OnWaypointDidUpdate);
+            EventBus.Subscribe<QueueDidUpdate>(this, OnQueueDidUpdate);
+            EventBus.Subscribe<WaypointWasAppended>(this, OnWaypointWasAppended);
+            _carService = ModLocator.ServiceProvider.GetService<ICarService>();
         }
 
         protected void OnDisable()
         {
-            Messenger.Default.Unregister(this);
+            EventBus.Unsubscribe(this);
         }
 
         private void OnQueueDidUpdate(QueueDidUpdate queueDidUpdateEvent)
         {
-            if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && Shared.Window.IsShown)
+            if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && IsVisible)
             {
-                Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
+                ModLocator.Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
                 RebuildWithScroll();
             }
         }
 
         private void OnWaypointDidUpdate(WaypointDidUpdate waypointDidUpdateEvent)
         {
-            if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && Shared.Window.IsShown)
+            if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && IsVisible)
             {
-                Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
+                ModLocator.Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
                 panelBuilder.Rebuild();
             }
         }
@@ -104,7 +128,7 @@ namespace WaypointQueue.UI
                 return;
             }
 
-            if (waypointWasAppendedEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && Shared.Window.IsShown)
+            if (waypointWasAppendedEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && IsVisible)
             {
                 LocoWaypointState locoWaypointState = ModStateManager.Shared.GetLocoWaypointState(_selectedLocomotiveId);
                 List<ManagedWaypoint> waypointList = locoWaypointState.Waypoints;
@@ -119,7 +143,7 @@ namespace WaypointQueue.UI
 
         private void RebuildWithScroll()
         {
-            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
             bool setScrollOnNextUpdate = false;
             if (scrollRect != null)
             {
@@ -127,7 +151,7 @@ namespace WaypointQueue.UI
                 setScrollOnNextUpdate = true;
             }
 
-            Rebuild();
+            _customWindow.Rebuild();
 
             if (setScrollOnNextUpdate)
             {
@@ -137,7 +161,7 @@ namespace WaypointQueue.UI
 
         private void ScrollToBottom()
         {
-            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
             if (scrollRect == null) return;
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
             scrollRect.verticalNormalizedPosition = 0f;
@@ -145,7 +169,7 @@ namespace WaypointQueue.UI
 
         private void HandleScrollUpdate()
         {
-            ScrollRect scrollRect = Shared.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
+            ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
             if (scrollRect != null)
             {
                 scrollRect.verticalNormalizedPosition = _scrollPosition;
@@ -170,59 +194,44 @@ namespace WaypointQueue.UI
                 {
                     _selectedLocomotiveId = null;
                 }
-                Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
+                ModLocator.Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
                 RebuildWithScroll();
             }
         }
 
         public void Show()
         {
-            Loader.LogDebug($"Rebuilding and showing waypoint panel");
+            ModLocator.Loader.LogDebug($"Rebuilding and showing waypoint panel");
             RebuildWithScroll();
-            WindowPersistence.SetInitialPositionSize(Shared.Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing);
-            Shared.Window.ShowWindow();
+            WindowPersistence.SetInitialPositionSize(_customWindow.Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing);
+            _customWindow.Window.ShowWindow();
 
             if (_coroutine == null)
             {
-                Loader.LogDebug($"Starting waypoint window coroutine");
+                ModLocator.Loader.LogDebug($"Starting waypoint window coroutine");
                 _coroutine = StartCoroutine(Ticker());
             }
         }
 
         public void Hide()
         {
-            Shared.Window.CloseWindow();
+            _customWindow.Window.CloseWindow();
 
             if (_coroutine != null)
             {
-                Loader.LogDebug($"Stopping waypoint window coroutine");
+                ModLocator.Loader.LogDebug($"Stopping waypoint window coroutine");
                 StopCoroutine(_coroutine);
                 _coroutine = null;
             }
         }
 
-        public static void Toggle()
+        public void Populate(UIPanelBuilder builder)
         {
-            Loader.LogDebug($"Toggling waypoint panel");
-            if (Shared.Window.IsShown)
-            {
-                Loader.LogDebug($"Toggling waypoint panel closed");
-                Shared.Hide();
-            }
-            else
-            {
-                Loader.LogDebug($"Toggling waypoint panel open");
-                Shared.Show();
-            }
-        }
-
-        public override void Populate(UIPanelBuilder builder)
-        {
-            Loader.LogDebug($"Populating WaypointWindow");
+            ModLocator.Loader.LogDebug($"Populating WaypointWindow");
 
             panelsByWaypointId.Clear();
 
-            builder.Spacing = 12f;
+            //builder.Spacing = 12f;
 
             builder.VScrollView(delegate (UIPanelBuilder builder)
             {
@@ -233,16 +242,16 @@ namespace WaypointQueue.UI
                 {
                     builder.AddLabel("No locomotive is currently selected").HorizontalTextAlignment(TMPro.HorizontalAlignmentOptions.Center);
 
-                    if (Loader.Settings.AdvancedSettings.EnableSaveDataDebugOptions && Multiplayer.IsHost)
-                    {
-                        builder.Spacer(24f);
-                        builder.HStack(row =>
-                        {
-                            row.Spacer(16f);
-                            row.AddLabel("Debug Options");
-                            BuildNoLocomotiveSelectedOptionsMenu(row);
-                        });
-                    }
+                    //if ( ModLocator.Settings.AdvancedSettings.EnableSaveDataDebugOptions && Multiplayer.IsHost)
+                    //{
+                    //    builder.Spacer(24f);
+                    //    builder.HStack(row =>
+                    //    {
+                    //        row.Spacer(16f);
+                    //        row.AddLabel("Debug Options");
+                    //        BuildNoLocomotiveSelectedOptionsMenu(row);
+                    //    });
+                    //}
                     return;
                 }
 
@@ -365,7 +374,7 @@ namespace WaypointQueue.UI
                 cachePanelByWaypointId(waypointId, builder);
                 ManagedWaypoint waypoint = ModStateManager.Shared.GetWaypointById(waypointId, waypointOwnerId, isRouteWindow);
 
-                Loader.LogDebug($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
+                ModLocator.Loader.LogDebug($"Building waypoint section for {waypoint.Id}, at index {index} out of {totalWaypoints}");
                 builder.AddHRule();
                 builder.Spacer(16f);
                 builder.HStack(delegate (UIPanelBuilder builder)
@@ -551,7 +560,7 @@ namespace WaypointQueue.UI
             {
                 if (value)
                 {
-                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultUncouplingMode;
+                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
                     onWaypointChange(waypoint);
                 }
             }));
@@ -563,7 +572,7 @@ namespace WaypointQueue.UI
             {
                 if (value)
                 {
-                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)Loader.Settings.DefaultCouplingSearchMode;
+                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode) ModLocator.Settings.DefaultCouplingSearchMode;
                     onWaypointChange(waypoint);
                 }
             }));
@@ -723,7 +732,7 @@ namespace WaypointQueue.UI
                         dismiss();
                     });
                 });
-            }, 500);
+            }, false, 500);
         }
 
         private UIPanelBuilder BuildStatusLabelField(string label, UIPanelBuilder builder)
@@ -770,7 +779,7 @@ namespace WaypointQueue.UI
                     int maxSpeed = 35;
                     if (Multiplayer.IsHost)
                     {
-                        AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                        AutoEngineerService autoEngineerService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
                         maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
                     }
                     waypoint.WaypointTargetSpeed = maxSpeed;
@@ -792,7 +801,7 @@ namespace WaypointQueue.UI
                     int maxSpeed = 35;
                     if (Multiplayer.IsHost)
                     {
-                        AutoEngineerService autoEngineerService = Loader.ServiceProvider.GetService<AutoEngineerService>();
+                        AutoEngineerService autoEngineerService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
                         maxSpeed = autoEngineerService.GetOrdersMaxSpeed(waypoint.Locomotive);
                     }
                     waypoint.WaypointTargetSpeed = maxSpeed;
@@ -1360,7 +1369,7 @@ namespace WaypointQueue.UI
                     if (value)
                     {
                         waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Pickup;
-                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
                         onWaypointChange(waypoint);
                     }
                 }));
@@ -1371,7 +1380,7 @@ namespace WaypointQueue.UI
                     if (value)
                     {
                         waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Dropoff;
-                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)Loader.Settings.DefaultPostCouplingCutUncouplingMode;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
                         onWaypointChange(waypoint);
                     }
                 }));
@@ -1496,7 +1505,7 @@ namespace WaypointQueue.UI
         {
             builder.HStack(row =>
             {
-                row.AddField($"Refuel {waypoint.RefuelLoadName}", row.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+                row.AddField($"Refuel {waypoint.RefuelLoadId}", row.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
                 {
                     waypoint.WillRefuel = value;
                     onWaypointChange(waypoint);
@@ -1667,14 +1676,14 @@ namespace WaypointQueue.UI
                             {
                                 if (TryParseDurationInput(value, out int minutes))
                                 {
-                                    Loader.Log($"Parsed duration as {minutes}");
+                                    ModLocator.Loader.Log($"Parsed duration as {minutes}");
                                     waypoint.WaitUntilTimeString = value;
                                     waypoint.WaitForDurationMinutes = minutes;
                                     onWaypointChange(waypoint);
                                 }
                                 else
                                 {
-                                    Loader.LogError($"Error parsing duration: \"{value}\"");
+                                    ModLocator.Loader.LogError($"Error parsing duration: \"{value}\"");
                                     Toast.Present("Duration must be in HH:MM, HH MM, or MM format");
                                 }
                             }, placeholder: "HH:MM").Width(80f);
@@ -1723,13 +1732,13 @@ namespace WaypointQueue.UI
                     {
                         if (TimetableReader.TryParseTime(value, out TimetableTime time))
                         {
-                            Loader.Log($"Parsed minutes as {time.Minutes}");
+                            ModLocator.Loader.Log($"Parsed minutes as {time.Minutes}");
                             waypoint.WaitUntilTimeString = value;
                             onWaypointChange(waypoint);
                         }
                         else
                         {
-                            Loader.LogError($"Error parsing time: \"{value}\"");
+                            ModLocator.Loader.LogError($"Error parsing time: \"{value}\"");
                             Toast.Present("Time must be in HH:MM 24-hour format.");
                         }
                     }, placeholder: "HH:MM", 5).Width(80f);
@@ -1827,7 +1836,7 @@ namespace WaypointQueue.UI
 
                     foreach (var t in sortedTrains)
                     {
-                        labels.Add(Loader.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong);
+                        labels.Add(ModLocator.Settings.ShowTimeInTrainSymbolDropdown ? DropdownLabelForTimetableTrain(t) : t.DisplayStringLong);
                         values.Add(t.Name);   // value = symbol
                     }
 
@@ -1835,12 +1844,12 @@ namespace WaypointQueue.UI
                 }
                 else
                 {
-                    Loader.LogDebug("[TimetableSymbolDropdown] TimetableController.Current is null or has no trains.");
+                    ModLocator.Loader.LogDebug("[TimetableSymbolDropdown] TimetableController.Current is null or has no trains.");
                 }
             }
             catch (Exception ex)
             {
-                Loader.LogError($"[TimetableSymbolDropdown] Error building choices: {ex}");
+                ModLocator.Loader.LogError($"[TimetableSymbolDropdown] Error building choices: {ex}");
             }
 
             // Selected index: default to "No change" (0); if current is set, select it if present
@@ -1855,7 +1864,7 @@ namespace WaypointQueue.UI
 
         private List<DropdownOption> BuildTrackDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Building track destination options for {waypoint.Id}");
+            ModLocator.Loader.LogDebug($"Building track destination options for {waypoint.Id}");
             List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
 
             var carPositionLookup = Traverse.Create(OpsController.Shared).Field("_carPositionLookup").GetValue<Dictionary<string, OpsCarPosition>>();
@@ -1884,7 +1893,7 @@ namespace WaypointQueue.UI
 
         private List<DropdownOption> BuildIndustryDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Building industry destination options for {waypoint.Id}");
+            ModLocator.Loader.LogDebug($"Building industry destination options for {waypoint.Id}");
             List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
 
             string filter = waypoint.DestinationSearchText?.Trim().ToLower() ?? "";
@@ -1906,7 +1915,7 @@ namespace WaypointQueue.UI
 
         private List<DropdownOption> BuildAreaDestinationMatchDropdown(ManagedWaypoint waypoint)
         {
-            Loader.LogDebug($"Building area destination options for {waypoint.Id}");
+            ModLocator.Loader.LogDebug($"Building area destination options for {waypoint.Id}");
             List<DropdownOption> options = [new DropdownOption("Select a destination", ""), new DropdownOption(WaypointResolver.NoDestinationString, WaypointResolver.NoDestinationString)];
 
             string filter = waypoint.DestinationSearchText?.Trim().ToLower() ?? "";

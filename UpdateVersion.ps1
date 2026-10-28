@@ -17,7 +17,7 @@ if ($versionParts.Length -ge 3) {
 $jsonContent = Get-Content -Path $FilePath -Raw
 
 # Use regex to replace the version
-$jsonContent = [System.Text.RegularExpressions.Regex]::Replace($jsonContent, '"Version":\s*"[^\"]+"', '"Version": "' + $MajorMinorPatchVersion + '"')
+$jsonContent = [System.Text.RegularExpressions.Regex]::Replace($jsonContent, '"version":\s*"[^\"]+"', '"version": "' + $MajorMinorPatchVersion + '"')
 
 # Write the modified content back to the file
 Set-Content -Path $FilePath -Value $jsonContent

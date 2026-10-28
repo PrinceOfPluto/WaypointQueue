@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 
 namespace WaypointQueue
 {
@@ -27,7 +26,7 @@ namespace WaypointQueue
                 }
                 catch (Exception)
                 {
-                    Loader.LogError($"Failed to load waypoint for route {route.Id} with name {route.Name}");
+                    ModLocator.Loader.LogError($"Failed to load waypoint for route {route.Id} with name {route.Name}");
                     return false;
                 }
             }
@@ -86,7 +85,7 @@ namespace WaypointQueue
 
             if (index < 0)
             {
-                Loader.LogError($"Failed to find waypoint to update for route by waypoint id {waypoint.Id}");
+                ModLocator.Loader.LogError($"Failed to find waypoint to update for route by waypoint id {waypoint.Id}");
                 return;
             }
 
@@ -106,7 +105,7 @@ namespace WaypointQueue
 
             if (index < 0)
             {
-                Loader.LogError($"Failed to find waypoint to remove for route by waypoint id {waypoint.Id}");
+                ModLocator.Loader.LogError($"Failed to find waypoint to remove for route by waypoint id {waypoint.Id}");
                 return;
             }
 

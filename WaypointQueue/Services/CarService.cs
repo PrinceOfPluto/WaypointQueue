@@ -10,7 +10,6 @@ using System.Reflection;
 using Track;
 using UnityEngine;
 using WaypointQueue.State;
-using WaypointQueue.UUM;
 using WaypointQueue.Wrappers;
 using static Model.Car;
 
@@ -22,16 +21,16 @@ namespace WaypointQueue.Services
         {
             int vanillaBrakesToApply = trainControllerWrapper.CalculateNumHandbrakes(cars);
 
-            int playerPercentBrakesToApply = Mathf.CeilToInt(cars.Count * Loader.Settings.HandbrakePercentOnUncouple);
-            int playerGreaterMinimumBrakes = Mathf.Max(Loader.Settings.MinimumHandbrakesOnUncouple, playerPercentBrakesToApply);
+            int playerPercentBrakesToApply = Mathf.CeilToInt(cars.Count * ModLocator.Settings.HandbrakePercentOnUncouple);
+            int playerGreaterMinimumBrakes = Mathf.Max(ModLocator.Settings.MinimumHandbrakesOnUncouple, playerPercentBrakesToApply);
 
             int numBreaksToApply = Mathf.Max(vanillaBrakesToApply, playerGreaterMinimumBrakes);
 
-            Loader.Log($"Setting {numBreaksToApply} handbrakes on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
+            ModLocator.Loader.Log($"Setting {numBreaksToApply} handbrakes on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
             foreach (Car car in cars)
             {
                 bool shouldApplyBrake = numBreaksToApply > 0;
-                if (car.Archetype == CarArchetype.Tender)
+                if (car.CarType.IsTender)
                 {
                     shouldApplyBrake = false;
                 }
@@ -58,7 +57,7 @@ namespace WaypointQueue.Services
 
         public void BleedAirOnCut(List<Car> cars)
         {
-            Loader.LogDebug($"Bleeding air on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
+            ModLocator.Loader.LogDebug($"Bleeding air on {cars.Count} cars: {CarUtils.CarListToString(cars)}");
             foreach (Car car in cars)
             {
                 car.air.BleedBrakeCylinder();
@@ -78,7 +77,7 @@ namespace WaypointQueue.Services
                 else
                 {
                     // Close anglecock if not adjacent to a car
-                    Loader.LogDebug($"Closing air on {car.Ident} end {LogicalEnd.A} without adjacent car");
+                    ModLocator.Loader.LogDebug($"Closing air on {car.Ident} end {LogicalEnd.A} without adjacent car");
                     car.ApplyEndGearChange(LogicalEnd.A, EndGearStateKey.Anglecock, f: 0.0f);
                 }
 
@@ -91,7 +90,7 @@ namespace WaypointQueue.Services
                 else
                 {
                     // Close anglecock if not adjacent to a car
-                    Loader.LogDebug($"Closing air on {car.Ident} end {LogicalEnd.B} without adjacent car");
+                    ModLocator.Loader.LogDebug($"Closing air on {car.Ident} end {LogicalEnd.B} without adjacent car");
                     car.ApplyEndGearChange(LogicalEnd.B, EndGearStateKey.Anglecock, f: 0.0f);
                 }
             }
@@ -227,12 +226,12 @@ namespace WaypointQueue.Services
             List<Car> firstAndLastCars = [carsToCut.FirstOrDefault(), carsToCut.LastOrDefault()];
             foreach (Car car in firstAndLastCars)
             {
-                if (car.Archetype == CarArchetype.LocomotiveSteam && PatchSteamLocomotive.TryGetTender(car, out Car tender) && !carsToCut.Any(c => c.id == tender.id))
+                if (car.CarType.IsLocomotiveSteam && PatchSteamLocomotive.TryGetTender(car, out Car tender) && !carsToCut.Any(c => c.id == tender.id))
                 {
                     // locomotive in cut without tender
                     carsToCut.Remove(car);
                 }
-                else if (car.Archetype == CarArchetype.Tender && car.TryGetAdjacentCar(car.EndToLogical(End.F), out Car parentLoco) && !carsToCut.Any(c => c.id == parentLoco.id))
+                else if (car.CarType.IsTender && car.TryGetAdjacentCar(car.EndToLogical(End.F), out Car parentLoco) && !carsToCut.Any(c => c.id == parentLoco.id))
                 {
                     // tender in cut without locomotive
                     carsToCut.Remove(car);
@@ -243,7 +242,7 @@ namespace WaypointQueue.Services
 
         public bool IsCarLocomotiveType(Car car)
         {
-            return car.Archetype == CarArchetype.LocomotiveDiesel || car.Archetype == CarArchetype.LocomotiveSteam || car.Archetype == CarArchetype.Tender;
+            return car.CarType.IsLocomotive || car.CarType.IsTender;
         }
 
         public bool ShouldPeriodicReroute(BaseLocomotive locomotive)
@@ -285,7 +284,7 @@ namespace WaypointQueue.Services
             {
                 return loco;
             }
-            Loader.LogError($"Failed to GetLocoById {locoId}");
+            ModLocator.Loader.LogError($"Failed to GetLocoById {locoId}");
             return null;
         }
 
