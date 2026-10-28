@@ -119,11 +119,11 @@ namespace WaypointQueue
         private const float HighSpeedWaypointRadiusMeters = 25f;
 
         [HarmonyPostfix]
-        [HarmonyPatch("IsWaypointSatisfied")]
-        private static void IsWaypointSatisfiedPostfix(
+        [HarmonyPatch("CheckWaypointArrival")]
+        private static void CheckWaypointArrivalPostfix(
             AutoEngineerPlanner __instance,
             OrderWaypoint waypoint,
-            ref bool __result,
+            ref WaypointArrival __result,
             BaseLocomotive ____locomotive,
             Graph ____graph,
             ref Location? ____routeTargetLocation
@@ -132,7 +132,7 @@ namespace WaypointQueue
             try
             {
 
-                if (__result)
+                if (__result == WaypointArrival.Arrived)
                     return;
 
                 if (____locomotive == null)
@@ -171,7 +171,7 @@ namespace WaypointQueue
 
                 if (bestDistance <= HighSpeedWaypointRadiusMeters)
                 {
-                    __result = true;
+                    __result = WaypointArrival.Arrived;
                 }
             }
             catch (Exception ex)

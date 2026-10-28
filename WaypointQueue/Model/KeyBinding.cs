@@ -7,6 +7,10 @@ namespace WaypointQueue.Model
         public KeyCode keyCode = KeyCode.None;
         public int modifiers = 0;
 
+        public static int Ctrl => 1;
+        public static int Alt => 2;
+        public static int Shift => 4;
+
         public bool IsPressed()
         {
             if (keyCode == KeyCode.None) return false;

@@ -26,7 +26,6 @@ using WaypointQueue.State.Events;
 
 namespace WaypointQueue.UI
 {
-    [RequireComponent(typeof(Window))]
     public class WaypointWindow : MonoBehaviour
     {
         public static string WindowIdentifier => "WaypointPanel";
@@ -1505,7 +1504,7 @@ namespace WaypointQueue.UI
         {
             builder.HStack(row =>
             {
-                row.AddField($"Refuel {waypoint.RefuelLoadId}", row.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
+                row.AddField($"Refuel {RefuelService.GetLabelForLoadId(waypoint.RefuelLoadId)}", row.AddToggle(() => waypoint.WillRefuel, delegate (bool value)
                 {
                     waypoint.WillRefuel = value;
                     onWaypointChange(waypoint);

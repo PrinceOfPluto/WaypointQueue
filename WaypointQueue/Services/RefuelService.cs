@@ -27,7 +27,23 @@ namespace WaypointQueue.Services
 
         private readonly Dictionary<string, float> _cachedCarLoadQuantityByFuelCarId = [];
 
-        public void RebuildCollections()
+        public static string WaterLoadId => "rr/water";
+		public static string CoalLoadId => "rr/coal";
+		public static string DieselLoadId => "rr/diesel-fuel";
+
+		public static string GetLabelForLoadId(string loadId)
+		{
+            Load load = null;
+            Load.Resolve(ref load, loadId);
+            if (load != null)
+            {
+                return load.description;
+            }
+            return "Unknown Load Id";
+		}
+
+
+		public void RebuildCollections()
         {
             _carLoadTargetLoaders.Clear();
             _carLoaderSequencers.Clear();
@@ -87,11 +103,11 @@ namespace WaypointQueue.Services
         {
             carService.GetTrainEndLocations(locomotive, location, out _, out _, out _, out LogicalEnd closestEnd, out LogicalEnd furthestEnd);
 
-            if (refuelLoadName == "water" || refuelLoadName == "coal")
+            if (refuelLoadName == WaterLoadId || refuelLoadName == CoalLoadId)
             {
                 return [.. locomotive.EnumerateCoupled(closestEnd).Where(c => c.CarType.IsLocomotiveSteam).Cast<BaseLocomotive>()];
             }
-            if (refuelLoadName == "diesel-fuel")
+            if (refuelLoadName == DieselLoadId)
             {
                 return [.. locomotive.EnumerateCoupled(closestEnd).Where(c => c.CarType.IsLocomotiveDiesel).Cast<BaseLocomotive>()];
             }
@@ -122,9 +138,9 @@ namespace WaypointQueue.Services
 
             float totalTrainLength = CarService.CalculateTotalLength([.. locomotive.EnumerateCoupled()]);
 
-            //Loader.LogDebug($"Total train length is {totalTrainLength}");
-            //Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
-            //Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
+            ModLocator.Loader.LogDebug($"Total train length is {totalTrainLength}");
+			ModLocator.Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
+			ModLocator.Loader.LogDebug($"distanceFromClosestFuelCarEndToSlot is {distanceFromClosestFuelCarEndToSlot}");
 
             Location locationToMoveToward = new();
             float distanceToMove = 0;
@@ -146,36 +162,36 @@ namespace WaypointQueue.Services
                 clampedSlotPosition = furthestTrainEndPosition;
             }
 
-            //Loader.LogDebug($"Checking if slot is in between loader and closest end");
+			ModLocator.Loader.LogDebug($"Checking if slot is in between loader and closest end");
             if (IsTargetBetween(clampedSlotPosition, targetLoaderPosition, closestTrainEndPosition, inclusive: true))
             {
-                // need to move toward the far end
-                //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and closest end");
+				// need to move toward the far end
+				ModLocator.Loader.LogDebug($"{waypoint.RefuelLoadId} slot is between loader and closest end");
                 distanceToMove = distanceFromFurthestEndOfTrainToFuelCarInclusive - distanceFromClosestFuelCarEndToSlot;
                 locationToMoveToward = furthestTrainEndLocation;
             }
 
-            //Loader.LogDebug($"Checking if slot is in between loader and furthest end");
+			ModLocator.Loader.LogDebug($"Checking if slot is in between loader and furthest end");
             if (IsTargetBetween(clampedSlotPosition, targetLoaderPosition, furthestTrainEndPosition, inclusive: true))
             {
                 // need to move toward the near end
-                //Loader.LogDebug($"{waypoint.RefuelLoadName} slot is between loader and furthest end");
+                ModLocator.Loader.LogDebug($"{waypoint.RefuelLoadId} slot is between loader and furthest end");
                 distanceToMove = totalTrainLength - distanceFromFurthestEndOfTrainToFuelCarInclusive + distanceFromClosestFuelCarEndToSlot;
                 locationToMoveToward = closestTrainEndLocation;
             }
 
-            //Loader.LogDebug($"Checking if loader is in between closest end and furthest end");
+			ModLocator.Loader.LogDebug($"Checking if loader is in between closest end and furthest end");
             if (IsTargetBetween(targetLoaderPosition, closestTrainEndPosition, furthestTrainEndPosition))
             {
-                //Loader.LogDebug($"{waypoint.RefuelLoadName} loader is between closest end and furthest end");
+				ModLocator.Loader.LogDebug($"{waypoint.RefuelLoadId} loader is between closest end and furthest end");
                 distanceToMove = -distanceToMove;
             }
 
-            //Loader.LogDebug($"distanceToMove is {distanceToMove}");
+            ModLocator.Loader.LogDebug($"distanceToMove is {distanceToMove}");
 
             Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
 
-            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, distanceToMove, false, true);
+            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, -distanceToMove, false, true);
 
             return locationToMove;
         }
@@ -237,15 +253,15 @@ namespace WaypointQueue.Services
 
             if (locomotive == null)
             {
-                return ["water", "coal", "diesel-fuel"];
+                return [WaterLoadId, CoalLoadId, DieselLoadId];
             }
             if (locomotive.CarType.IsLocomotiveSteam)
             {
-                return ["water", "coal"];
+                return [WaterLoadId, CoalLoadId];
             }
             if (locomotive.CarType.IsLocomotiveDiesel)
             {
-                return ["diesel-fuel"];
+                return [DieselLoadId];
             }
             return null;
         }

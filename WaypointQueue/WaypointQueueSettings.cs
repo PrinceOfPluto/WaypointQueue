@@ -49,9 +49,9 @@ namespace WaypointQueue
         // Setting a waypoint while this key is pressed will create a waypoint with kicking enabled
         public KeyBinding KickingShortcutHotkey = new() { keyCode = KeyCode.LeftShift };
 
-        public KeyBinding ToggleWaypointPanelKey = new KeyBinding() { modifiers = 2, keyCode = KeyCode.G };
+        public KeyBinding ToggleWaypointPanelKey = new KeyBinding() { modifiers = KeyBinding.Shift, keyCode = KeyCode.G };
 
-        public KeyBinding ToggleRoutesPanelKey = new KeyBinding() { modifiers = 1, keyCode = KeyCode.Z };
+        public KeyBinding ToggleRoutesPanelKey = new KeyBinding() { modifiers = KeyBinding.Ctrl, keyCode = KeyCode.Z };
 
         public bool MakeAppendDefaultWithoutHotkeybinding = true;
 

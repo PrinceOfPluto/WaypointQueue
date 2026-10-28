@@ -334,7 +334,7 @@ namespace WaypointQueue
             {
                 refuelService.SetCarLoaderSequencerWantsLoading(wp, true);
                 wp.RefuelLoaderAnimated = true;
-                wp.StatusLabel = $"Refueling {wp.RefuelLoadId}";
+                wp.StatusLabel = $"Refueling {RefuelService.GetLabelForLoadId(wp.RefuelLoadId)}";
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return false;
             }

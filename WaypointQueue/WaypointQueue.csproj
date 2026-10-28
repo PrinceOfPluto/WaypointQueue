@@ -45,10 +45,10 @@
       <HintPath>$(RrManagedDir)\Railroader.dll</HintPath>
       <Private>False</Private>
     </Reference>
-	<Reference Include="Railroader.Modding">
-		<HintPath>$(RrManagedDir)\Railroader.Modding.dll</HintPath>
-		<Private>False</Private>
-	</Reference>
+    <Reference Include="Railroader.Modding">
+      <HintPath>$(RrManagedDir)\Railroader.Modding.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <!-- Null Checking -->
   <ItemGroup>
@@ -163,7 +163,6 @@
     <Compile Include="Services\UncouplingService.cs" />
     <Compile Include="WaypointCarPicker.cs" />
     <Compile Include="Patches\PatchCarPickable.cs" />
-    <Compile Include="Patches\PatchAutoEngineerDestinationPicker.cs" />
     <Compile Include="Patches\PatchAutoEngineerPlanner.cs" />
     <Compile Include="Patches\PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="Patches\PatchPopulateOperationsPanel.cs" />
@@ -178,7 +177,6 @@
     <Compile Include="Patches\PatchSteamLocomotive.cs" />
     <Compile Include="RouteRegistry.cs" />
     <Compile Include="WaypointQueueController.cs" />
-    <Compile Include="ModSaveManager.cs" />
     <Compile Include="WaypointResolver.cs" />
     <Compile Include="UI\WaypointWindow.cs" />
     <Compile Include="WaypointQueueSettings.cs" />

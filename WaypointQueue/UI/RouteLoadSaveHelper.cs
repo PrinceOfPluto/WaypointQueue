@@ -8,7 +8,6 @@ using UI.Builder;
 using UI.Common;
 using UnityEngine;
 using WaypointQueue.State;
-using static WaypointQueue.ModSaveManager;
 
 namespace WaypointQueue.UI
 {
@@ -42,7 +41,13 @@ namespace WaypointQueue.UI
             _path = Path.Combine(Application.persistentDataPath, "Routes");
         }
 
-        private void LoadSave(Mode mode, List<RouteDefinition> routesToSave)
+		public class RouteDefinitionSaveState
+		{
+			public int Version { get; set; }
+			public List<RouteDefinition> RouteDefinitions { get; set; } = [];
+		}
+
+		private void LoadSave(Mode mode, List<RouteDefinition> routesToSave)
         {
             if (mode == Mode.Load)
             {

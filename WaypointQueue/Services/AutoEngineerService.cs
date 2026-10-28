@@ -13,7 +13,7 @@ namespace WaypointQueue.Services
     {
         public void SendToWaypoint(AutoEngineerOrdersHelper ordersHelper, Location location, string coupleToCarId = null)
         {
-            OrderWaypoint maybeOrderWaypoint = new OrderWaypoint(location.Clamped().ToString(), coupleToCarId);
+            OrderWaypoint maybeOrderWaypoint = new OrderWaypoint(Graph.LocationToString(location.Clamped()), coupleToCarId);
             ordersHelper.SetOrdersValue(null, null, null, null, maybeOrderWaypoint);
         }
 

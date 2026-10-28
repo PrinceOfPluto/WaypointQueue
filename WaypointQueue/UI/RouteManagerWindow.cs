@@ -16,7 +16,6 @@ using WaypointQueue.State.Events;
 
 namespace WaypointQueue.UI
 {
-    [RequireComponent(typeof(Window))]
     public class RouteManagerWindow : MonoBehaviour
     {
         public static string WindowIdentifier => "RouteManagerPanel";

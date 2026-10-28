@@ -159,16 +159,9 @@ namespace WaypointQueue.State
             {
                 if (Multiplayer.IsHost)
                 {
-                    // If there is no loaded data at this point, check if old save data needs to be migrated
-                    if (_queueStateStorage.Count == 0 && _routeStorage.Count == 0 && _waypointModStorage.RouteAssignments.Count == 0)
-                    {
-                        MigrateFromJsonSaveToStorage();
-                    }
-
                     if (String.IsNullOrEmpty(_waypointModStorage.Version))
                     {
-                        _waypointModStorage.Version = "1";
-                        MigrateStorageFromJsonStringsToPropertyValues();
+                        _waypointModStorage.Version = "2";
                     }
                 }
 
@@ -791,38 +784,8 @@ namespace WaypointQueue.State
                 _prevLocoWaypointStates.Clear();
                 _prevRoutes.Clear();
 
-                _waypointModStorage.Version = "1";
+                _waypointModStorage.Version = "2";
             }
-        }
-
-        private void MigrateFromJsonSaveToStorage()
-        {
-            ModLocator.Loader.Log($"Migrating pre 1.6 save data from json files to property storage");
-            _waypointModStorage.Version = "1";
-
-            foreach (var state in ModSaveManager.Shared.LoadLocoWaypointStatesFromSave())
-            {
-                _queueStateStorage.SetLocoQueue(state);
-            }
-
-            foreach (var route in ModSaveManager.Shared.LoadRoutesFromSave())
-            {
-                _routeStorage.SetRoute(route);
-            }
-
-            Dictionary<string, RouteAssignment> routeAssignmentLookup = [];
-            foreach (var routeAssignment in ModSaveManager.Shared.LoadRouteAssignmentsFromSave())
-            {
-                routeAssignmentLookup.Add(routeAssignment.LocoId, routeAssignment);
-            }
-            _waypointModStorage.RouteAssignments = routeAssignmentLookup;
-        }
-
-        private void MigrateStorageFromJsonStringsToPropertyValues()
-        {
-            _queueStateStorage.MigrateQueueStatesFromJsonStringsToPropertyValues();
-            _routeStorage.MigrateRoutesFromJsonStringsToPropertyValues();
-            _waypointModStorage.MigrateModStorageFromJsonStringsToPropertyValues();
         }
     }
 }

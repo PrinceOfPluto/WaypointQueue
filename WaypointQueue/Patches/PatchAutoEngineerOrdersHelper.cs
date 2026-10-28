@@ -2,6 +2,7 @@
 using Model;
 using Model.AI;
 using System.Collections.Generic;
+using Track;
 using UI.Common;
 using UI.EngineControls;
 using UnityEngine;
@@ -15,9 +16,11 @@ namespace WaypointQueue
     {
         [HarmonyPrefix]
         [HarmonyPatch(nameof(AutoEngineerOrdersHelper.SetWaypoint))]
-        static bool SetWaypointPrefix(Location location, string coupleToCarId, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
+        static bool SetWaypointPrefix(OrderWaypoint waypoint, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
             //Loader.LogDebug($"SetWaypoint prefix");
+            Location location = Graph.Shared.ResolveLocationString(waypoint.LocationString);
+            string coupleToCarId = waypoint.CoupleToCarId;
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
             bool isAppendingWaypoint = Input.GetKey(ModLocator.Settings.queuedWaypointModeKey.keyCode);

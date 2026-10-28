@@ -80,7 +80,6 @@ namespace WaypointQueue
                 waypointQueueGO.AddComponent<ErrorModalController>();
                 waypointQueueGO.AddComponent<WaypointPicker>();
                 waypointQueueGO.AddComponent<ModStateManager>();
-                waypointQueueGO.AddComponent<ModSaveManager>();
                 WaypointWindow = waypointQueueGO.AddComponent<WaypointWindow>();
                 RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
 
