@@ -401,7 +401,7 @@ namespace WaypointQueue
                 {
                     Car nextCar = consist[i + 1];
                     bool currentCarIsLocoType = currentCar.CarType.IsLocomotive || currentCar.CarType.IsTender;
-                    bool nextCarIsLocoType = nextCar.CarType.IsLocomotive || currentCar.CarType.IsTender;
+                    bool nextCarIsLocoType = nextCar.CarType.IsLocomotive || nextCar.CarType.IsTender;
 
                     if ((currentCarIsLocoType && !nextCarIsLocoType) || (!currentCarIsLocoType && nextCarIsLocoType))
                     {
