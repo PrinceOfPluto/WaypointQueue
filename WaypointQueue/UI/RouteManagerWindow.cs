@@ -70,7 +70,17 @@ namespace WaypointQueue.UI
         public void Toggle()
         {
             WindowManager.Shared.ToggleWindow(WindowIdentifier);
+            CaptureCustomWindow();
+        }
 
+        public void Show()
+        {
+            WindowManager.Shared.ShowWindow(RouteManagerWindow.WindowIdentifier);
+            CaptureCustomWindow();
+        }
+
+        private void CaptureCustomWindow()
+        {
             if (_customWindow == null)
             {
                 _customWindow = WindowManager.Shared.GetCustomWindow(WindowIdentifier);
@@ -108,7 +118,7 @@ namespace WaypointQueue.UI
 
         private void OnRouteDidUpdate(RouteDidUpdate routeDidUpdateEvent)
         {
-            if (routeDidUpdateEvent.RouteId == _selectedRouteId.Value && _customWindow.Window.IsShown)
+            if (_customWindow != null && routeDidUpdateEvent.RouteId == _selectedRouteId.Value && IsVisible)
             {
                 RebuildWithScrolls();
             }
@@ -121,7 +131,7 @@ namespace WaypointQueue.UI
                 return;
             }
 
-            if (waypointDidUpdateEvent.RouteId == _selectedRouteId.Value && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && _customWindow.Window.IsShown)
+            if (waypointDidUpdateEvent.RouteId == _selectedRouteId.Value && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && IsVisible)
             {
                 ModLocator.Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for route {_selectedRouteId.Value}");
                 panelBuilder.Rebuild();
@@ -135,7 +145,7 @@ namespace WaypointQueue.UI
                 return;
             }
 
-            if (waypointWasAppendedEvent.RouteId == _selectedRouteId.Value && _customWindow.Window.IsShown)
+            if (waypointWasAppendedEvent.RouteId == _selectedRouteId.Value && IsVisible)
             {
                 RouteDefinition route = RouteRegistry.GetById(_selectedRouteId.Value);
                 List<ManagedWaypoint> waypointList = route.Waypoints;
@@ -147,7 +157,7 @@ namespace WaypointQueue.UI
 
         private void OnRoutesDidLoadFromDisk(RoutesDidLoadFromDisk _)
         {
-            if (_customWindow.Window.IsShown)
+            if (_customWindow != null && IsVisible)
             {
                 RebuildWithScrolls();
             }
@@ -155,6 +165,11 @@ namespace WaypointQueue.UI
 
         private void RebuildWithScrolls()
         {
+            if (_customWindow == null)
+            {
+                ModLocator.Loader.LogError("Cannot RebuildWithScrolls for RouteManagerWindow with null custom window");
+            }
+
             var scrollRects = _customWindow.Window.contentRectTransform.GetComponentsInChildren<ScrollRect>(true);
 
             _scrollPositions.Clear();
@@ -513,7 +528,7 @@ namespace WaypointQueue.UI
         private void AssignToSelectedLoco(RouteDefinition route, bool append)
         {
             var loco = TrainController.Shared.SelectedLocomotive;
-            WaypointQueueController.Shared.AddWaypointsFromRoute(loco, route, append);
+            WaypointQueueController.Shared.AddWaypointsFromRoute(loco, route);
         }
 
         private void SetFromSelectedLoco(RouteDefinition route)

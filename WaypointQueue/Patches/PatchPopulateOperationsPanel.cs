@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UI.Builder;
 using UI.CarInspector;
-using UI.Windows;
+using WaypointQueue.Services;
 using WaypointQueue.State;
 using WaypointQueue.UI;
 
@@ -15,6 +15,7 @@ namespace WaypointQueue
     {
         static void Postfix(CarInspector __instance, UIPanelBuilder builder, ref Car ____car)
         {
+            ICarService carService = ModLocator.ServiceProvider.GetService<ICarService>();
 
             var car = ____car;
             if (car == null) return;
@@ -74,19 +75,26 @@ namespace WaypointQueue
 
                     row.AddButtonCompact("Show", () =>
                     {
-                        WindowManager.Shared.ShowWindow(RouteManagerWindow.WindowIdentifier);
+                        RouteManagerWindow.Shared.Show();
                     });
                 }));
 
                 if (!string.IsNullOrEmpty(currentRouteId))
                 {
-                    section.AddField("Loop", section.AddToggle(
+                    section.AddField("Loop route", section.AddToggle(
                     () => RouteAssignmentRegistry.Get(carID).loop,
                     (bool v) =>
                     {
 
                         var (rid, _) = RouteAssignmentRegistry.Get(carID);
                         RouteAssignmentRegistry.Set(carID, rid, v);
+                    }));
+
+                    section.AddField("Actions", section.AddButtonCompact("Add route to loco queue", () =>
+                    {
+                        var loco = carService.GetLocoById(carID);
+                        var route = RouteRegistry.GetById(currentRouteId);
+                        WaypointQueueController.Shared.AddWaypointsFromRoute(loco, route);
                     }));
                 }
             });
