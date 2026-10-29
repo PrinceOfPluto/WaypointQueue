@@ -9,7 +9,7 @@
     "assemblies": [ "WaypointQueue.dll" ],
     "dependencies": {
         "required": [
-            "rr/game >=0.6.0"
+            "rr/game >=0.6.1"
         ]
     }
 }
