@@ -3,7 +3,6 @@ using Game.State;
 using HarmonyLib;
 using Model;
 using Model.AI;
-using Model.Definition;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;

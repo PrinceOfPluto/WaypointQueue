@@ -1,6 +1,5 @@
 ﻿using Game.State;
 using Model;
-using Model.Definition;
 using Model.Ops;
 using System;
 using System.Collections.Generic;

@@ -32,21 +32,21 @@ namespace WaypointQueue
             ReleaseHandbrakesOnCouple = ModLocator.Settings.ReleaseHandbrakesByDefault;
             ApplyHandbrakesOnUncouple = ModLocator.Settings.ApplyHandbrakesByDefault;
             BleedAirOnUncouple = ModLocator.Settings.BleedAirByDefault;
-            BottleAirOnUncouple = ! ModLocator.Settings.DoNotBottleAir;
+            BottleAirOnUncouple = !ModLocator.Settings.DoNotBottleAir;
 
-            WillLimitPassingSpeed = ! ModLocator.Settings.DoNotLimitPassingSpeedDefault;
+            WillLimitPassingSpeed = !ModLocator.Settings.DoNotLimitPassingSpeedDefault;
 
-            if (Input.GetKey( ModLocator.Settings.CoupleToNearestShortcutHotkey.keyCode) && String.IsNullOrEmpty(coupleToCarId))
+            if (ModLocator.Settings.Input.coupleToNearestShortcut.IsPressed() && String.IsNullOrEmpty(coupleToCarId))
             {
-                CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode) ModLocator.Settings.DefaultCouplingSearchMode;
+                CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)ModLocator.Settings.DefaultCouplingSearchMode;
             }
-            else if (Input.GetKey( ModLocator.Settings.UncoupleShortcutHotkey.keyCode))
+            else if (ModLocator.Settings.Input.uncoupleShortcut.IsPressed())
             {
-                UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
+                UncouplingMode = (UncoupleMode)ModLocator.Settings.DefaultUncouplingMode;
             }
-            else if (Input.GetKey( ModLocator.Settings.KickingShortcutHotkey.keyCode))
+            else if (ModLocator.Settings.Input.kickingShortcut.IsPressed())
             {
-                UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
+                UncouplingMode = (UncoupleMode)ModLocator.Settings.DefaultUncouplingMode;
                 ConfigureForKicking();
             }
 
@@ -402,8 +402,8 @@ namespace WaypointQueue
 
         private void SetDefaultPostCouplingCut()
         {
-            PostCouplingCutMode = (PostCoupleCutType) ModLocator.Settings.DefaultPostCouplingCutMode;
-            UncouplingMode = (UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
+            PostCouplingCutMode = (PostCoupleCutType)ModLocator.Settings.DefaultPostCouplingCutMode;
+            UncouplingMode = (UncoupleMode)ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
         }
 
         public bool IsValidForRoute()
@@ -579,7 +579,7 @@ namespace WaypointQueue
             StopAtWaypoint = false;
             WillLimitPassingSpeed = true;
             WaypointTargetSpeed = ModLocator.Settings.PassingSpeedForKickingCars;
-            if ( ModLocator.Settings.UncheckAirAndBrakesForKick)
+            if (ModLocator.Settings.UncheckAirAndBrakesForKick)
             {
                 ApplyHandbrakesOnUncouple = false;
                 BleedAirOnUncouple = false;
@@ -863,7 +863,7 @@ namespace WaypointQueue
             }
             else
             {
-                waypoint.BottleAirOnUncouple = ! ModLocator.Settings.DoNotBottleAir;
+                waypoint.BottleAirOnUncouple = !ModLocator.Settings.DoNotBottleAir;
             }
 
             if (dict.ContainsKey(ValueKeys.RefuelLoaderRegisteredId))

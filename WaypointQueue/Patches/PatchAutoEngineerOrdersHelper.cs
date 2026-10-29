@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using Track;
 using UI.Common;
 using UI.EngineControls;
-using UnityEngine;
 using WaypointQueue.State;
 using Location = Track.Location;
 
@@ -23,14 +22,14 @@ namespace WaypointQueue
             string coupleToCarId = waypoint.CoupleToCarId;
 
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
-            bool isAppendingWaypoint = Input.GetKey(ModLocator.Settings.queuedWaypointModeKey.keyCode);
-            bool isReplacingWaypoint = Input.GetKey(ModLocator.Settings.replaceWaypointModeKey.keyCode);
-            bool isInsertingNext = Input.GetKey(ModLocator.Settings.insertNextWaypointModeKey.keyCode);
+            bool isAppendingWaypoint = ModLocator.Settings.Input.appendWaypointMode.IsPressed();
+            bool isReplacingWaypoint = ModLocator.Settings.Input.replaceWaypointMode.IsPressed();
+            bool isInsertingNext = ModLocator.Settings.Input.insertNextWaypointMode.IsPressed();
 
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
             //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");
 
-            if (!isAnyModifierPressed && ModLocator.Settings.MakeAppendDefaultWithoutHotkeybinding)
+            if (!isAnyModifierPressed && !ModLocator.Settings.UseLegacyHotkeyOptions)
             {
                 isAppendingWaypoint = true;
                 isAnyModifierPressed = true;

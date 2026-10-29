@@ -21,8 +21,6 @@ namespace WaypointQueue.UI
         public static string WindowIdentifier => "RouteManagerPanel";
         public static string Title => "Routes";
         public static Vector2Int DefaultSize => new Vector2Int(800, 560);
-        public static Window.Position DefaultPosition => Window.Position.Center;
-        public static Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(1100, Screen.height));
 
         public static RouteManagerWindow Shared;
         private CustomWindow _customWindow;
@@ -63,7 +61,7 @@ namespace WaypointQueue.UI
             {
                 Title = Title,
                 Identifier = WindowIdentifier,
-                Config = WindowConfig.Resizable(DefaultSize, new Vector2Int(1100, Screen.height), Window.Position.Center),
+                Config = WindowConfig.Resizable(DefaultSize, DefaultSize, Window.Position.Center),
                 BuilderAction = Populate
             };
             WindowManager.Shared.RegisterCustomWindow(windowDef);

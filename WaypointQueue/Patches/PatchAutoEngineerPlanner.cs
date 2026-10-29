@@ -2,119 +2,14 @@
 using Model;
 using Model.AI;
 using System;
-using System.Collections.Generic;
-using System.Reflection;
 using Track;
-using Track.Search;
-using UI.EngineControls;
 using UnityEngine;
-using WaypointQueue.Services;
-using WaypointQueue.State;
-using static Model.AI.AutoEngineer;
 
 namespace WaypointQueue
 {
     [HarmonyPatch(typeof(AutoEngineerPlanner))]
     internal class PatchAutoEngineerPlanner
     {
-        [HarmonyPostfix]
-        [HarmonyPatch("UpdateTargets")]
-        static void UpdateTargetsPostfix(AutoEngineerPlanner __instance, float direction, ref AutoEngineer ____engineer)
-        {
-            AutoEngineerService autoEngineerService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
-            ICarService carService = ModLocator.ServiceProvider.GetService<ICarService>();
-            try
-            {
-                if (____engineer == null || ____engineer?.Locomotive == null)
-                {
-                    return;
-                }
-
-                BaseLocomotive loco = ____engineer.Locomotive;
-
-                AutoEngineerOrdersHelper ordersHelper = autoEngineerService.GetOrdersHelper(loco);
-                if (!ordersHelper.Orders.Waypoint.HasValue)
-                {
-                    return;
-                }
-
-                LocoWaypointState waypointState = ModStateManager.Shared.GetLocoWaypointState(loco.id);
-
-                if (waypointState.Waypoints.Count == 0 || waypointState.UnresolvedWaypoint == null)
-                {
-                    ModLocator.Loader.LogDebug($"Update targets {loco.Ident} has no managed waypoints");
-                    return;
-                }
-
-                if (waypointState.UnresolvedWaypoint?.LocationString != ordersHelper.Orders.Waypoint?.LocationString)
-                {
-                    ModLocator.Loader.LogDebug($"Loco {loco.Ident} unresolved waypoint to {waypointState.UnresolvedWaypoint?.LocationString} did not match {ordersHelper.Orders.Waypoint?.LocationString}");
-                }
-
-                // Only update targets if we are not stopping
-                if (waypointState.UnresolvedWaypoint.StopAtWaypoint)
-                {
-                    return;
-                }
-
-                Targets targets = (Targets)AccessTools.Field(typeof(AutoEngineer), "_targets")?.GetValue(____engineer);
-
-                if (targets == null)
-                {
-                    ModLocator.Loader.LogDebug($"Targets object was null");
-                    return;
-                }
-
-                List<Targets.Target> updatedTargets = [.. targets.AllTargets];
-
-                float targetSpeed = ordersHelper.Orders.MaxSpeedMph;
-                if (waypointState.UnresolvedWaypoint.WillLimitPassingSpeed)
-                {
-                    targetSpeed = waypointState.UnresolvedWaypoint.WaypointTargetSpeed;
-                }
-
-                float maxSafeSpeed = Mathf.Abs(targets.MaxSpeedMph);
-                float speedToSet = Mathf.Clamp(targetSpeed, 0, maxSafeSpeed);
-                float signedSpeedToSet = speedToSet * Mathf.Sign(direction);
-
-                if (updatedTargets != null && updatedTargets.Count > 0)
-                {
-                    int indexOfWaypoint = updatedTargets.FindIndex(t => t.Reason == "Running to waypoint" || t.Reason == "At waypoint");
-                    if (indexOfWaypoint != -1)
-                    {
-                        (Location closestTrainEnd, Location _) = carService.GetTrainEndLocations(waypointState.UnresolvedWaypoint.Locomotive, waypointState.UnresolvedWaypoint.Location, out float closestDistance, out var _, out var _, out _, out _);
-
-                        GraphRouteSearchExtension.TryFindDistance(Graph.Shared, closestTrainEnd, waypointState.UnresolvedWaypoint.Location, out float totalDistance);
-
-                        Targets.Target t = updatedTargets[indexOfWaypoint];
-                        if (Mathf.Abs(totalDistance - t.Distance) < 10f)
-                        {
-                            //Loader.LogDebug($"Updating AE target {signedSpeedToSet}mph @ {t.Distance} for reason {t.Reason}");
-                            updatedTargets[indexOfWaypoint] = new Targets.Target(signedSpeedToSet, t.Distance, t.Reason);
-                        }
-                    }
-                    else
-                    {
-                        ModLocator.Loader.LogDebug($"Did not find waypoint target");
-                    }
-                }
-
-                FieldInfo allTargetsFI = AccessTools.Field(typeof(Targets), "AllTargets");
-                if (allTargetsFI != null)
-                {
-                    allTargetsFI.SetValue(targets, updatedTargets);
-                }
-                else
-                {
-                    ModLocator.Loader.LogDebug($"AllTargetsFI was null");
-                }
-            }
-            catch (Exception e)
-            {
-                ModLocator.Loader.LogError($"UpdateTargetsPostfix exception: {e}");
-            }
-        }
-
         private const float HighSpeedMphThreshold = 35f;
         private const float HighSpeedWaypointRadiusMeters = 25f;
 

@@ -12,7 +12,6 @@ using System.Linq;
 using Track;
 using UI;
 using UI.Common;
-using UI.Windows;
 using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
@@ -88,12 +87,12 @@ namespace WaypointQueue.State
                 return;
             }
 
-            if (ModLocator.Settings.ToggleWaypointPanelKey.IsPressed())
+            if (ModLocator.Settings.Input.toggleWaypointPanel.WasPerformedThisFrame())
             {
                 ModLocator.Loader.WaypointWindow.Toggle();
             }
 
-            if (ModLocator.Settings.ToggleRoutesPanelKey.IsPressed())
+            if (ModLocator.Settings.Input.toggleRoutesPanel.WasPerformedThisFrame())
             {
                 ModLocator.Loader.RouteManagerWindow.Toggle();
             }

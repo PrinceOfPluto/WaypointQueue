@@ -1,14 +1,14 @@
 ﻿using Game.Events;
 using HarmonyLib;
+using Railroader.Modding;
 using System;
 using System.Reflection;
 using UnityEngine;
-using Railroader.Modding;
 using WaypointQueue.Services;
+using WaypointQueue.Settings;
 using WaypointQueue.State;
 using WaypointQueue.UI;
 using WaypointQueue.Wrappers;
-using System.IO;
 
 namespace WaypointQueue
 {
@@ -20,9 +20,7 @@ namespace WaypointQueue
 
         public WaypointWindow WaypointWindow { get; private set; }
         public RouteManagerWindow RouteManagerWindow { get; private set; }
-
-        public WaypointQueueSettings Settings { get; private set; }
-        private string settingsPath;
+        public ModSettingsWindow ModSettingsWindow { get; private set; }
 
         internal ServiceProvider ServiceProvider { get; private set; }
 
@@ -56,9 +54,7 @@ namespace WaypointQueue
             ModContext = modContext;
             ModLocator.Loader = this;
 
-            settingsPath = Path.Combine(modContext.ModDirectory, "settings.json");
-            Settings = WaypointQueueSettings.Load(settingsPath);
-            ModLocator.Settings = Settings;
+            ModLocator.Settings = WaypointQueueSettings.Load();
 
             ServiceProvider = new ServiceProvider();
             ModLocator.ServiceProvider = ServiceProvider;
@@ -82,6 +78,7 @@ namespace WaypointQueue
                 waypointQueueGO.AddComponent<ModStateManager>();
                 WaypointWindow = waypointQueueGO.AddComponent<WaypointWindow>();
                 RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
+                ModSettingsWindow = waypointQueueGO.AddComponent<ModSettingsWindow>();
 
                 QueueStorageGO = new GameObject(QueueStorageGOName);
                 RouteStorageGO = new GameObject(RouteStorageGOName);
@@ -90,7 +87,7 @@ namespace WaypointQueue
                 UnityEngine.Object.DontDestroyOnLoad(QueueStorageGO);
                 UnityEngine.Object.DontDestroyOnLoad(RouteStorageGO);
 
-                if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null))
+                if (MapHasLoaded && (WaypointWindow == null || RouteManagerWindow == null || ModSettingsWindow == null))
                 {
                     InitWindows();
                 }
@@ -105,7 +102,7 @@ namespace WaypointQueue
         {
             // This is a bit ugly but it provides the benefit of dependency injection
             // without the overhead of requiring an extra DI package
-            
+
 
             ServiceProvider.AddSingleton<IOpsControllerWrapper>(new OpsControllerWrapper());
 
@@ -168,12 +165,8 @@ namespace WaypointQueue
         private void InitWindows()
         {
             WaypointWindow.Register();
-            //WindowManager.Shared.RegisterCustomWindow(waypointWindowDef);
-            //var waypointWindowHandle = CustomWindowHandle.Create(waypointWindowDef.Identifier);
             RouteManagerWindow.Register();
-
-            //var routeManagerWindowDef = RouteManagerWindow.GetCustomWindowDefinition();
-            //WindowManager.Shared.RegisterCustomWindow(routeManagerWindowDef);
+            ModSettingsWindow.Register();
         }
 
         public void Log(string str)

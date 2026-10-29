@@ -123,7 +123,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Model\KeyBinding.cs" />
+    <Compile Include="Patches\PatchAutoEngineer.cs" />
+    <Compile Include="Patches\PatchSettingsPanel.cs" />
+    <Compile Include="Settings\InputActionAssetFactory.cs" />
     <Compile Include="Model\CouplingException.cs" />
     <Compile Include="Model\DelayedBleedAirCutEntry.cs" />
     <Compile Include="Model\IStorableProperty.cs" />
@@ -132,6 +134,7 @@
     <Compile Include="Model\WaypointError.cs" />
     <Compile Include="Model\WaypointProcessingException.cs" />
     <Compile Include="Model\QueueTickException.cs" />
+    <Compile Include="Settings\ModInputActions.cs" />
     <Compile Include="ModLocator.cs" />
     <Compile Include="Patches\PatchAutoEngineerWaypointOverlayController.cs" />
     <Compile Include="Patches\PatchNoticeManager.cs" />
@@ -150,6 +153,7 @@
     <Compile Include="State\WaypointValidator.cs" />
     <Compile Include="UI\ErrorModalController.cs" />
     <Compile Include="UI\RouteLoadSaveHelper.cs" />
+    <Compile Include="UI\ModSettingsWindow.cs" />
     <Compile Include="UI\WaypointPicker.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />
@@ -179,7 +183,7 @@
     <Compile Include="WaypointQueueController.cs" />
     <Compile Include="WaypointResolver.cs" />
     <Compile Include="UI\WaypointWindow.cs" />
-    <Compile Include="WaypointQueueSettings.cs" />
+    <Compile Include="Settings\WaypointQueueSettings.cs" />
     <Compile Include="Wrappers\TrainControllerWrapper.cs" />
   </ItemGroup>
   <ItemGroup>

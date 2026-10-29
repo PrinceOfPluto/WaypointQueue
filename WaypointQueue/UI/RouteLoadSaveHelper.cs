@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using UI.Builder;
 using UI.Common;
-using UnityEngine;
 using WaypointQueue.State;
 
 namespace WaypointQueue.UI
@@ -19,8 +18,6 @@ namespace WaypointQueue.UI
             Save
         }
 
-        private readonly string _path;
-
         private string _filename;
 
         private string FilePath
@@ -29,25 +26,22 @@ namespace WaypointQueue.UI
             {
                 if (_filename != null)
                 {
-                    return Path.Combine(_path, _filename);
+                    return Path.Combine(RoutesDirectory, _filename);
                 }
 
-                return _path;
+                return RoutesDirectory;
             }
         }
 
-        public RouteLoadSaveHelper()
+        public static string RoutesDirectory => Path.Combine(Game.UserPaths.RailroaderDirectory, "Waypoint Queue Saved Routes");
+
+        public class RouteDefinitionSaveState
         {
-            _path = Path.Combine(Application.persistentDataPath, "Routes");
+            public int Version { get; set; }
+            public List<RouteDefinition> RouteDefinitions { get; set; } = [];
         }
 
-		public class RouteDefinitionSaveState
-		{
-			public int Version { get; set; }
-			public List<RouteDefinition> RouteDefinitions { get; set; } = [];
-		}
-
-		private void LoadSave(Mode mode, List<RouteDefinition> routesToSave)
+        private void LoadSave(Mode mode, List<RouteDefinition> routesToSave)
         {
             if (mode == Mode.Load)
             {
@@ -75,7 +69,7 @@ namespace WaypointQueue.UI
                 }
 
                 builder.AddLabel("<b>" + title + "</b>\n" + subtitle);
-                string normalizedRoutesPath = NormalizePath(_path);
+                string normalizedRoutesPath = NormalizePath(RoutesDirectory);
                 builder.AddLabel("<size=12><#8D8A81>Routes Directory: " + normalizedRoutesPath);
                 builder.VScrollView(delegate (UIPanelBuilder builder)
                 {
@@ -158,21 +152,21 @@ namespace WaypointQueue.UI
 
         private IEnumerable<string> Filenames()
         {
-            if (!Directory.Exists(_path))
+            if (!Directory.Exists(RoutesDirectory))
             {
                 return Array.Empty<string>();
             }
 
-            return Directory.GetFiles(_path, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName);
+            return Directory.GetFiles(RoutesDirectory, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName);
         }
 
         private void Save(List<RouteDefinition> routesToSave)
         {
             try
             {
-                if (!Directory.Exists(_path))
+                if (!Directory.Exists(RoutesDirectory))
                 {
-                    Directory.CreateDirectory(_path);
+                    Directory.CreateDirectory(RoutesDirectory);
                 }
 
                 RouteDefinitionSaveState saveState = new RouteDefinitionSaveState
@@ -195,7 +189,7 @@ namespace WaypointQueue.UI
         {
             try
             {
-                string path = Path.Combine(_path, _filename);
+                string path = Path.Combine(RoutesDirectory, _filename);
                 if (!File.Exists(path))
                 {
                     Toast.Present("File not found.");

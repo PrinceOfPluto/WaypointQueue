@@ -2,14 +2,12 @@
 using Game.Messages;
 using Game.Notices;
 using Game.State;
-using HarmonyLib;
 using Model;
 using Model.AI;
 using Model.Ops.Timetable;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Track;
 using UI.Common;
 using UI.EngineControls;
@@ -566,7 +564,7 @@ namespace WaypointQueue
 
             try
             {
-                locationToMove = Graph.Shared.LocationByMoving(orientedLocation, totalTrainLength, checkSwitchAgainstMovement: false, stopAtEndOfTrack: false);
+                locationToMove = Graph.Shared.LocationByMoving(orientedLocation, -totalTrainLength, checkSwitchAgainstMovement: false, stopAtEndOfTrack: false);
                 locationToMove.AssertValid();
             }
             catch (Exception e)
@@ -586,9 +584,7 @@ namespace WaypointQueue
 
         private float GetTrainLength(BaseLocomotive locomotive)
         {
-            MethodInfo calculateTotalLengthMI = AccessTools.Method(typeof(AutoEngineerPlanner), "CalculateTotalLength");
-            float totalTrainLength = (float)calculateTotalLengthMI.Invoke(locomotive.AutoEngineerPlanner, []);
-            return totalTrainLength;
+            return AutoEngineerPlanner.CalculateTotalLength(locomotive.EnumerateCoupled().ToList());
         }
 
         private void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)

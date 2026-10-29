@@ -63,7 +63,7 @@ namespace WaypointQueue.UI
             {
                 Title = Title,
                 Identifier = WindowIdentifier,
-                Config = WindowConfig.Resizable(DefaultSize, new Vector2Int(650, Screen.height), Window.Position.LowerRight),
+                Config = WindowConfig.Resizable(DefaultSize, DefaultSize, Window.Position.LowerRight),
                 BuilderAction = Populate
             };
             WindowManager.Shared.RegisterCustomWindow(waypointWindowDef);
@@ -559,7 +559,7 @@ namespace WaypointQueue.UI
             {
                 if (value)
                 {
-                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultUncouplingMode;
+                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)ModLocator.Settings.DefaultUncouplingMode;
                     onWaypointChange(waypoint);
                 }
             }));
@@ -571,7 +571,7 @@ namespace WaypointQueue.UI
             {
                 if (value)
                 {
-                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode) ModLocator.Settings.DefaultCouplingSearchMode;
+                    waypoint.CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)ModLocator.Settings.DefaultCouplingSearchMode;
                     onWaypointChange(waypoint);
                 }
             }));
@@ -1368,7 +1368,7 @@ namespace WaypointQueue.UI
                     if (value)
                     {
                         waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Pickup;
-                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
                         onWaypointChange(waypoint);
                     }
                 }));
@@ -1379,7 +1379,7 @@ namespace WaypointQueue.UI
                     if (value)
                     {
                         waypoint.PostCouplingCutMode = ManagedWaypoint.PostCoupleCutType.Dropoff;
-                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode) ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
+                        waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)ModLocator.Settings.DefaultPostCouplingCutUncouplingMode;
                         onWaypointChange(waypoint);
                     }
                 }));

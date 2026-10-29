@@ -38,7 +38,7 @@ namespace WaypointQueue.Services
                 try
                 {
                     ModLocator.Loader.LogDebug($"Checking for coupling ahead by moving {totalDistanceChecked}");
-                    Location checkLocation = Graph.Shared.LocationByMoving(orientedClosestTrainEnd, totalDistanceChecked, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
+                    Location checkLocation = Graph.Shared.LocationByMoving(orientedClosestTrainEnd, -totalDistanceChecked, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
                     targetCar = trainControllerWrapper.CheckForCarAtLocation(checkLocation);
                     if (targetCar != null && !consist.Contains(targetCar))
                     {
@@ -121,7 +121,7 @@ namespace WaypointQueue.Services
                 wp.StatusLabel = "Moving to couple nearby";
 
                 Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(bestMatchLocation, wp.Location);
-                Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, -0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
+                Location adjustedLocation = Graph.Shared.LocationByMoving(orientedTargetLocation, 0.5f, checkSwitchAgainstMovement: false, stopAtEndOfTrack: true);
                 wp.OverwriteLocation(adjustedLocation);
 
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
