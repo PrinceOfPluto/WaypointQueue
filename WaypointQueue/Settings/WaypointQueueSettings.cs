@@ -121,7 +121,6 @@ namespace WaypointQueue.Settings
             }
 
             settings.InitializeInputs();
-            settings.Save();
 
             return settings;
         }
@@ -139,17 +138,71 @@ namespace WaypointQueue.Settings
 
         private void LoadInputBindings()
         {
+            bool loaded = false;
             if (File.Exists(BindingsPath))
             {
                 string overridesJson = File.ReadAllText(BindingsPath);
-                Input.actions.LoadBindingOverridesFromJson(overridesJson);
+                if (!string.IsNullOrWhiteSpace(overridesJson))
+                {
+                    Input.actions.LoadBindingOverridesFromJson(overridesJson);
+                    ModLocator.Loader.Log("Loaded WPQ input bindings from disk");
+                    loaded = true;
+                }
+                else
+                {
+                    ModLocator.Loader.Log("Found empty WPQ input bindings file");
+                }
             }
+
+            if (UseLegacyHotkeyOptions)
+            {
+                ValidateLegacyHotkeyBindings();
+            }
+            else
+            {
+                ValidateShortcutHotkeyBindings();
+            }
+
+            if (!loaded)
+            {
+                ModLocator.Loader.Log("Cannot find any existing WPQ input bindings file on disk");
+            }
+        }
+
+        private void ValidateLegacyHotkeyBindings()
+        {
+            if (!HasBindingPath(Input.appendWaypointMode) || !HasBindingPath(Input.replaceWaypointMode) || !HasBindingPath(Input.insertNextWaypointMode))
+            {
+                ModLocator.Loader.Log("UseLegacyHotkeyOptions was enabled, but one or more legacy actions are unbounded. Enabling default legacy hotkeys");
+                Input.EnableLegacyHotkeys();
+            }
+        }
+
+        private void ValidateShortcutHotkeyBindings()
+        {
+            if (!HasBindingPath(Input.coupleToNearestShortcut) || !HasBindingPath(Input.uncoupleShortcut) || !HasBindingPath(Input.kickingShortcut))
+            {
+                ModLocator.Loader.Log("UseLegacyHotkeyOptions was disabled, but one or more shortcut actions are unbounded. Enabling default shortcut hotkeys");
+                Input.EnableShortcutHotkeys();
+            }
+        }
+
+        private bool HasBindingPath(InputAction action)
+        {
+            if (action == null) return false;
+            foreach (var binding in action.bindings)
+            {
+                if (!string.IsNullOrEmpty(binding.effectivePath) && binding.effectivePath != "disabled")
+                    return true;
+            }
+            return false;
         }
 
         private void SaveInputBindings()
         {
             if (Input != null && Input.actions != null)
             {
+                ModLocator.Loader.Log("Saving WPQ input bindings to disk");
                 string overridesJson = Input.actions.SaveBindingOverridesAsJson();
                 File.WriteAllText(BindingsPath, overridesJson);
             }
@@ -157,6 +210,7 @@ namespace WaypointQueue.Settings
 
         public void Save()
         {
+            ModLocator.Loader.Log("Saving WPQ settings to disk");
             string json = JsonUtility.ToJson(this, prettyPrint: true);
             File.WriteAllText(SettingsPath, json);
 

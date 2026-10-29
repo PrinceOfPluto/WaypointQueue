@@ -54,28 +54,39 @@ namespace WaypointQueue.Settings
 
         public InputAction[] GetRebindableActions()
         {
-            return actions.Where(i => i.bindings.Count > 0).ToArray();
+            if (ModLocator.Settings.UseLegacyHotkeyOptions)
+            {
+                return [appendWaypointMode, replaceWaypointMode, insertNextWaypointMode, toggleWaypointPanel, toggleRoutesPanel];
+            }
+            else
+            {
+                return [coupleToNearestShortcut, uncoupleShortcut, kickingShortcut, toggleWaypointPanel, toggleRoutesPanel];
+            }
         }
 
         private void SetBinding(InputAction action, string binding)
         {
             if (action == null) return;
             if (action.bindings.Count == 0)
-                action.AddBinding(binding);
-            else
-                action.ApplyBindingOverride(0, binding);
+                action.AddBinding("");
+
+            action.ApplyBindingOverride(0, binding);
         }
 
         private void ClearBindings(InputAction action)
         {
             if (action == null) return;
             action.RemoveAllBindingOverrides();
-            while (action.bindings.Count > 0)
-                action.ChangeBinding(0).Erase();
+
+            for (int i = 0; i < action.bindings.Count; i++)
+            {
+                action.ApplyBindingOverride(i, "");
+            }
         }
 
         public void EnableLegacyHotkeys()
         {
+            ModLocator.Loader.Log("Enabling legacy hotkeys");
             SetBinding(appendWaypointMode, LeftCtrl);
             SetBinding(replaceWaypointMode, LeftAlt);
             SetBinding(insertNextWaypointMode, LeftShift);
@@ -87,6 +98,7 @@ namespace WaypointQueue.Settings
 
         public void EnableShortcutHotkeys()
         {
+            ModLocator.Loader.Log("Enabling shortcut hotkeys");
             SetBinding(coupleToNearestShortcut, LeftCtrl);
             SetBinding(uncoupleShortcut, LeftAlt);
             SetBinding(kickingShortcut, LeftShift);
