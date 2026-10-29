@@ -71,7 +71,14 @@ namespace WaypointQueue.UI
 
         public void Toggle()
         {
-            WindowManager.Shared.ToggleWindow(WindowIdentifier);
+            if (WindowManager.Shared.IsWindowOpen(WindowIdentifier))
+            {
+                Hide();
+            }
+            else
+            {
+                Show();
+            }
 
             if (_customWindow == null)
             {
@@ -142,6 +149,11 @@ namespace WaypointQueue.UI
 
         private void RebuildWithScroll()
         {
+            if (_customWindow == null)
+            {
+                ModLocator.Loader.LogError("Cannot RebuildWithScroll on WaypointWindow with a null custom window");
+            }
+
             ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
             bool setScrollOnNextUpdate = false;
             if (scrollRect != null)
@@ -201,9 +213,7 @@ namespace WaypointQueue.UI
         public void Show()
         {
             ModLocator.Loader.LogDebug($"Rebuilding and showing waypoint panel");
-            RebuildWithScroll();
-            WindowPersistence.SetInitialPositionSize(_customWindow.Window, WindowIdentifier, DefaultSize, DefaultPosition, Sizing);
-            _customWindow.Window.ShowWindow();
+            WindowManager.Shared.ShowWindow(WindowIdentifier);
 
             if (_coroutine == null)
             {
@@ -214,7 +224,7 @@ namespace WaypointQueue.UI
 
         public void Hide()
         {
-            _customWindow.Window.CloseWindow();
+            WindowManager.Shared.CloseWindow(WindowIdentifier);
 
             if (_coroutine != null)
             {
