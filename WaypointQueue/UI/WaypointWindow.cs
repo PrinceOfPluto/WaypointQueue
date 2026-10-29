@@ -35,7 +35,7 @@ namespace WaypointQueue.UI
 
         public static Window.Position DefaultPosition => Window.Position.LowerRight;
 
-        public Window.Sizing Sizing => Window.Sizing.Resizable(DefaultSize, new Vector2Int(650, Screen.height));
+        public static Vector2Int DefaultMaxSize => new Vector2Int(650, Screen.height);
 
         public static WaypointWindow Shared { get; private set; }
 
@@ -63,7 +63,7 @@ namespace WaypointQueue.UI
             {
                 Title = Title,
                 Identifier = WindowIdentifier,
-                Config = WindowConfig.Resizable(DefaultSize, DefaultSize, Window.Position.LowerRight),
+                Config = WindowConfig.Resizable(DefaultSize, DefaultSize, DefaultMaxSize, DefaultPosition),
                 BuilderAction = Populate
             };
             WindowManager.Shared.RegisterCustomWindow(waypointWindowDef);
@@ -152,6 +152,7 @@ namespace WaypointQueue.UI
             if (_customWindow == null)
             {
                 ModLocator.Loader.LogError("Cannot RebuildWithScroll on WaypointWindow with a null custom window");
+                return;
             }
 
             ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
@@ -172,6 +173,12 @@ namespace WaypointQueue.UI
 
         private void ScrollToBottom()
         {
+            if (_customWindow == null)
+            {
+                ModLocator.Loader.LogError("Cannot ScrollToBottom on WaypointWindow with a null custom window");
+                return;
+            }
+
             ScrollRect scrollRect = _customWindow.Window.contentRectTransform.GetComponentInChildren<ScrollRect>();
             if (scrollRect == null) return;
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
