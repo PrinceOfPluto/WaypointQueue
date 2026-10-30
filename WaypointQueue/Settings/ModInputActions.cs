@@ -8,6 +8,8 @@ namespace WaypointQueue.Settings
     {
         public InputActionAsset actions;
 
+        public InputActionMap map;
+
         // Setting a waypoint with this activated will add it to the end of the locomotive's waypoint queue
         public InputAction appendWaypointMode;
 
@@ -37,7 +39,7 @@ namespace WaypointQueue.Settings
         public ModInputActions(InputActionAsset asset)
         {
             actions = asset;
-            var map = asset.FindActionMap("WaypointQueue", true);
+            map = asset.FindActionMap("WaypointQueue", true);
 
             toggleWaypointPanel = map.FindAction("ToggleWaypointPanel", true);
             toggleRoutesPanel = map.FindAction("ToggleRoutesPanel", true);

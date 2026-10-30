@@ -185,5 +185,10 @@ namespace WaypointQueue
         {
             ModContext.Log.Error(str);
         }
+
+        public void LogError(Exception ex, string str)
+        {
+            ModContext.Log.Error(ex, str);
+        }
     }
 }
