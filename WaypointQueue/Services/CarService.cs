@@ -287,16 +287,9 @@ namespace WaypointQueue.Services
             return null;
         }
 
-        // Copied from AutoEngineerPlanner.CalculateTotalLength
         public static float CalculateTotalLength(List<Car> cars)
         {
-            float num = 0f;
-            foreach (Car item in cars)
-            {
-                num += item.carLength;
-            }
-
-            return num + 1.04f * (float)(cars.Count - 1);
+            return AutoEngineerPlanner.CalculateTotalLength(cars);
         }
     }
 }

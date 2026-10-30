@@ -191,7 +191,9 @@ namespace WaypointQueue.Services
 
             Location orientedTargetLocation = Graph.Shared.LocationOrientedToward(targetLoaderLocation, locationToMoveToward);
 
-            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, -distanceToMove, false, true);
+            float adjustedDistanceToMove = distanceToMove + 0.5f;
+
+            Location locationToMove = Graph.Shared.LocationByMoving(orientedTargetLocation, -adjustedDistanceToMove, false, true);
 
             return locationToMove;
         }
