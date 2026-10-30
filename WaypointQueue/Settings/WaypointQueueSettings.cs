@@ -121,8 +121,9 @@ namespace WaypointQueue.Settings
                     settings = JsonConvert.DeserializeObject<WaypointQueueSettings>(json);
                     ModLocator.Loader.Log("Successfully loaded WPQ settings");
                 }
-                catch (System.Exception)
+                catch (System.Exception e)
                 {
+                    ModLocator.Loader.LogError(e, "Failed to load settings file");
                 }
             }
 
@@ -154,7 +155,6 @@ namespace WaypointQueue.Settings
             catch (Exception e)
             {
                 ModLocator.Loader.LogError(e, "Failed to load input bindings");
-                throw;
             }
             Input.Enable();
         }
