@@ -1,8 +1,10 @@
 ﻿using Game.Events;
 using HarmonyLib;
 using Railroader.Modding;
+using RailroaderModSettings;
 using System;
 using System.Reflection;
+using System.Runtime.Remoting.Contexts;
 using UnityEngine;
 using WaypointQueue.Services;
 using WaypointQueue.Settings;
@@ -21,6 +23,8 @@ namespace WaypointQueue
         public WaypointWindow WaypointWindow { get; private set; }
         public RouteManagerWindow RouteManagerWindow { get; private set; }
         public ModSettingsWindow ModSettingsWindow { get; private set; }
+
+        public WaypointQueueSettings Settings { get; private set; }
 
         internal ServiceProvider ServiceProvider { get; private set; }
 
@@ -54,8 +58,17 @@ namespace WaypointQueue
             ModContext = modContext;
             ModLocator.Loader = this;
 
-            ModLocator.Settings = WaypointQueueSettings.Load();
-            ModLocator.Settings.Save();
+            // Load persisted global settings before initializing Passenger Helper.
+            Settings = SettingsRegistry.Register<WaypointQueueSettings>(
+                modContext.ModIdentifier,
+                "Passenger Helper",
+                onError: error => LogError("[ModSettings] " + error))
+                .GetValues<WaypointQueueSettings>();
+
+            ModLocator.Settings = Settings;
+
+            //ModLocator.Settings = WaypointQueueSettings.Load();
+            //ModLocator.Settings.Save();
 
             ServiceProvider = new ServiceProvider();
             ModLocator.ServiceProvider = ServiceProvider;
@@ -144,7 +157,7 @@ namespace WaypointQueue
 
         public void OnModUnload()
         {
-            ModLocator.Settings.Save();
+            //ModLocator.Settings.Save();
 
             HarmonyInstance.UnpatchAll(ModContext.ModIdentifier);
 
@@ -156,6 +169,9 @@ namespace WaypointQueue
 
             if (RouteStorageGO != null) UnityEngine.Object.DestroyImmediate(RouteStorageGO.gameObject);
             RouteStorageGO = null;
+
+            if (ModContext != null)
+                SettingsRegistry.Unregister(ModContext.ModIdentifier);
         }
 
         private void OnMapDidLoad(MapDidLoadEvent @event)

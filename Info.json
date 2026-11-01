@@ -9,7 +9,8 @@
     "assemblies": [ "WaypointQueue.dll" ],
     "dependencies": {
         "required": [
-            "rr/game >=0.6.2"
+            "rr/game >=0.6.2",
+            "sgtmoloch/mod-settings >=0.1.0"
         ]
     }
 }

@@ -29,9 +29,9 @@ namespace WaypointQueue
         static bool SetWaypointPrefix(OrderWaypoint waypoint, ref Car ____locomotive, ref AutoEngineerPersistence ____persistence)
         {
             OrderWaypoint? existingWaypoint = ____persistence.Orders.Waypoint;
-            bool isAppendingWaypoint = ModLocator.Settings.Input.appendWaypointMode.IsPressed();
-            bool isReplacingWaypoint = ModLocator.Settings.Input.replaceWaypointMode.IsPressed();
-            bool isInsertingNext = ModLocator.Settings.Input.insertNextWaypointMode.IsPressed();
+            bool isAppendingWaypoint = ModLocator.Settings.queuedWaypointModeKey.Pressed();
+            bool isReplacingWaypoint = ModLocator.Settings.replaceWaypointModeKey.Pressed();
+            bool isInsertingNext = ModLocator.Settings.insertNextWaypointModeKey.Pressed();
 
             bool isAnyModifierPressed = isAppendingWaypoint || isReplacingWaypoint || isInsertingNext;
             //Loader.LogDebug($"Appending: {isAppendingWaypoint}, Replacing {isReplacingWaypoint}, Inserting {isInsertingNext}");

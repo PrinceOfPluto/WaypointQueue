@@ -1,5 +1,6 @@
 ﻿using Game;
 using Newtonsoft.Json;
+using RailroaderModSettings;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,352 +8,139 @@ using UnityEngine.InputSystem;
 
 namespace WaypointQueue.Settings
 {
-    [Serializable]
-    public class WaypointQueueSettings
+    public enum CoupleSearchModeDefaultOptions
     {
-        public int Version = 2;
+        Nearest = ManagedWaypoint.CoupleSearchMode.Nearest,
+        BySpecificCar = ManagedWaypoint.CoupleSearchMode.SpecificCar,
+    }
 
-        [NonSerialized]
-        private static readonly string ModPreferencesDirectory = Path.Combine(UserPaths.RailroaderDirectory, "ModSettings");
-        [NonSerialized]
-        private static readonly string BindingsPath = Path.Combine(ModPreferencesDirectory, "princeofpluto-waypointqueue-inputbindings.json");
-        [NonSerialized]
-        private static readonly string SettingsPath = Path.Combine(ModPreferencesDirectory, "princeofpluto-waypointqueue-settings.json");
+    public enum UncoupleModeDefaultOptions
+    {
+        ByCount = ManagedWaypoint.UncoupleMode.ByCount,
+        ByDestinationArea = ManagedWaypoint.UncoupleMode.ByDestinationArea,
+        ByDestinationIndustry = ManagedWaypoint.UncoupleMode.ByDestinationIndustry,
+        ByDestinationTrack = ManagedWaypoint.UncoupleMode.ByDestinationTrack,
+        BySpecificCar = ManagedWaypoint.UncoupleMode.BySpecificCar,
+        AllExceptLocomotives = ManagedWaypoint.UncoupleMode.AllExceptLocomotives,
+    }
 
-        [NonSerialized]
-        private static readonly string OldBindingsPath = Path.Combine(ModLocator.ModDirectory, "inputbindings.json");
-        [NonSerialized]
-        private static readonly string OldSettingsPath = Path.Combine(ModLocator.ModDirectory, "settings.json");
+    public enum PostCoupleCutModeDefaultOptions
+    {
+        Pickup = ManagedWaypoint.PostCoupleCutType.Pickup,
+        Dropoff = ManagedWaypoint.PostCoupleCutType.Dropoff,
+    }
 
-        [Serializable]
-        internal struct InputBindingOverrideData
-        {
-            public string ActionName;
-            public int BindingIndex;
-            public string OverridePath;
-        }
+    public sealed class WaypointQueueSettings
+    {
+        [ModKeybind("Activate append waypoint mode", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will add it to the end of the locomotive's waypoint queue.")]
+        public ModKeyBinding queuedWaypointModeKey = new ModKeyBinding(Key.LeftCtrl);
 
-        [NonSerialized]
-        public ModInputActions Input;
+        [ModKeybind("Activate replace waypoint mode", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will replace the current waypoint but keep the rest of the existing waypoint queue.")]
+        public ModKeyBinding replaceWaypointModeKey = new ModKeyBinding(Key.LeftAlt);
 
-        public enum CoupleSearchModeDefaultOptions
-        {
-            Nearest = 1,
-            BySpecificCar = 2,
-        }
+        [ModKeybind("Activate insert next waypoint mode", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will insert it in the queue directly after the current waypoint.")]
+        public ModKeyBinding insertNextWaypointModeKey = new ModKeyBinding(Key.LeftShift);
 
-        public enum UncoupleModeDefaultOptions
-        {
-            ByCount = 1,
-            ByDestinationArea = 2,
-            ByDestinationIndustry = 3,
-            ByDestinationTrack = 4,
-            BySpecificCar = 5,
-            AllExceptLocomotives = 6,
-        }
+        [ModKeybind("Create waypoint with couple to nearest enabled", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with couple to nearest enabled.")]
+        public ModKeyBinding CoupleToNearestShortcutHotkey = new ModKeyBinding();
 
-        public enum PostCoupleCutModeDefaultOptions
-        {
-            Pickup = 0,
-            Dropoff = 1,
-        }
+        [ModKeybind("Create waypoint with uncouple enabled", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with uncoupling enabled.")]
+        public ModKeyBinding UncoupleShortcutHotkey = new ModKeyBinding();
 
-        // Show time info in dropdown for timetable train symbol
+        [ModKeybind("Create waypoint with kicking enabled", Section = "Keybindings",
+            Tooltip = "Setting a waypoint while this key is pressed will create a waypoint with kicking enabled.")]
+        public ModKeyBinding KickingShortcutHotkey = new ModKeyBinding();
+
+        [ModKeybind("Toggle Waypoints window", Section = "Keybindings")]
+        public ModKeyBinding toggleWaypointPanelKey = new ModKeyBinding(Key.G, shift: true);
+
+        [ModKeybind("Toggle Route Manager window", Section = "Keybindings")]
+        public ModKeyBinding toggleRoutesPanelKey = new ModKeyBinding(Key.Z, ctrl: true);
+
+        [ModSetting("Make append waypoint the default without keybinding", Section = "Keybindings")]
+        public bool MakeAppendDefaultWithoutHotkeybinding = false;
+
+        [ModSetting("Show time info in dropdown for timetable train symbol", Section = "UI")]
         public bool ShowTimeInTrainSymbolDropdown = true;
 
-        // Connect air by default when coupling
+        [ModSetting("Connect air by default when coupling", Section = "Coupling settings")]
         public bool ConnectAirByDefault = true;
 
-        // Release handbrakes by default when coupling
+        [ModSetting("Release handbrakes by default when coupling", Section = "Coupling settings")]
         public bool ReleaseHandbrakesByDefault = true;
 
-        // Nearby coupling search distance in car lengths
-        // DrawType.Slider, Precision = 0, Min = 1, Max = 100
-        // Distance to search for nearby coupling. Measured in car lengths of about 40 ft each
-        public float NearbyCouplingSearchDistanceInCarLengths = 10;
+        [ModSetting("Nearby coupling search distance in car lengths", Section = "Coupling settings", Min = 1, Max = 100,
+            Precision = 0, Tooltip = "Distance to search for nearby coupling. Measured in car lengths of about 40 ft each")]
+        public float NearbyCouplingSearchDistanceInCarLengths = 10f;
 
-        public CoupleSearchModeDefaultOptions DefaultCouplingSearchMode = CoupleSearchModeDefaultOptions.Nearest;
+        [ModSetting("Default coupling search mode", Section = "Coupling settings")]
+        public CoupleSearchModeDefaultOptions DefaultCouplingSearchMode = CoupleSearchModeDefaultOptions.BySpecificCar;
 
-        // Bleed air cylinders by default when uncoupling
+        [ModSetting("Bleed air cylinders by default when uncoupling", Section = "Uncoupling settings")]
         public bool BleedAirByDefault = true;
 
-        // Leave anglecock open by default after cutting cars (do not bottle air)
+        [ModSetting("Leave anglecock open by default after cutting cars (do not bottle air)", Section = "Uncoupling settings")]
         public bool DoNotBottleAir = false;
 
-        //Apply handbrakes by default when uncoupling
-        public bool ApplyHandbrakesByDefault = true;
-
-        // Max seconds to wait for train to fully stop before uncoupling
-        // DrawType.Slider, Precision = 0, Min = 5, Max = 120
-        // Trains will wait to uncouple until the consist is considered at fully rest or until this many seconds have passed, whichever happens sooner
-        // If you are encountering trains unexpectedly re-coupling after being uncoupled, it is recommended to increase this timeout value
-        public float WaitBeforeCuttingTimeout = 15f;
-
-        // Handbrake percentage
-        // DrawType.Slider, Precision = 2, Min = 0, Max = 1
-        // Handbrakes will be set on this percentage of uncoupled cars
-        public float HandbrakePercentOnUncouple = 0.1f;
-
-        // Handbrake minimum
-        // At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length
-        public int MinimumHandbrakesOnUncouple = 2;
-
-        public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
-
-        public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
-
-        public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
-
-        public int PassingSpeedForKickingCars = 7;
-
-        // Kick button unchecks bleeding air and applying handbrakes on uncouple
-        public bool UncheckAirAndBrakesForKick = true;
-
-        // Do not automatically set passing speed limit when not stopping at waypoint
-        public bool DoNotLimitPassingSpeedDefault = true;
-
-        // Prevent tenders being uncoupled from locomotive
-        public bool PreventTenderUncoupling = true;
-
+        [ModSetting("UseLegacyHotkeyOptions", Section = "UseLegacyHotkeyOptions")]
         public bool UseLegacyHotkeyOptions = false;
 
-        public static WaypointQueueSettings Load()
-        {
-            WaypointQueueSettings settings = null;
+        [ModSetting("Apply handbrakes by default when uncoupling", Section = "Uncoupling settings")]
+        public bool ApplyHandbrakesByDefault = true;
 
-            ModLocator.Loader.Log("Checking for WPQ settings");
+        [ModSetting("Max seconds to wait for train to fully stop before uncoupling", Section = "Uncoupling settings",
+            Min = 5, Max = 120, Precision = 0,
+            Tooltip = "Trains will wait to uncouple until the consist is considered at fully rest\nor until this many seconds have passed, whichever happens sooner.\nIf you are encountering trains unexpectedly re-coupling after being uncoupled,\nit is recommended to increase this timeout value.")]
+        public float WaitBeforeCuttingTimeout = 15f;
 
-            Directory.CreateDirectory(ModPreferencesDirectory);
+        [ModSetting("Handbrake percentage", Section = "Uncoupling settings", Min = 0, Max = 1, Precision = 2,
+            Tooltip = "Handbrakes will be set on this percentage of uncoupled cars")]
+        public float HandbrakePercentOnUncouple = 0.1f;
 
-            if (File.Exists(SettingsPath))
-            {
-                try
-                {
-                    string json = File.ReadAllText(SettingsPath);
-                    settings = JsonConvert.DeserializeObject<WaypointQueueSettings>(json);
-                    ModLocator.Loader.Log("Successfully loaded WPQ settings");
-                }
-                catch (System.Exception e)
-                {
-                    ModLocator.Loader.LogError(e, "Failed to load settings file");
-                }
-            }
-            else if (File.Exists(OldSettingsPath))
-            {
-                try
-                {
-                    string json = File.ReadAllText(OldSettingsPath);
-                    settings = JsonConvert.DeserializeObject<WaypointQueueSettings>(json);
-                    ModLocator.Loader.Log("Successfully loaded old WPQ settings");
-                }
-                catch (System.Exception e)
-                {
-                    ModLocator.Loader.LogError(e, "Failed to load old settings file");
-                }
-            }
+        [ModSetting("Handbrake minimum", Section = "Uncoupling settings", Min = 1, Precision = 0,
+            Tooltip = "At least this amount of handbrakes will always be set on uncoupled cars regardless of cut length")]
+        public int MinimumHandbrakesOnUncouple = 2;
 
-            if (settings == null)
-            {
-                ModLocator.Loader.Log("Unable to find WPQ settings file, generating new settings");
-                settings = new WaypointQueueSettings();
-            }
+        [ModSetting("Default uncoupling mode", Section = "Uncoupling settings")]
+        public UncoupleModeDefaultOptions DefaultUncouplingMode = UncoupleModeDefaultOptions.ByCount;
 
-            settings.InitializeInputs();
+        [ModSetting("Default post-coupling cut mode", Section = "Uncoupling settings")]
+        public PostCoupleCutModeDefaultOptions DefaultPostCouplingCutMode = PostCoupleCutModeDefaultOptions.Pickup;
 
-            return settings;
-        }
+        [ModSetting("Default uncoupling mode when performing post-coupling cuts", Section = "Uncoupling settings")]
+        public UncoupleModeDefaultOptions DefaultPostCouplingCutUncouplingMode = UncoupleModeDefaultOptions.ByCount;
 
-        public void InitializeInputs()
-        {
-            if (Input != null)
-            {
-                Input.Dispose();
-            }
+        [ModSetting("Passing speed limit for kicking cars", Section = "Custom Defaults", Min = 0, Max = 45)]
+        public int PassingSpeedForKickingCars = 7;
 
-            var actions = InputActionAssetFactory.CreateAsset();
-            Input = new ModInputActions(actions);
+        [ModSetting("Kick button unchecks bleeding air and applying handbrakes on uncouple", Section = "Custom Defaults")]
+        public bool UncheckAirAndBrakesForKick = true;
 
-            try
-            {
-                LoadInputBindings();
-            }
-            catch (Exception e)
-            {
-                ModLocator.Loader.LogError(e, "Failed to load input bindings");
-            }
-            Input.Enable();
-        }
+        [ModSetting("Do not automatically set passing speed limit when not stopping at waypoint", Section = "Custom Defaults")]
+        public bool DoNotLimitPassingSpeedDefault = true;
 
-        private void LoadInputBindings()
-        {
-            bool loaded = false;
-            ModLocator.Loader.Log("Checking for WPQ input bindings file");
-            if (File.Exists(BindingsPath))
-            {
-                string overridesJson = File.ReadAllText(BindingsPath);
-                if (!string.IsNullOrWhiteSpace(overridesJson))
-                {
-                    var overrideData = JsonConvert.DeserializeObject<List<InputBindingOverrideData>>(overridesJson);
-                    foreach (var entry in overrideData)
-                    {
-                        //ModLocator.Loader.Log($"Searching for action {entry.ActionName}");
-                        var action = Input.map.FindAction(entry.ActionName, true);
-                        if (action != null && action.bindings.Count > entry.BindingIndex)
-                        {
-                            //ModLocator.Loader.Log($"Found action {entry.ActionName}. Applying binding override path {entry.OverridePath} to {entry.BindingIndex}");
-                            action.ApplyBindingOverride(entry.BindingIndex, entry.OverridePath);
-                        }
-                    }
-                    //Input.actions.LoadBindingOverridesFromJson(overridesJson);
-                    ModLocator.Loader.Log("Loaded WPQ input bindings from disk");
-                    loaded = true;
-                }
-                else
-                {
-                    ModLocator.Loader.Log("Found empty WPQ input bindings file");
-                }
-            }
-            else if (File.Exists(OldBindingsPath))
-            {
-                string overridesJson = File.ReadAllText(OldBindingsPath);
-                if (!string.IsNullOrWhiteSpace(overridesJson))
-                {
-                    var overrideData = JsonConvert.DeserializeObject<List<InputBindingOverrideData>>(overridesJson);
-                    foreach (var entry in overrideData)
-                    {
-                        //ModLocator.Loader.Log($"Searching for action {entry.ActionName}");
-                        var action = Input.map.FindAction(entry.ActionName, true);
-                        if (action != null && action.bindings.Count > entry.BindingIndex)
-                        {
-                            //ModLocator.Loader.Log($"Found action {entry.ActionName}. Applying binding override path {entry.OverridePath} to {entry.BindingIndex}");
-                            action.ApplyBindingOverride(entry.BindingIndex, entry.OverridePath);
-                        }
-                    }
-                    //Input.actions.LoadBindingOverridesFromJson(overridesJson);
-                    ModLocator.Loader.Log("Loaded old WPQ input bindings from disk");
-                    loaded = true;
-                }
-                else
-                {
-                    ModLocator.Loader.Log("Found empty old WPQ input bindings file");
-                }
-            }
+        [ModSetting("Prevent tenders being uncoupled from locomotive", Section = "Custom Defaults")]
+        public bool PreventTenderUncoupling = true;
 
-            if (UseLegacyHotkeyOptions)
-            {
-                ModLocator.Loader.Log("UseLegacyHotkeyOptions was enabled, attempting to validate bindings");
-                ValidateLegacyHotkeyBindings();
-            }
-            else
-            {
-                ModLocator.Loader.Log("UseLegacyHotkeyOptions was disabled, attempting to validate bindings");
-                ValidateShortcutHotkeyBindings();
-            }
+        [ModSettingsGroup("Advanced settings", Section = "Custom Defaults", Collapsible = true,
+            Warning = "Warning! Do NOT enable these settings unless you understand what these options mean.")]
+        public AdvancedSettings AdvancedSettings = new AdvancedSettings();
+    }
 
-            if (!loaded)
-            {
-                ModLocator.Loader.Log("Cannot find any existing WPQ input bindings file on disk");
-            }
-        }
+    public sealed class AdvancedSettings
+    {
+        [ModSetting("Enable \"Then perform cut\" after coupling by default")]
+        public bool ShowPostCouplingCutByDefault = false;
 
-        private void ValidateLegacyHotkeyBindings()
-        {
-            if (!HasBindingPath(Input.appendWaypointMode) || !HasBindingPath(Input.replaceWaypointMode) || !HasBindingPath(Input.insertNextWaypointMode))
-            {
-                ModLocator.Loader.Log("UseLegacyHotkeyOptions was enabled, but one or more legacy actions are unbounded. Enabling default legacy hotkeys");
-                Input.EnableLegacyHotkeys();
-            }
-            else
-            {
-                ModLocator.Loader.Log("Validated legacy hotkey bindings");
-            }
-        }
+        [ModSetting("Enable \"Then uncouple\" by default")]
+        public bool EnableThenUncoupleByDefault = false;
 
-        private void ValidateShortcutHotkeyBindings()
-        {
-            if (!HasBindingPath(Input.coupleToNearestShortcut) || !HasBindingPath(Input.uncoupleShortcut) || !HasBindingPath(Input.kickingShortcut))
-            {
-                ModLocator.Loader.Log("UseLegacyHotkeyOptions was disabled, but one or more shortcut actions are unbounded. Enabling default shortcut hotkeys");
-                Input.EnableShortcutHotkeys();
-            }
-            else
-            {
-                ModLocator.Loader.Log("Validated shortcut hotkey bindings");
-            }
-        }
-
-        private bool HasBindingPath(InputAction action)
-        {
-            if (action == null) return false;
-            foreach (var binding in action.bindings)
-            {
-                if (!string.IsNullOrEmpty(binding.effectivePath) && binding.effectivePath != "disabled")
-                {
-                    ModLocator.Loader.Log($"Binding path found for action {action.name} - {binding.effectivePath}");
-                    return true;
-                }
-            }
-            ModLocator.Loader.Log($"No binding path found for action {action.name}");
-            return false;
-        }
-
-        private void SaveInputBindings()
-        {
-            if (Input != null && Input.actions != null)
-            {
-                ModLocator.Loader.Log("Saving WPQ input bindings to disk");
-                var dataList = new List<InputBindingOverrideData>();
-                foreach (var action in Input.map.actions)
-                {
-                    //ModLocator.Loader.Log($"Checking action {action.name} for save with {action.bindings.Count} bindings");
-                    for (int i = 0; i < action.bindings.Count; i++)
-                    {
-                        var path = action.bindings[i].overridePath;
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            //ModLocator.Loader.Log($"Adding binding data for action {action.name} with binding index {i} and override path {path}");
-                            dataList.Add(new InputBindingOverrideData
-                            {
-                                ActionName = action.name,
-                                BindingIndex = i,
-                                OverridePath = path
-                            });
-                        }
-                    }
-                }
-                ModLocator.Loader.Log($"Saving {dataList.Count} bindings to json");
-                string overridesJson = JsonConvert.SerializeObject(dataList, Formatting.Indented);
-                File.WriteAllText(BindingsPath, overridesJson);
-            }
-        }
-
-        public void Save()
-        {
-            ModLocator.Loader.Log("Saving WPQ settings to disk");
-            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
-            File.WriteAllText(SettingsPath, json);
-
-            SaveInputBindings();
-        }
-
-        public void ResetToDefaults()
-        {
-            Input.Dispose();
-            var newSettings = CleanSettingsReset();
-            newSettings.Save();
-            ModLocator.Settings = newSettings;
-        }
-
-        private static WaypointQueueSettings CleanSettingsReset()
-        {
-            if (File.Exists(SettingsPath))
-                File.Delete(SettingsPath);
-            if (File.Exists(BindingsPath))
-                File.Delete(BindingsPath);
-
-            var newSettings = new WaypointQueueSettings();
-            newSettings.InitializeInputs();
-            return newSettings;
-        }
+        [ModSetting("Show waypoint save data debug options")]
+        public bool EnableSaveDataDebugOptions = false;
     }
 }

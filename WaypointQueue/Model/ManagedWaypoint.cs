@@ -42,15 +42,15 @@ namespace WaypointQueue
 
             WillLimitPassingSpeed = !ModLocator.Settings.DoNotLimitPassingSpeedDefault;
 
-            if (ModLocator.Settings.Input.coupleToNearestShortcut.IsPressed() && String.IsNullOrEmpty(orderWaypoint.CoupleToCarId))
+            if (ModLocator.Settings.CoupleToNearestShortcutHotkey.Pressed() && String.IsNullOrEmpty(orderWaypoint.CoupleToCarId))
             {
                 CouplingSearchMode = (ManagedWaypoint.CoupleSearchMode)ModLocator.Settings.DefaultCouplingSearchMode;
             }
-            else if (ModLocator.Settings.Input.uncoupleShortcut.IsPressed())
+            else if (ModLocator.Settings.UncoupleShortcutHotkey.Pressed())
             {
                 UncouplingMode = (UncoupleMode)ModLocator.Settings.DefaultUncouplingMode;
             }
-            else if (ModLocator.Settings.Input.kickingShortcut.IsPressed())
+            else if (ModLocator.Settings.KickingShortcutHotkey.Pressed())
             {
                 UncouplingMode = (UncoupleMode)ModLocator.Settings.DefaultUncouplingMode;
                 ConfigureForKicking();

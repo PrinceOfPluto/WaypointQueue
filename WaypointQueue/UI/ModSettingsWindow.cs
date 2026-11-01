@@ -27,7 +27,7 @@ namespace WaypointQueue.UI
 
         private UIPanelBuilder _builder;
 
-        private InputAction[] RebindableActions => ModLocator.Settings.Input.GetRebindableActions();
+        //private InputAction[] RebindableActions => ModLocator.Settings.Input.GetRebindableActions();
 
         private WaypointQueueSettings Settings => ModLocator.Settings;
 
@@ -52,7 +52,7 @@ namespace WaypointQueue.UI
             {
                 builder.FieldLabelWidth = 200f;
                 builder.AddSection("Keybindings");
-                BuildKeybindingSection(builder);
+                //BuildKeybindingSection(builder);
 
                 builder.Spacer(16f);
 
@@ -97,7 +97,7 @@ namespace WaypointQueue.UI
 
         private void Save()
         {
-            Settings.Save();
+            //Settings.Save();
         }
 
         private void BuildResetToDefaultSection(UIPanelBuilder builder)
@@ -108,7 +108,7 @@ namespace WaypointQueue.UI
                 {
                     if (b)
                     {
-                        ModLocator.Settings.ResetToDefaults();
+                        //ModLocator.Settings.ResetToDefaults();
                         _customWindow.Rebuild();
                     }
                 });
@@ -220,7 +220,7 @@ namespace WaypointQueue.UI
                 row.AddDropdown(["Nearest car", "Specific car"], (int)Settings.DefaultCouplingSearchMode, (int val) =>
                 {
                     // + 1 for correct enum
-                    Settings.DefaultCouplingSearchMode = (WaypointQueueSettings.CoupleSearchModeDefaultOptions)val + 1;
+                    //Settings.DefaultCouplingSearchMode = (WaypointQueueSettings.CoupleSearchModeDefaultOptions)val + 1;
                     Save();
                 }).FlexibleWidth();
             });
@@ -235,7 +235,7 @@ namespace WaypointQueue.UI
                 row.AddDropdown(["By count", "By destination area", "By destination industry", "By destination track", "By specific car", "All except locomotives"], (int)Settings.DefaultUncouplingMode, (int val) =>
                 {
                     // + 1 for correct enum
-                    Settings.DefaultUncouplingMode = (WaypointQueueSettings.UncoupleModeDefaultOptions)val + 1;
+                    //Settings.DefaultUncouplingMode = (WaypointQueueSettings.UncoupleModeDefaultOptions)val + 1;
                     Save();
                 }).FlexibleWidth();
             });
@@ -277,7 +277,7 @@ namespace WaypointQueue.UI
                 row.AddDropdown(["Pickup", "Dropoff"], (int)Settings.DefaultPostCouplingCutMode, (int val) =>
                 {
                     // enum starts at 0 so no + 1
-                    Settings.DefaultPostCouplingCutMode = (WaypointQueueSettings.PostCoupleCutModeDefaultOptions)val;
+                    //Settings.DefaultPostCouplingCutMode = (WaypointQueueSettings.PostCoupleCutModeDefaultOptions)val;
                     Save();
                 }).FlexibleWidth();
             });
@@ -290,7 +290,7 @@ namespace WaypointQueue.UI
                 row.AddDropdown(["By count", "By destination area", "By destination industry", "By destination track", "By specific car", "All except locomotives"], (int)Settings.DefaultPostCouplingCutUncouplingMode, (int val) =>
                 {
                     // + 1 for correct enum
-                    Settings.DefaultPostCouplingCutUncouplingMode = (WaypointQueueSettings.UncoupleModeDefaultOptions)val + 1;
+                    //Settings.DefaultPostCouplingCutUncouplingMode = (WaypointQueueSettings.UncoupleModeDefaultOptions)val + 1;
                     Save();
                 }).FlexibleWidth();
             });
@@ -319,43 +319,43 @@ namespace WaypointQueue.UI
                 increment: 1, minValue: 0, maxValue: 100);
         }
 
-        private void BuildKeybindingSection(UIPanelBuilder builder)
-        {
-            HashSet<InputAction> conflicts = FindConflicts(RebindableActions);
-            _conflicts = conflicts;
-            _keybindBuilder = builder;
+        //private void BuildKeybindingSection(UIPanelBuilder builder)
+        //{
+        //    //HashSet<InputAction> conflicts = FindConflicts(RebindableActions);
+        //    _conflicts = conflicts;
+        //    _keybindBuilder = builder;
 
-            InputAction[] readonlyArray = RebindableActions;
-            foreach (var inputAction in readonlyArray)
-            {
-                builder.AddInputBindingControl(inputAction, conflicts.Contains(inputAction), DidRebind);
-            }
+        //    //InputAction[] readonlyArray = RebindableActions;
+        //    foreach (var inputAction in readonlyArray)
+        //    {
+        //        builder.AddInputBindingControl(inputAction, conflicts.Contains(inputAction), DidRebind);
+        //    }
 
-            builder.AddField("Use legacy hotkey options", builder.AddToggle(() => Settings.UseLegacyHotkeyOptions, (bool val) =>
-            {
-                Settings.UseLegacyHotkeyOptions = val;
-                if (val)
-                {
-                    Settings.Input.EnableLegacyHotkeys();
-                }
-                else
-                {
-                    Settings.Input.EnableShortcutHotkeys();
-                }
-                Save();
-                _customWindow.Rebuild();
-            }));
-        }
+        //    builder.AddField("Use legacy hotkey options", builder.AddToggle(() => Settings.UseLegacyHotkeyOptions, (bool val) =>
+        //    {
+        //        Settings.UseLegacyHotkeyOptions = val;
+        //        if (val)
+        //        {
+        //            //Settings.EnableLegacyHotkeys();
+        //        }
+        //        else
+        //        {
+        //            //Settings.Input.EnableShortcutHotkeys();
+        //        }
+        //        Save();
+        //        _customWindow.Rebuild();
+        //    }));
+        //}
 
-        private void DidRebind()
-        {
-            if (!FindConflicts(RebindableActions).Equals(_conflicts))
-            {
-                ModLocator.Loader.LogDebug("Conflicts changed, rebuilding");
-                _keybindBuilder.Rebuild();
-            }
-            Save();
-        }
+        //private void DidRebind()
+        //{
+        //    if (!FindConflicts(RebindableActions).Equals(_conflicts))
+        //    {
+        //        ModLocator.Loader.LogDebug("Conflicts changed, rebuilding");
+        //        _keybindBuilder.Rebuild();
+        //    }
+        //    Save();
+        //}
 
         private static HashSet<InputAction> FindConflicts(IEnumerable<InputAction> actions)
         {

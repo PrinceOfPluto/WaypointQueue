@@ -53,17 +53,17 @@ namespace WaypointQueue.Settings
             toggleRoutesPanel = map.FindAction("ToggleRoutesPanel", true);
         }
 
-        public InputAction[] GetRebindableActions()
-        {
-            if (ModLocator.Settings.UseLegacyHotkeyOptions)
-            {
-                return [appendWaypointMode, replaceWaypointMode, insertNextWaypointMode, toggleWaypointPanel, toggleRoutesPanel];
-            }
-            else
-            {
-                return [coupleToNearestShortcut, uncoupleShortcut, kickingShortcut, toggleWaypointPanel, toggleRoutesPanel];
-            }
-        }
+        //public InputAction[] GetRebindableActions()
+        //{
+        //    if (ModLocator.Settings.UseLegacyHotkeyOptions)
+        //    {
+        //        return [appendWaypointMode, replaceWaypointMode, insertNextWaypointMode, toggleWaypointPanel, toggleRoutesPanel];
+        //    }
+        //    else
+        //    {
+        //        return [coupleToNearestShortcut, uncoupleShortcut, kickingShortcut, toggleWaypointPanel, toggleRoutesPanel];
+        //    }
+        //}
 
         private void SetBinding(InputAction action, string binding)
         {
