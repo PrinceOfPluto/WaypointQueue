@@ -87,12 +87,12 @@ namespace WaypointQueue.State
                 return;
             }
 
-            if (ModLocator.Settings.toggleWaypointPanelKey.Pressed())
+            if (ModLocator.Settings.toggleWaypointPanelKey.Down())
             {
                 ModLocator.Loader.WaypointWindow.Toggle();
             }
 
-            if (ModLocator.Settings.toggleRoutesPanelKey.Pressed())
+            if (ModLocator.Settings.toggleRoutesPanelKey.Down())
             {
                 ModLocator.Loader.RouteManagerWindow.Toggle();
             }
