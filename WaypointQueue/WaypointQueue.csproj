@@ -41,6 +41,10 @@
   </PropertyGroup>
   <!-- Railroader -->
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(RrManagedDir)\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Railroader">
       <HintPath>$(RrManagedDir)\Railroader.dll</HintPath>
       <Private>False</Private>
@@ -52,9 +56,6 @@
   </ItemGroup>
   <!-- Null Checking -->
   <ItemGroup>
-    <PackageReference Include="Lib.Harmony">
-      <Version>2.4.3</Version>
-    </PackageReference>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" />
   </ItemGroup>
@@ -202,7 +203,6 @@
   <Target Name="CopyInfo" AfterTargets="ExtractVersion">
 	  <Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
 	  <Exec Command="copy &quot;$(SolutionDir)LICENSE.txt&quot; &quot;$(ModDirectory)LICENSE.txt&quot;" />
-	  <Exec Command="copy &quot;$(SolutionDir)THIRD_PARTY_NOTICES.txt&quot; &quot;$(ModDirectory)THIRD_PARTY_NOTICES.txt&quot;" />
   </Target>
   <Target Name="SetVersion" AfterTargets="CopyInfo">
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(SolutionDir)UpdateVersion.ps1&quot; -FilePath &quot;$(ModDirectory)Info.json&quot; -FullVersion &quot;%(ModAssemblyIdentities.Version)&quot;" />
