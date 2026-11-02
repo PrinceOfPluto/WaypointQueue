@@ -79,6 +79,9 @@ namespace WaypointQueue.UI
                 builder.AddSection("Speed options");
                 BuildSpeedOptionsSection(builder);
 
+                builder.AddSection("Experimental");
+                BuildExperimentalOptionsSection(builder);
+
                 builder.Spacer(16f);
                 builder.AddSection("Reset");
                 BuildResetToDefaultSection(builder);
@@ -317,6 +320,20 @@ namespace WaypointQueue.UI
                 () => $"{Settings.PassingSpeedForKickingCars} mph",
                 (float val) => { Settings.PassingSpeedForKickingCars = (int)val; Save(); },
                 increment: 1, minValue: 0, maxValue: 100);
+        }
+
+        private void BuildExperimentalOptionsSection(UIPanelBuilder builder)
+        {
+            builder.HStack(row =>
+            {
+                row.AddToggle(() => Settings.EnableWaypointOrientationFeature, (bool val) =>
+                {
+                    Settings.EnableWaypointOrientationFeature = val;
+                    Save();
+                });
+                row.Spacer(8f);
+                row.AddLabel("Enable support for the base game's new AE waypoint orientation and direction feature.");
+            });
         }
 
         private void BuildKeybindingSection(UIPanelBuilder builder)

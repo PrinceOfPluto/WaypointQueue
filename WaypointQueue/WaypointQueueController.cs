@@ -563,8 +563,16 @@ namespace WaypointQueue
 
             state.UnresolvedWaypoint = waypoint;
 
-            // Default to zero body length so it doesn't use a potentially outdated body length from when the waypoint was originally placed
-            OrderWaypoint orderWaypoint = new OrderWaypoint(waypoint.LocationString, waypoint.CoupleToCarId, waypoint.ArrivingEnd, waypoint.BodyToward, waypoint.RequiredTurns, bodyLength: 0f, waypoint.CoupleToCarEnd);
+            OrderWaypoint orderWaypoint;
+            if (ModLocator.Settings.EnableWaypointOrientationFeature)
+            {
+                // Default to zero body length so it doesn't use a potentially outdated body length from when the waypoint was originally placed
+                orderWaypoint = new OrderWaypoint(waypoint.LocationString, waypoint.CoupleToCarId, waypoint.ArrivingEnd, waypoint.BodyToward, waypoint.RequiredTurns, bodyLength: 0f, waypoint.CoupleToCarEnd);
+            }
+            else
+            {
+                orderWaypoint = new OrderWaypoint(waypoint.LocationString, waypoint.CoupleToCarId);
+            }
 
             ModLocator.Loader.Log($"Sending next waypoint for {state.Locomotive?.Ident} to {waypoint.Location}");
             _autoEngineerService.SendToWaypoint(ordersHelper, orderWaypoint);
