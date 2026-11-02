@@ -58,10 +58,9 @@ namespace WaypointQueue
             ModContext = modContext;
             ModLocator.Loader = this;
 
-            // Load persisted global settings before initializing Passenger Helper.
             Settings = SettingsRegistry.Register<WaypointQueueSettings>(
                 modContext.ModIdentifier,
-                "Passenger Helper",
+                "Waypoint Queue",
                 onError: error => LogError("[ModSettings] " + error))
                 .GetValues<WaypointQueueSettings>();
 
