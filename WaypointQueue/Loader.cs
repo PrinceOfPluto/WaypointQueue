@@ -79,6 +79,7 @@ namespace WaypointQueue
                 WaypointWindow = waypointQueueGO.AddComponent<WaypointWindow>();
                 RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
                 ModSettingsWindow = waypointQueueGO.AddComponent<ModSettingsWindow>();
+                waypointQueueGO.AddComponent<PendingSwitchRestorer>();
 
                 QueueStorageGO = new GameObject(QueueStorageGOName);
                 RouteStorageGO = new GameObject(RouteStorageGOName);

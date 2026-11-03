@@ -5,6 +5,7 @@ using Helpers;
 using Model;
 using Model.AI;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Track;
 using Track.Search;
@@ -173,17 +174,19 @@ namespace WaypointQueue
         private static readonly AccessTools.FieldRef<AutoEngineerPlanner, int> _startStepIndex =
             AccessTools.FieldRefAccess<AutoEngineerPlanner, int>("_startStepIndex");
 
-        private float _nextCheck;
+        private Coroutine _checking;
 
+        // Added to the mod's own game object by Loader. The check loop only runs while a switch is waiting.
         internal static void Add(PendingSwitch pending)
         {
             _pending[pending.NodeId] = pending;
             if (_instance == null)
             {
-                GameObject go = new GameObject("WaypointQueue.PendingSwitchRestorer");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<PendingSwitchRestorer>();
+                ModLocator.Loader.LogError($"Switch {pending.NodeId} can't be reset: the switch restorer isn't loaded");
+                return;
             }
+            if (_instance._checking == null)
+                _instance._checking = _instance.StartCoroutine(_instance.CheckWhilePending());
         }
 
         // Hands a waiting switch over to a route that is throwing it: the position to put it back to. It's no longer
@@ -198,17 +201,21 @@ namespace WaypointQueue
             return true;
         }
 
-        // Called when the mod unloads, so nothing is thrown after the patches are removed.
+        // Called when the mod unloads, so nothing is thrown after the patches are removed. The component goes with the
+        // mod's game object.
         internal static void Shutdown()
         {
             _pending.Clear();
             if (_instance != null)
-                DestroyImmediate(_instance.gameObject);
-            _instance = null;
+            {
+                _instance.StopAllCoroutines();
+                _instance._checking = null;
+            }
         }
 
         private void Awake()
         {
+            _instance = this;
             // Pending switches belong to the loaded save.
             EventBus.Subscribe<MapWillUnloadEvent>(this, _ => _pending.Clear());
         }
@@ -216,16 +223,25 @@ namespace WaypointQueue
         private void OnDestroy()
         {
             EventBus.Unsubscribe(this);
+            if (_instance == this)
+                _instance = null;
         }
 
-        private void Update()
+        // Checks the waiting switches every IntervalSeconds until none are left.
+        private IEnumerator CheckWhilePending()
         {
-            if (_pending.Count == 0 || Time.unscaledTime < _nextCheck)
-                return;
+            var wait = new WaitForSecondsRealtime(IntervalSeconds);
+            while (_pending.Count > 0)
+            {
+                yield return wait;
+                CheckPending();
+            }
+            _checking = null;
+        }
 
-            _nextCheck = Time.unscaledTime + IntervalSeconds;
-
-            if (!StateManager.IsHost || TrainController.Shared == null)
+        private void CheckPending()
+        {
+            if (_pending.Count == 0 || !StateManager.IsHost || TrainController.Shared == null)
                 return;
 
             TrainController trainController = TrainController.Shared;
