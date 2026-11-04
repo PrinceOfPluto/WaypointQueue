@@ -5,6 +5,7 @@ using Game.State;
 using HarmonyLib;
 using Model;
 using Model.AI;
+using Model.AI.Waypoints;
 using Network;
 using System;
 using System.Collections;
@@ -338,7 +339,7 @@ namespace WaypointQueue
 
             ModLocator.Loader.LogDebug($"Saving loco queue state after adding waypoint for loco id: {loco.id}");
             ModStateManager.Shared.SaveLocoWaypointState(loco.id, entry);
-            ModLocator.Loader.Log($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
+            ModLocator.Loader.Log($"Added waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location} with coupling to {orderWaypoint.CoupleToCarId ?? "none"} on end {(waypoint.CoupleToCarEnd.HasValue ? waypoint.CoupleToCarEnd.Value : "null")} with arriving end {waypoint.ArrivingEnd} and body toward {waypoint.BodyToward}");
             RestartCoroutine();
         }
 
@@ -567,7 +568,28 @@ namespace WaypointQueue
             if (ModLocator.Settings.EnableWaypointOrientationFeature)
             {
                 // Default to zero body length so it doesn't use a potentially outdated body length from when the waypoint was originally placed
-                orderWaypoint = new OrderWaypoint(waypoint.LocationString, waypoint.CoupleToCarId, waypoint.ArrivingEnd, waypoint.BodyToward, waypoint.RequiredTurns, bodyLength: 0f, waypoint.CoupleToCarEnd);
+                ModLocator.Loader.LogDebug($"Preparing to create orderWaypoint for {waypoint.ToString()}");
+                ModLocator.Loader.LogDebug($"Location {waypoint.LocationString} | couple to car id {waypoint.CoupleToCarId} | couple to car end {(waypoint.CoupleToCarEnd == Car.End.F ? 'F' : 'R')} | arriving end {waypoint.ArrivingEnd} | body toward {waypoint.BodyToward}");
+
+                if (waypoint.LocomotiveFrontEnd.HasValue)
+                {
+                    var currentLocoFrontEnd = PosedWaypoint.FrontEnd(state.Locomotive);
+                    if (currentLocoFrontEnd != waypoint.LocomotiveFrontEnd.Value)
+                    {
+                        waypoint.ArrivingEnd = PosedWaypoint.Flipped(waypoint.ArrivingEnd);
+                    }
+                }
+
+                if (waypoint.IsCoupling && waypoint.CoupleToCarEnd.HasValue && waypoint.TryResolveCoupleToCar(out _))
+                {
+                    orderWaypoint = PosedWaypoint.CoupleOrder(state.Locomotive, Graph.Shared, waypoint.CoupleToCar, waypoint.CoupleToCarEnd.Value, waypoint.ArrivingEnd);
+                }
+                else
+                {
+                    orderWaypoint = PosedWaypoint.Order(state.Locomotive, Graph.Shared, waypoint.Location, waypoint.ArrivingEnd, waypoint.BodyToward, coupleToCarId: waypoint.CoupleToCarId);
+                }
+
+                ModLocator.Loader.LogDebug($"PosedWaypoint.Order created the following orderWaypoint: location {orderWaypoint.LocationString} | couple to car id {orderWaypoint.CoupleToCarId} | couple to car end {(orderWaypoint.CoupleToCarEnd == Car.End.F ? 'F' : 'R')} | arriving end {orderWaypoint.ArrivingEnd} | body toward {orderWaypoint.BodyToward} | body length {orderWaypoint.BodyLength}");
             }
             else
             {

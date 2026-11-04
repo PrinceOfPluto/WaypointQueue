@@ -2,6 +2,7 @@
 using KeyValue.Runtime;
 using Model;
 using Model.AI;
+using Model.AI.Waypoints;
 using Model.Ops;
 using Newtonsoft.Json;
 using System;
@@ -31,6 +32,12 @@ namespace WaypointQueue
             CoupleToCarId = orderWaypoint.CoupleToCarId;
             CoupleToCarEnd = orderWaypoint.CoupleToCarEnd;
             ArrivingEnd = orderWaypoint.ArrivingEnd;
+
+            if (ArrivingEnd != WaypointEnd.Nearest && !string.IsNullOrEmpty(LocomotiveId))
+            {
+                LocomotiveFrontEnd = PosedWaypoint.FrontEnd(locomotive);
+            }
+
             BodyToward = orderWaypoint.BodyToward;
             RequiredTurns = orderWaypoint.RequiredTurns;
 
@@ -169,6 +176,7 @@ namespace WaypointQueue
 
         public Car.End? CoupleToCarEnd { get; set; }
         public WaypointEnd ArrivingEnd { get; set; }
+        public ConsistEnd? LocomotiveFrontEnd { get; set; }
         public BodyToward BodyToward { get; set; }
         public JunctionTurn[] RequiredTurns { get; set; }
 
@@ -670,6 +678,11 @@ namespace WaypointQueue
                    LocomotiveId == other.LocomotiveId &&
                    LocationString == other.LocationString &&
                    CoupleToCarId == other.CoupleToCarId &&
+                   ArrivingEnd == other.ArrivingEnd &&
+                   LocomotiveFrontEnd == other.LocomotiveFrontEnd &&
+                   BodyToward == other.BodyToward &&
+                   CoupleToCarEnd == other.CoupleToCarEnd &&
+                   TurnsEqual(RequiredTurns, other.RequiredTurns) &&
                    ConnectAirOnCouple == other.ConnectAirOnCouple &&
                    ReleaseHandbrakesOnCouple == other.ReleaseHandbrakesOnCouple &&
                    HasResolvedBrakeSystemOnCouple == other.HasResolvedBrakeSystemOnCouple &&
@@ -721,6 +734,29 @@ namespace WaypointQueue
                    Name == other.Name &&
                    Notes == other.Notes &&
                    Errors.SequenceEqual(other.Errors);
+        }
+
+        private static bool TurnsEqual(JunctionTurn[] a, JunctionTurn[] b)
+        {
+            if (a == b)
+            {
+                return true;
+            }
+
+            if (a == null || b == null || a.Length != b.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (!a[i].Equals(b[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public override int GetHashCode()
@@ -797,7 +833,7 @@ namespace WaypointQueue
                 [ValueKeys.Errors] = Value.Array(Errors.Select(e => e.ToPropertyValue()).ToList()),
             };
 
-            if (encodedTurnsArray != null )
+            if (encodedTurnsArray != null)
             {
                 dictionary.Add(ValueKeys.RequiredTurns, Value.Array(encodedTurnsArray.Select((Func<string, Value>)((string id) => id)).ToList()));
             }
@@ -805,6 +841,11 @@ namespace WaypointQueue
             if (CoupleToCarEnd.HasValue)
             {
                 dictionary.Add(ValueKeys.CoupleToCarEnd, Value.Int((int)CoupleToCarEnd.Value));
+            }
+
+            if (LocomotiveFrontEnd.HasValue)
+            {
+                dictionary.Add(ValueKeys.LocomotiveFrontEnd, Value.Int((int)LocomotiveFrontEnd.Value));
             }
 
             return Value.Dictionary(dictionary.ToDictionary(k => k.Key, v => v.Value));
@@ -907,6 +948,11 @@ namespace WaypointQueue
                 waypoint.CoupleToCarEnd = (Car.End?)dict[ValueKeys.CoupleToCarEnd].IntValue;
             }
 
+            if (dict.ContainsKey(ValueKeys.LocomotiveFrontEnd))
+            {
+                waypoint.LocomotiveFrontEnd = (ConsistEnd?)dict[ValueKeys.LocomotiveFrontEnd].IntValue;
+            }
+
             if (dict.ContainsKey(ValueKeys.ArrivingEnd))
             {
                 waypoint.ArrivingEnd = (WaypointEnd)dict[ValueKeys.ArrivingEnd].IntValue;
@@ -937,6 +983,7 @@ namespace WaypointQueue
             internal static string CoupleToCarId = "couple_to_car_id";
             internal static string CoupleToCarEnd = "couple_to_car_end";
             internal static string ArrivingEnd = "arriving_end";
+            internal static string LocomotiveFrontEnd = "locomotive_front_end";
             internal static string BodyToward = "body_toward";
             internal static string RequiredTurns = "required_turns";
             internal static string BodyLength = "body_length";
