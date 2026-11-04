@@ -80,6 +80,7 @@ namespace WaypointQueue
                 WaypointWindow = waypointQueueGO.AddComponent<WaypointWindow>();
                 RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
                 ModSettingsWindow = waypointQueueGO.AddComponent<ModSettingsWindow>();
+                waypointQueueGO.AddComponent<PendingSwitchRestorer>();
 
                 QueueStorageGO = new GameObject(QueueStorageGOName);
                 RouteStorageGO = new GameObject(RouteStorageGOName);
@@ -147,6 +148,8 @@ namespace WaypointQueue
             ModLocator.Settings.Save();
 
             HarmonyInstance.UnpatchAll(ModContext.ModIdentifier);
+
+            PendingSwitchRestorer.Shutdown();
 
             if (Instance != null) UnityEngine.Object.DestroyImmediate(Instance.gameObject);
             Instance = null;

@@ -168,6 +168,7 @@
     <Compile Include="WaypointCarPicker.cs" />
     <Compile Include="Patches\PatchCarPickable.cs" />
     <Compile Include="Patches\PatchAutoEngineerPlanner.cs" />
+    <Compile Include="Patches\PatchRestoreSwitchesAfterWaypoint.cs" />
     <Compile Include="Patches\PatchAutoEngineerWaypointControls.cs" />
     <Compile Include="Patches\PatchPopulateOperationsPanel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
