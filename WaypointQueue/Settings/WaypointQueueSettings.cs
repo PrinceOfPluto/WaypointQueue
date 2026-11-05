@@ -116,7 +116,7 @@ namespace WaypointQueue.Settings
 
         public bool UseLegacyHotkeyOptions = false;
 
-        public bool EnableWaypointOrientationFeature = false;
+        public bool EnableWaypointOrientationFeature = true;
 
         public static WaypointQueueSettings Load()
         {
