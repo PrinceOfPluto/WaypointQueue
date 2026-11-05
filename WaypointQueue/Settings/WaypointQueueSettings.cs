@@ -10,7 +10,7 @@ namespace WaypointQueue.Settings
     [Serializable]
     public class WaypointQueueSettings
     {
-        public int Version = 2;
+        public int Version = 3;
 
         [NonSerialized]
         private static readonly string ModPreferencesDirectory = Path.Combine(UserPaths.RailroaderDirectory, "ModSettings");
@@ -161,7 +161,18 @@ namespace WaypointQueue.Settings
 
             settings.InitializeInputs();
 
+            if (settings.Version == 2)
+            {
+                settings.MigrateSettings2to3();
+            }
+
             return settings;
+        }
+
+        private void MigrateSettings2to3()
+        {
+            Version = 3;
+            EnableWaypointOrientationFeature = true;
         }
 
         public void InitializeInputs()
