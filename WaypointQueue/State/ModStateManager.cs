@@ -12,6 +12,7 @@ using System.Linq;
 using Track;
 using UI;
 using UI.Common;
+using UI.Menu;
 using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
@@ -87,15 +88,20 @@ namespace WaypointQueue.State
                 return;
             }
 
-            if (ModLocator.Settings.Input.toggleWaypointPanel.WasPerformedThisFrame())
+            if (ModLocator.Settings.Input.toggleWaypointPanel.WasPerformedThisFrame() && !IsInEditor())
             {
                 ModLocator.Loader.WaypointWindow.Toggle();
             }
 
-            if (ModLocator.Settings.Input.toggleRoutesPanel.WasPerformedThisFrame())
+            if (ModLocator.Settings.Input.toggleRoutesPanel.WasPerformedThisFrame() && !IsInEditor())
             {
                 ModLocator.Loader.RouteManagerWindow.Toggle();
             }
+        }
+
+        private bool IsInEditor()
+        {
+            return StateManager.Shared.GameSceneMode == GlobalGameManager.GameSceneMode.Editor;
         }
 
         private void OnMapWillLoad(MapWillLoadEvent @event)
