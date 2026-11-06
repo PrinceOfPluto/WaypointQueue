@@ -12,7 +12,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Track;
+using Track.Search;
 using UI.EngineControls;
+using UI.Waypoints;
 using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
@@ -572,6 +574,17 @@ namespace WaypointQueue
                 // Default to zero body length so it doesn't use a potentially outdated body length from when the waypoint was originally placed
                 ModLocator.Loader.LogDebug($"Preparing to create orderWaypoint for {waypoint.ToString()}");
                 ModLocator.Loader.LogDebug($"Location {waypoint.LocationString} | couple to car id {waypoint.CoupleToCarId} | couple to car end {(waypoint.CoupleToCarEnd == Car.End.F ? 'F' : 'R')} | arriving end {waypoint.ArrivingEnd} | body toward {waypoint.BodyToward}");
+
+                if (waypoint.PoseIndex != -1)
+                {
+                    var poseOption = WaypointPoseCycle.Options[waypoint.PoseIndex];
+
+                    var currentNearSide = WaypointPoseCycle.NearSideOf(Graph.Shared.Current, waypoint.Location, waypoint.Locomotive, out _);
+
+                    (WaypointEnd end, BodyToward side) = poseOption.ToOrderFields(waypoint.Locomotive, currentNearSide);
+                    waypoint.ArrivingEnd = end;
+                    waypoint.BodyToward = side;
+                }
 
                 if (waypoint.LocomotiveFrontEnd.HasValue)
                 {

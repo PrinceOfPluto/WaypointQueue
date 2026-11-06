@@ -295,7 +295,6 @@ namespace WaypointQueue.UI
                 var (waypointEnd, bodyToward) = CurrentPose.ToOrderFields(_locomotive, NearSideFor(location));
                 var orderWaypoint = PosedWaypoint.FromPlacement(location, waypointEnd, bodyToward, placement, [], _currentCarInfo?.car.id, _currentCarInfo?.end);
                 waypoint = new ManagedWaypoint(_locomotive, orderWaypoint);
-                waypoint.PoseIndex = _poseIndex;
             }
             else
             {
@@ -737,10 +736,9 @@ namespace WaypointQueue.UI
         {
             if (_locomotive == null)
             {
-                _trainLength = 18f;
+                _trainLength = 13f;
                 _carLengths.Clear();
-                _carLengths.Add(9f);
-                _carLengths.Add(9f);
+                _carLengths.Add(13f);
             }
             else
             {
@@ -835,7 +833,6 @@ namespace WaypointQueue.UI
                 _footprintBuiltFor = location;
                 _footprintBuiltForPose = _poseIndex;
                 _footprintBuiltForOutcome = placementResult.Outcome;
-                //RefreshCarColors();
                 SyncFootprintTokens(shared);
                 for (int i = 0; i < _footprintTokens.Count; i++)
                 {
@@ -907,7 +904,14 @@ namespace WaypointQueue.UI
             }
 
             Vector3 position = _graph.GetPosition(location);
-            _nearSide = WaypointPoseCycle.CarryNearSide(_graph, location, _nearDirection, out _nearDirection);
+            if (_locomotive != null)
+            {
+                bool flag = _nearSideResolved && (position - _nearSideMarkPosition).sqrMagnitude < 625f;
+                _nearSide = (flag ? WaypointPoseCycle.CarryNearSide(_graph, location, _nearDirection, out _nearDirection) : WaypointPoseCycle.NearSideOf(_graph, location, _locomotive, out _nearDirection));
+            } else
+            {
+                _nearSide = TrackSegment.End.A;
+            }
             _nearSideMark = location;
             _nearSideMarkPosition = position;
             _nearSideResolved = true;
