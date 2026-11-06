@@ -611,6 +611,10 @@ namespace WaypointQueue
                 orderWaypoint = new OrderWaypoint(waypoint.LocationString, waypoint.CoupleToCarId);
             }
 
+            waypoint.MarkLocationString = waypoint.LocationString;
+            Location orderLocation = Graph.Shared.ResolveLocationString(orderWaypoint.LocationString);
+            waypoint.OverwriteLocation(orderLocation);
+
             ModLocator.Loader.Log($"Sending next waypoint for {state.Locomotive?.Ident} to {waypoint.Location}");
             _autoEngineerService.SendToWaypoint(ordersHelper, orderWaypoint);
 

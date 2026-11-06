@@ -180,6 +180,9 @@ namespace WaypointQueue
         public ConsistEnd? LocomotiveFrontEnd { get; set; }
         public BodyToward BodyToward { get; set; }
         public JunctionTurn[] RequiredTurns { get; set; }
+        // The mark where the waypoint was originally placed/pivot point,
+        // but not necessarily the same location AE will use for waypoint
+        public string MarkLocationString { get; set; }
 
         public bool ConnectAirOnCouple { get; set; }
         public bool ReleaseHandbrakesOnCouple { get; set; }
