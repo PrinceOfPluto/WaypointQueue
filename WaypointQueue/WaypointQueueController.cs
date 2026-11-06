@@ -175,6 +175,7 @@ namespace WaypointQueue
                 // Send next waypoint
                 if (waypointList.Count > 0)
                 {
+                    ModLocator.Loader.LogDebug("Sending next waypoint from QueueTickUpdate");
                     SendToFirstWaypoint(entry, ordersHelper);
                 }
 
@@ -323,6 +324,7 @@ namespace WaypointQueue
                 }
                 entry.Waypoints[0] = waypoint;
                 ModStateManager.Shared.SaveLocoWaypointState(loco.id, entry);
+                ModLocator.Loader.LogDebug("Sending next waypoint from replacing waypoint");
                 SendToFirstWaypoint(entry, _autoEngineerService.GetOrdersHelper(loco));
                 ModLocator.Loader.LogDebug($"Replaced waypoint for {waypoint.Locomotive.Ident} to {waypoint.Location}");
                 RestartCoroutine();

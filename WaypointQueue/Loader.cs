@@ -179,7 +179,14 @@ namespace WaypointQueue
 
         public void LogDebug(string str)
         {
-            ModContext.Log.Debug(str);
+            if (ModLocator.Settings.EnableVerboseLogging)
+            {
+                ModContext.Log.Info(str);
+            }
+            else
+            {
+                ModContext.Log.Debug(str);
+            }
         }
 
         public void LogError(string str)

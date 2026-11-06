@@ -118,6 +118,8 @@ namespace WaypointQueue.Settings
 
         public bool EnableWaypointOrientationFeature = true;
 
+        public bool EnableVerboseLogging = true;
+
         public static WaypointQueueSettings Load()
         {
             WaypointQueueSettings settings = null;
