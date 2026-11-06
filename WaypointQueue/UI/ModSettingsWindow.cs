@@ -334,6 +334,18 @@ namespace WaypointQueue.UI
                 row.Spacer(8f);
                 row.AddLabel("Enable support for the base game's new AE waypoint orientation and direction feature.");
             });
+
+            builder.Spacer(16f);
+            builder.HStack(row =>
+            {
+                row.AddToggle(() => Settings.EnableVerboseLogging, (bool val) =>
+                {
+                    Settings.EnableVerboseLogging = val;
+                    Save();
+                });
+                row.Spacer(8f);
+                row.AddLabel("Enable verbose logging.");
+            });
         }
 
         private void BuildKeybindingSection(UIPanelBuilder builder)

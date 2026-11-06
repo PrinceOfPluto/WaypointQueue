@@ -516,6 +516,7 @@ namespace WaypointQueue.State
             if (newState.UnresolvedWaypoint != null && oldState.UnresolvedWaypoint.Id != newState.UnresolvedWaypoint.Id)
             {
                 _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
+                ModLocator.Loader.LogDebug("Sending next waypoint from HostHandleQueueDidChange because first waypoint changed");
                 WaypointQueueController.Shared.SendToFirstWaypoint(newState);
                 return;
             }
@@ -533,6 +534,7 @@ namespace WaypointQueue.State
 
                 if (oldLocString != newLocString || oldCoupleId != newCoupleId)
                 {
+                    ModLocator.Loader.LogDebug("Sending next waypoint from HostHandleQueueDidChange because first waypoint was adjusted");
                     WaypointQueueController.Shared.SendToFirstWaypoint(newState);
                     return;
                 }
