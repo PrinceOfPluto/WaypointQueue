@@ -48,7 +48,6 @@ namespace WaypointQueue.UI
         private static CrewsPanelBuilder _crewsPanelBuilder => new();
 
         private string _selectedLocomotiveId;
-        private Coroutine _coroutine;
         private float _scrollPosition;
 
         private UIPanelBuilder _scrollViewBuilder;
@@ -102,6 +101,7 @@ namespace WaypointQueue.UI
             EventBus.Subscribe<WaypointDidUpdate>(this, OnWaypointDidUpdate);
             EventBus.Subscribe<QueueDidUpdate>(this, OnQueueDidUpdate);
             EventBus.Subscribe<WaypointWasAppended>(this, OnWaypointWasAppended);
+            EventBus.Subscribe<SelectedCarChanged>(this, OnSelectedCarChanged);
             _carService = ModLocator.ServiceProvider.GetService<ICarService>();
         }
 
@@ -112,6 +112,7 @@ namespace WaypointQueue.UI
 
         private void OnQueueDidUpdate(QueueDidUpdate queueDidUpdateEvent)
         {
+            ModLocator.Loader.Log($"OnQueueDidUpdate for {queueDidUpdateEvent.LocomotiveId}");
             if (queueDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && IsVisible)
             {
                 ModLocator.Loader.LogDebug($"Rebuilding full waypoint window for {TrainController.Shared.SelectedLocomotive?.Ident}");
@@ -195,51 +196,25 @@ namespace WaypointQueue.UI
             }
         }
 
-        private IEnumerator Ticker()
+        private void OnSelectedCarChanged(SelectedCarChanged _)
         {
-            WaitForSeconds t = new WaitForSeconds(0.2f);
-            while (true)
+            if (TrainController.Shared.SelectedLocomotive == null)
             {
-                yield return t;
-                Tick();
+                _selectedLocomotiveId = null;
             }
-        }
-
-        private void Tick()
-        {
-            if (TrainController.Shared.SelectedLocomotive?.id != _selectedLocomotiveId)
-            {
-                if (TrainController.Shared.SelectedLocomotive == null)
-                {
-                    _selectedLocomotiveId = null;
-                }
-                ModLocator.Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
-                RebuildWithScroll();
-            }
+            ModLocator.Loader.LogDebug($"Selected locomotive changed, rebuilding waypoint window");
+            RebuildWithScroll();
         }
 
         public void Show()
         {
             ModLocator.Loader.LogDebug($"Rebuilding and showing waypoint panel");
             WindowManager.Shared.ShowWindow(WindowIdentifier);
-
-            if (_coroutine == null)
-            {
-                ModLocator.Loader.LogDebug($"Starting waypoint window coroutine");
-                _coroutine = StartCoroutine(Ticker());
-            }
         }
 
         public void Hide()
         {
             WindowManager.Shared.CloseWindow(WindowIdentifier);
-
-            if (_coroutine != null)
-            {
-                ModLocator.Loader.LogDebug($"Stopping waypoint window coroutine");
-                StopCoroutine(_coroutine);
-                _coroutine = null;
-            }
         }
 
         public void Populate(UIPanelBuilder builder)
