@@ -96,6 +96,7 @@ namespace WaypointQueue.Patches
             }
             catch (Exception e)
             {
+                ModLocator.Loader.LogError($"Exception in SetRouteProfilePrefix: {e}");
                 return true;
             }
         }
