@@ -176,6 +176,7 @@ namespace WaypointQueue
 
         public Car.End? CoupleToCarEnd { get; set; }
         public WaypointEnd ArrivingEnd { get; set; }
+        public int PoseIndex { get; set; } = -1;
         public ConsistEnd? LocomotiveFrontEnd { get; set; }
         public BodyToward BodyToward { get; set; }
         public JunctionTurn[] RequiredTurns { get; set; }
@@ -682,6 +683,7 @@ namespace WaypointQueue
                    LocomotiveFrontEnd == other.LocomotiveFrontEnd &&
                    BodyToward == other.BodyToward &&
                    CoupleToCarEnd == other.CoupleToCarEnd &&
+                   PoseIndex == other.PoseIndex &&
                    TurnsEqual(RequiredTurns, other.RequiredTurns) &&
                    ConnectAirOnCouple == other.ConnectAirOnCouple &&
                    ReleaseHandbrakesOnCouple == other.ReleaseHandbrakesOnCouple &&
@@ -778,6 +780,7 @@ namespace WaypointQueue
                 [ValueKeys.CoupleToCarId] = Value.String(CoupleToCarId),
                 [ValueKeys.ArrivingEnd] = Value.Int((int)ArrivingEnd),
                 [ValueKeys.BodyToward] = Value.Int((int)BodyToward),
+                [ValueKeys.PoseIndex] = Value.Int(PoseIndex),
                 [ValueKeys.ConnectAirOnCouple] = Value.Bool(ConnectAirOnCouple),
                 [ValueKeys.ReleaseHandbrakesOnCouple] = Value.Bool(ReleaseHandbrakesOnCouple),
                 [ValueKeys.HasResolvedBrakeSystemOnCouple] = Value.Bool(HasResolvedBrakeSystemOnCouple),
@@ -970,6 +973,11 @@ namespace WaypointQueue
                 waypoint.RequiredTurns = decodedTurns;
             }
 
+            if (dict.ContainsKey(ValueKeys.PoseIndex))
+            {
+                waypoint.PoseIndex = dict[ValueKeys.PoseIndex].IntValue;
+            }
+
             return waypoint;
         }
 
@@ -985,6 +993,7 @@ namespace WaypointQueue
             internal static string ArrivingEnd = "arriving_end";
             internal static string LocomotiveFrontEnd = "locomotive_front_end";
             internal static string BodyToward = "body_toward";
+            internal static string PoseIndex = "pose_index";
             internal static string RequiredTurns = "required_turns";
             internal static string BodyLength = "body_length";
             internal static string ConnectAirOnCouple = "connect_air_on_couple";
