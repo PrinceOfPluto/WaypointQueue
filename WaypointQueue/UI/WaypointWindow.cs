@@ -83,6 +83,7 @@ namespace WaypointQueue.UI
             if (_customWindow == null)
             {
                 _customWindow = WindowManager.Shared.GetCustomWindow(WindowIdentifier);
+                WindowManager.Shared.RegisterActiveWindow(WindowIdentifier, _customWindow.Window);
             }
         }
 
