@@ -425,6 +425,10 @@ namespace WaypointQueue.State
                     EventBus.Publish(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
                     return;
                 }
+                //else
+                //{
+                //    ModLocator.Loader.LogDebug($"WasOnlySingleWaypointChanged returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
+                //}
 
                 // Determine if a single waypoint was added at the end
                 if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
@@ -434,6 +438,14 @@ namespace WaypointQueue.State
                     EventBus.Publish(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
                     return;
                 }
+                //else
+                //{
+                //    ModLocator.Loader.LogDebug($"WasOnlyOneNewWaypointAppended returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
+                //}
+            }
+            else
+            {
+                ModLocator.Loader.LogDebug($"Queue for {newState.LocomotiveId} was updated, but not refreshed. Selected loco is {TrainController.Shared.SelectedLocomotive?.Ident} and waypoint window {(WaypointWindow.Shared.IsVisible ? "visible" : "NOT visible")}");
             }
 
             _locoWaypointStates[newState.LocomotiveId] = newState;
@@ -507,6 +519,7 @@ namespace WaypointQueue.State
             // When all waypoints are deleted or if the first waypoint got deleted
             if (newState.Waypoints.Count == 0 || newState.UnresolvedWaypoint == null)
             {
+                ModLocator.Loader.LogDebug($"HostHandleQueueDidChange all waypoints are deleted or first waypoint got deleted, {newState.Waypoints.Count == 0}, {newState.UnresolvedWaypoint == null}");
                 _waypointResolver.CleanupBeforeRemovingWaypoint(oldState.UnresolvedWaypoint);
                 _autoEngineerService.CancelActiveOrders(oldState.Locomotive);
                 return;
@@ -534,7 +547,7 @@ namespace WaypointQueue.State
 
                 if (oldLocString != newLocString || oldCoupleId != newCoupleId)
                 {
-                    ModLocator.Loader.LogDebug("Sending next waypoint from HostHandleQueueDidChange because first waypoint was adjusted");
+                    ModLocator.Loader.LogDebug($"Sending next waypoint from HostHandleQueueDidChange because first waypoint was adjusted. Old location string {oldLocString}, new location string {newLocString}, old couple id {oldCoupleId}, new couple id {newCoupleId}");
                     WaypointQueueController.Shared.SendToFirstWaypoint(newState);
                     return;
                 }
