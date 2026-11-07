@@ -908,7 +908,8 @@ namespace WaypointQueue.UI
             {
                 bool flag = _nearSideResolved && (position - _nearSideMarkPosition).sqrMagnitude < 625f;
                 _nearSide = (flag ? WaypointPoseCycle.CarryNearSide(_graph, location, _nearDirection, out _nearDirection) : WaypointPoseCycle.NearSideOf(_graph, location, _locomotive, out _nearDirection));
-            } else
+            }
+            else
             {
                 _nearSide = TrackSegment.End.A;
             }

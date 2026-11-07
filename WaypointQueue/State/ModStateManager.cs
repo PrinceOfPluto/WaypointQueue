@@ -646,7 +646,7 @@ namespace WaypointQueue.State
                     }
                 }
             }
-            
+
 
             _routes[newRouteState.Id] = newRouteState;
             _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());

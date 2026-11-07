@@ -228,14 +228,16 @@ namespace WaypointQueue.UI
             {
                 if (_sortByDirection == SortByDirection.Ascending)
                 {
-                    items.Sort((x, y) => {
+                    items.Sort((x, y) =>
+                    {
                         int bySection = x.Value.Section.CompareTo(y.Value.Section);
                         return bySection != 0 ? bySection : x.Value.Name.CompareTo(y.Value.Name);
                     });
                 }
                 else
                 {
-                    items.Sort((x, y) => {
+                    items.Sort((x, y) =>
+                    {
                         int bySection = y.Value.Section.CompareTo(x.Value.Section);
                         return bySection != 0 ? bySection : y.Value.Name.CompareTo(x.Value.Name);
                     });
