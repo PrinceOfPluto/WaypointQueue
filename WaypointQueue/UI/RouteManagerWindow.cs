@@ -225,13 +225,23 @@ namespace WaypointQueue.UI
 
             if (_sortByField == SortByField.Section)
             {
+                // Within a section, always order routes by name so equal sections don't
+                // come out in arbitrary order (List.Sort is not stable).
                 if (_sortByDirection == SortByDirection.Ascending)
                 {
-                    items.Sort((x, y) => x.Value.Section.CompareTo(y.Value.Section));
+                    items.Sort((x, y) =>
+                    {
+                        int bySection = x.Value.Section.CompareTo(y.Value.Section);
+                        return bySection != 0 ? bySection : x.Value.Name.CompareTo(y.Value.Name);
+                    });
                 }
                 else
                 {
-                    items.Sort((x, y) => y.Value.Section.CompareTo(x.Value.Section));
+                    items.Sort((x, y) =>
+                    {
+                        int bySection = y.Value.Section.CompareTo(x.Value.Section);
+                        return bySection != 0 ? bySection : x.Value.Name.CompareTo(y.Value.Name);
+                    });
                 }
             }
 
