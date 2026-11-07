@@ -79,8 +79,15 @@ namespace WaypointQueue.UI
                 builder.AddSection("Speed options");
                 BuildSpeedOptionsSection(builder);
 
+                builder.Spacer(16f);
+
                 builder.AddSection("Experimental");
                 BuildExperimentalOptionsSection(builder);
+
+                builder.Spacer(16f);
+
+                builder.AddSection("Diagnostics");
+                BuildDiagnosticsOptionsSection(builder);
 
                 builder.Spacer(16f);
                 builder.AddSection("Reset");
@@ -335,6 +342,34 @@ namespace WaypointQueue.UI
                 row.AddLabel("Enable support for the base game's new AE waypoint orientation and direction feature.");
             });
 
+            builder.Spacer(16f);
+            builder.HStack(row =>
+            {
+                row.AddToggle(() => Settings.EnableVerboseLogging, (bool val) =>
+                {
+                    Settings.EnableVerboseLogging = val;
+                    Save();
+                });
+                row.Spacer(8f);
+                row.AddLabel("Enable verbose logging.");
+            });
+
+            builder.Spacer(16f);
+            builder.HStack(row =>
+            {
+                row.AddToggle(() => Settings.DisableWindowRefreshOptimizations, (bool val) =>
+                {
+                    Settings.DisableWindowRefreshOptimizations = val;
+                    Save();
+                });
+                row.Spacer(8f);
+                row.AddLabel("Disable window refresh optimizations.");
+            });
+            builder.AddLabel("With window refresh optimizations disabled, very large queues may encounter UI update lag. This setting is intended as a temporary fix while I investigate the issue of the waypoint and route windows occasionally not refreshing as expected using the UI optimiziations I implemented pre-MOW to improve performance for very long queues.");
+        }
+
+        private void BuildDiagnosticsOptionsSection(UIPanelBuilder builder)
+        {
             builder.Spacer(16f);
             builder.HStack(row =>
             {

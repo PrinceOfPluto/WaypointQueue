@@ -414,38 +414,41 @@ namespace WaypointQueue.State
                 }
             }
 
-            bool isQueueForSelectedLoco = TrainController.Shared.SelectedLocomotive?.id == newState.LocomotiveId;
-            if (isQueueForSelectedLoco && WaypointWindow.Shared.IsVisible)
+            if (!ModLocator.Settings.DisableWindowRefreshOptimizations)
             {
-                // Determine whether only a single waypoint changed for the UI refresh optimization
-                if (WasOnlySingleWaypointChanged(oldState.Waypoints, newState.Waypoints, out var singleChangedWaypoint))
+                bool isQueueForSelectedLoco = TrainController.Shared.SelectedLocomotive?.id == newState.LocomotiveId;
+                if (isQueueForSelectedLoco && WaypointWindow.Shared.IsVisible)
                 {
-                    _locoWaypointStates[newState.LocomotiveId] = newState;
-                    _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
-                    EventBus.Publish(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
-                    return;
-                }
-                //else
-                //{
-                //    ModLocator.Loader.LogDebug($"WasOnlySingleWaypointChanged returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
-                //}
+                    // Determine whether only a single waypoint changed for the UI refresh optimization
+                    if (WasOnlySingleWaypointChanged(oldState.Waypoints, newState.Waypoints, out var singleChangedWaypoint))
+                    {
+                        _locoWaypointStates[newState.LocomotiveId] = newState;
+                        _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
+                        EventBus.Publish(new WaypointDidUpdate(singleChangedWaypoint.Id, singleChangedWaypoint.LocomotiveId, null));
+                        return;
+                    }
+                    else
+                    {
+                        ModLocator.Loader.LogDebug($"WasOnlySingleWaypointChanged returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
+                    }
 
-                // Determine if a single waypoint was added at the end
-                if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
-                {
-                    _locoWaypointStates[newState.LocomotiveId] = newState;
-                    _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
-                    EventBus.Publish(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
-                    return;
+                    // Determine if a single waypoint was added at the end
+                    if (WasOnlyOneNewWaypointAppended(oldState.Waypoints, newState.Waypoints, out var appendedWaypoint))
+                    {
+                        _locoWaypointStates[newState.LocomotiveId] = newState;
+                        _prevLocoWaypointStates[newState.LocomotiveId] = LocoWaypointState.FromPropertyValue(newState.ToPropertyValue());
+                        EventBus.Publish(new WaypointWasAppended(appendedWaypoint.Id, newState.LocomotiveId, null));
+                        return;
+                    }
+                    else
+                    {
+                        ModLocator.Loader.LogDebug($"WasOnlyOneNewWaypointAppended returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
+                    }
                 }
-                //else
-                //{
-                //    ModLocator.Loader.LogDebug($"WasOnlyOneNewWaypointAppended returned false for {oldState.LocomotiveId} and {newState.LocomotiveId}");
-                //}
-            }
-            else
-            {
-                ModLocator.Loader.LogDebug($"Queue for {newState.LocomotiveId} was updated, but not refreshed. Selected loco is {TrainController.Shared.SelectedLocomotive?.Ident} and waypoint window {(WaypointWindow.Shared.IsVisible ? "visible" : "NOT visible")}");
+                else
+                {
+                    ModLocator.Loader.LogDebug($"Queue for {newState.LocomotiveId} was updated, but not refreshed. Selected loco is {TrainController.Shared.SelectedLocomotive?.Ident} and waypoint window {(WaypointWindow.Shared.IsVisible ? "visible" : "NOT visible")}");
+                }
             }
 
             _locoWaypointStates[newState.LocomotiveId] = newState;
@@ -610,36 +613,40 @@ namespace WaypointQueue.State
                 return;
             }
 
-            bool isRouteForSelectedRoute = RouteManagerWindow.Shared.SelectedRouteId == newRouteState.Id;
-            if (isRouteForSelectedRoute && RouteManagerWindow.Shared.IsVisible)
+            if (!ModLocator.Settings.DisableWindowRefreshOptimizations)
             {
-                // Handles full refreshed needed when going from zero waypoints to one waypoint
-                if (newRouteState.Waypoints.Count == 1)
+                bool isRouteForSelectedRoute = RouteManagerWindow.Shared.SelectedRouteId == newRouteState.Id;
+                if (isRouteForSelectedRoute && RouteManagerWindow.Shared.IsVisible)
                 {
-                    _routes[newRouteState.Id] = newRouteState;
-                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
-                    EventBus.Publish(new RouteDidUpdate(newRouteState.Id));
-                    return;
-                }
+                    // Handles full refreshed needed when going from zero waypoints to one waypoint
+                    if (newRouteState.Waypoints.Count == 1)
+                    {
+                        _routes[newRouteState.Id] = newRouteState;
+                        _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                        EventBus.Publish(new RouteDidUpdate(newRouteState.Id));
+                        return;
+                    }
 
-                // Determine whether only a single waypoint changed for the UI refresh optimization
-                if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
-                {
-                    _routes[newRouteState.Id] = newRouteState;
-                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
-                    EventBus.Publish(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
-                    return;
-                }
+                    // Determine whether only a single waypoint changed for the UI refresh optimization
+                    if (WasOnlySingleWaypointChanged(oldRouteState.Waypoints, newRouteState.Waypoints, out var singleChangedWaypoint))
+                    {
+                        _routes[newRouteState.Id] = newRouteState;
+                        _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                        EventBus.Publish(new WaypointDidUpdate(singleChangedWaypoint.Id, null, newRouteState.Id));
+                        return;
+                    }
 
-                // Determine if a single waypoint was added at the end
-                if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
-                {
-                    _routes[newRouteState.Id] = newRouteState;
-                    _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
-                    EventBus.Publish(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
-                    return;
+                    // Determine if a single waypoint was added at the end
+                    if (WasOnlyOneNewWaypointAppended(oldRouteState.Waypoints, newRouteState.Waypoints, out var appendedWaypoint))
+                    {
+                        _routes[newRouteState.Id] = newRouteState;
+                        _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
+                        EventBus.Publish(new WaypointWasAppended(appendedWaypoint.Id, null, newRouteState.Id));
+                        return;
+                    }
                 }
             }
+            
 
             _routes[newRouteState.Id] = newRouteState;
             _prevRoutes[newRouteState.Id] = RouteDefinition.FromPropertyValue(newRouteState.ToPropertyValue());
