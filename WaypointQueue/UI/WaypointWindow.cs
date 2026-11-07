@@ -1073,10 +1073,9 @@ namespace WaypointQueue.UI
         {
             builder.HStack(delegate (UIPanelBuilder builder)
             {
-                int currentSelected = waypoint.UseCompletedWaybillStatus ? 0 : 1;
-                builder.AddField("Waybill status", builder.AddDropdown(["Completed waybills", "Incompleted waybills"], currentSelected, (int val) =>
+                builder.AddField("Waybill status", builder.AddDropdown(["Completed waybills", "Incompleted waybills", "No waybills"], (int)waypoint.MatchWaybillStatus, (int val) =>
                 {
-                    waypoint.UseCompletedWaybillStatus = val == 0;
+                    waypoint.MatchWaybillStatus = (ManagedWaypoint.WaybillStatus)val;
                     onWaypointChange(waypoint);
                 }));
             });

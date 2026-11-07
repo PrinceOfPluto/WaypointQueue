@@ -224,7 +224,7 @@ namespace WaypointQueue
             }
             if (wp.WillUncoupleByWaybillStatus)
             {
-                return (cars) => GetMatchingCarsByWaybillStatus(cars, wp.UseCompletedWaybillStatus, excludeMatchFromCut);
+                return (cars) => GetMatchingCarsByWaybillStatus(cars, wp.MatchWaybillStatus, excludeMatchFromCut);
             }
             throw new UncouplingException("Failed to find a valid destination match function.", wp);
         }
@@ -282,15 +282,20 @@ namespace WaypointQueue
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
         }
 
-        private List<Car> GetMatchingCarsByWaybillStatus(List<Car> consist, bool completed, bool excludeMatchFromCut)
+        private List<Car> GetMatchingCarsByWaybillStatus(List<Car> consist, ManagedWaypoint.WaybillStatus status, bool excludeMatchFromCut)
         {
             bool matchFunction(Car car)
             {
-                if (car.Waybill.HasValue)
+                if (status == ManagedWaypoint.WaybillStatus.None)
                 {
-                    return car.Waybill.Value.Completed == completed;
+                    return !car.Waybill.HasValue;
                 }
-                return false;
+                if (status == ManagedWaypoint.WaybillStatus.Complete)
+                {
+                    return car.Waybill.HasValue && car.Waybill.Value.Completed;
+                }
+
+                return car.Waybill.HasValue && !car.Waybill.Value.Completed;
             }
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
         }

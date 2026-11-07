@@ -635,25 +635,35 @@ namespace WaypointQueue
             if (waypoint.WillUncoupleByDestination && !string.IsNullOrEmpty(waypoint.UncoupleDestinationId))
             {
                 carsToCut = isPickup
-                    ? uncouplingService.FindPickupByDestination(waypoint, carCoupledTo) : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
+                    ? uncouplingService.FindPickupByDestination(waypoint, carCoupledTo)
+                    : uncouplingService.FindDropoffByDestination(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleBySpecificCar)
             {
                 carsToCut = isPickup
-                    ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo) : uncouplingService.FindDropoffBySpecificCar(waypoint, carCoupledTo);
+                    ? uncouplingService.FindPickupBySpecificCar(waypoint, carCoupledTo)
+                    : uncouplingService.FindDropoffBySpecificCar(waypoint, carCoupledTo);
             }
 
             if (waypoint.WillUncoupleAllExceptLocomotives)
             {
                 carsToCut = isPickup
-                    ? uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo) : uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
+                    ? uncouplingService.FindPickupAllExceptLocomotives(waypoint, carCoupledTo)
+                    : uncouplingService.FindDropoffAllExceptLocomotives(waypoint, carCoupledTo);
 
                 if (carsToCut.Count == 0 && isPickup)
                 {
                     ModLocator.Loader.Log($"Pickup all except locomotives found zero cars to cut.");
                     return;
                 }
+            }
+
+            if (waypoint.WillUncoupleByWaybillStatus)
+            {
+                carsToCut = isPickup
+                    ? uncouplingService.FindPickupByWaybillStatus(waypoint, carCoupledTo)
+                    : uncouplingService.FindDropoffByWaybillStatus(waypoint, carCoupledTo);
             }
 
             if (isPickup && carsToCut.Count == 0)
@@ -691,6 +701,11 @@ namespace WaypointQueue
             {
                 uncouplingService.UncoupleAllExceptLocomotives(waypoint);
                 return;
+            }
+
+            if (waypoint.WillUncoupleByWaybillStatus)
+            {
+                carsToCut = uncouplingService.FindCutByWaybillStatus(waypoint);
             }
 
             uncouplingService.PerformCut(carsToCut, waypoint);
