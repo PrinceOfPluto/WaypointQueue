@@ -53,11 +53,20 @@ namespace WaypointQueue
 
         private void Awake()
         {
-            EventBus.Subscribe<MapWillUnloadEvent>(this, OnMapWillUnload);
             _waypointResolver = ModLocator.ServiceProvider.GetService<WaypointResolver>();
             _refuelService = ModLocator.ServiceProvider.GetService<RefuelService>();
             _carService = ModLocator.ServiceProvider.GetService<ICarService>();
             _autoEngineerService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
+        }
+
+        protected void OnEnable()
+        {
+            EventBus.Subscribe<MapWillUnloadEvent>(this, OnMapWillUnload);
+        }
+
+        protected void OnDisable()
+        {
+            EventBus.Unsubscribe(this);
         }
 
         private void OnMapWillUnload(MapWillUnloadEvent @event)
