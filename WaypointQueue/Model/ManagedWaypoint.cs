@@ -712,6 +712,8 @@ namespace WaypointQueue
                    MaxSpeedAfterRefueling == other.MaxSpeedAfterRefueling &&
                    RefuelLoaderAnimated == other.RefuelLoaderAnimated &&
                    RefuelLocoIdsQueue.SequenceEqual(other.RefuelLocoIdsQueue) &&
+                   RefuelLoaderRegisteredId == other.RefuelLoaderRegisteredId &&
+                   EnableMultipleRefueling == other.EnableMultipleRefueling &&
                    TimetableSymbol == other.TimetableSymbol &&
                    WillWait == other.WillWait &&
                    CurrentlyWaiting == other.CurrentlyWaiting &&
