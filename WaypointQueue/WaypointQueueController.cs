@@ -356,23 +356,26 @@ namespace WaypointQueue
             RestartCoroutine();
         }
 
-        public void InsertWaypoint(BaseLocomotive loco, Location location, string coupledToCarId, string beforeWaypointId)
+        public void InsertWaypoint(BaseLocomotive loco, ManagedWaypoint waypoint, string beforeWaypointId)
         {
-            Location clampedLocation = location.Clamped();
             LocoWaypointState locoState = ModStateManager.Shared.GetLocoWaypointState(loco.id);
 
-            OrderWaypoint orderWaypoint = new OrderWaypoint(Graph.LocationToString(location), coupledToCarId);
-
-            ManagedWaypoint waypoint = new ManagedWaypoint(loco, orderWaypoint);
             _refuelService.CheckNearbyFuelLoaders(waypoint);
 
-            int beforeWaypointIndex = locoState.Waypoints?.FindIndex(w => w.Id == beforeWaypointId) ?? 0;
+            int beforeWaypointIndex = locoState.Waypoints.FindIndex(w => w.Id == beforeWaypointId);
+
+            if (beforeWaypointIndex < 0)
+            {
+                ModLocator.Loader.LogError($"Insert waypoint for loco {loco.Ident} could not find the index for the before waypoint id {beforeWaypointId}. Setting to 0 instead.");
+                beforeWaypointIndex = 0;
+            }
 
             if (beforeWaypointIndex == 0)
             {
                 waypoint.StatusLabel = "Running to waypoint";
             }
 
+            ModLocator.Loader.LogDebug($"Attempting to insert waypoint at {beforeWaypointIndex} for loco {waypoint.Locomotive.Ident} with existing waypoint list of {locoState.Waypoints.Count}");
             locoState.Waypoints.Insert(beforeWaypointIndex, waypoint);
 
             locoState.UnresolvedWaypoint = locoState.Waypoints.FirstOrDefault();

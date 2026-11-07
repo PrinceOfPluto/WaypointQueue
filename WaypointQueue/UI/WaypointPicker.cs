@@ -303,9 +303,15 @@ namespace WaypointQueue.UI
                 waypoint.PoseIndex = _poseIndex;
             }
 
-            _onWaypointSelected(waypoint);
-
-            Cleanup();
+            try
+            {
+                _onWaypointSelected(waypoint);
+            }
+            catch (Exception e)
+            {
+                ModLocator.Loader.LogError($"OnWaypointSelected failed with exception: {e}");
+                Cleanup();
+            }
         }
 
         private bool CursorHeldStill(float now)

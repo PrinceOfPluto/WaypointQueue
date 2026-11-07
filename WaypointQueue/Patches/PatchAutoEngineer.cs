@@ -85,7 +85,7 @@ namespace WaypointQueue.Patches
                     SpeedTarget t = updatedSpeedTargets[indexOfWaypoint];
                     if (Mathf.Abs(totalDistance - t.DistanceM) < 10f)
                     {
-                        ModLocator.Loader.LogDebug($"Updating AE target {targetSpeedMps}mps @ {t.DistanceM}m for reason {t.Reason}");
+                        ModLocator.Loader.LogDebug($"Updating AE {waypointState.Locomotive.Ident} target {targetSpeedMps}mps ({MpsToMph(targetSpeedMps)}mph) @ {t.DistanceM}m for reason {t.Reason}");
                         updatedSpeedTargets[indexOfWaypoint] = new SpeedTarget(t.DistanceM, targetSpeedMps, t.Reason);
 
                         profile = BuildRouteProfileForNewSpeedTargets(profile, updatedSpeedTargets);
