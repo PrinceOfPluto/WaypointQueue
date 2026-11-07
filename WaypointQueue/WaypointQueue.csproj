@@ -146,6 +146,7 @@
     <Compile Include="State\Events\RoutesDidLoadFromDisk.cs" />
     <Compile Include="State\Events\WaypointDidUpdate.cs" />
     <Compile Include="State\Events\WaypointWasAppended.cs" />
+    <Compile Include="State\PendingSwitchRestorer.cs" />
     <Compile Include="State\QueueStateStorage.cs" />
     <Compile Include="State\RouteStorage.cs" />
     <Compile Include="State\WaypointModStorage.cs" />
@@ -200,9 +201,9 @@
     </GetAssemblyIdentity>
   </Target>
   <Target Name="CopyInfo" AfterTargets="ExtractVersion">
-	  <Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
-	  <Exec Command="copy &quot;$(SolutionDir)LICENSE.txt&quot; &quot;$(ModDirectory)LICENSE.txt&quot;" />
-	  <Exec Command="copy &quot;$(SolutionDir)THIRD_PARTY_NOTICES.txt&quot; &quot;$(ModDirectory)THIRD_PARTY_NOTICES.txt&quot;" />
+    <Exec Command="copy &quot;$(SolutionDir)Info.json&quot; &quot;$(ModDirectory)Info.json&quot;" />
+    <Exec Command="copy &quot;$(SolutionDir)LICENSE.txt&quot; &quot;$(ModDirectory)LICENSE.txt&quot;" />
+    <Exec Command="copy &quot;$(SolutionDir)THIRD_PARTY_NOTICES.txt&quot; &quot;$(ModDirectory)THIRD_PARTY_NOTICES.txt&quot;" />
   </Target>
   <Target Name="SetVersion" AfterTargets="CopyInfo">
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(SolutionDir)UpdateVersion.ps1&quot; -FilePath &quot;$(ModDirectory)Info.json&quot; -FullVersion &quot;%(ModAssemblyIdentities.Version)&quot;" />
