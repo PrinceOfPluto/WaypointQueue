@@ -345,18 +345,6 @@ namespace WaypointQueue.UI
             builder.Spacer(16f);
             builder.HStack(row =>
             {
-                row.AddToggle(() => Settings.EnableVerboseLogging, (bool val) =>
-                {
-                    Settings.EnableVerboseLogging = val;
-                    Save();
-                });
-                row.Spacer(8f);
-                row.AddLabel("Enable verbose logging.");
-            });
-
-            builder.Spacer(16f);
-            builder.HStack(row =>
-            {
                 row.AddToggle(() => Settings.DisableWindowRefreshOptimizations, (bool val) =>
                 {
                     Settings.DisableWindowRefreshOptimizations = val;
