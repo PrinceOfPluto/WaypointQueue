@@ -106,7 +106,8 @@ namespace WaypointQueue
             ByDestinationIndustry,
             ByDestinationTrack,
             BySpecificCar,
-            AllExceptLocomotives
+            AllExceptLocomotives,
+            ByWaybillStatus
         }
 
         [JsonProperty]
@@ -330,6 +331,7 @@ namespace WaypointQueue
         public virtual bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
         [JsonIgnore]
         public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
+        public bool WillUncoupleByWaybillStatus { get { return UncouplingMode == UncoupleMode.ByWaybillStatus; } }
         [JsonIgnore]
         public bool WillUncoupleAllExceptLocomotives { get { return UncouplingMode == UncoupleMode.AllExceptLocomotives; } }
 
@@ -413,6 +415,7 @@ namespace WaypointQueue
         public string DestinationSearchText { get; set; } = "";
         public virtual string UncoupleDestinationId { get; set; } = "";
         public virtual bool ExcludeMatchingCarsFromCut { get; set; }
+        public bool UseCompletedWaybillStatus { get; set; } = true;
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
@@ -832,6 +835,7 @@ namespace WaypointQueue
                 [ValueKeys.UncouplingSearchResultCarId] = Value.String(UncouplingSearchResultCarId),
                 [ValueKeys.DestinationSearchText] = Value.String(DestinationSearchText),
                 [ValueKeys.UncoupleDestinationId] = Value.String(UncoupleDestinationId),
+                [ValueKeys.UseCompletedWaybillStatus] = Value.Bool(UseCompletedWaybillStatus),
                 [ValueKeys.ExcludeMatchingCarsFromCut] = Value.Bool(ExcludeMatchingCarsFromCut),
                 [ValueKeys.MoveTrainPastWaypoint] = Value.Bool(MoveTrainPastWaypoint),
                 [ValueKeys.CurrentlyWaitingBeforeCutting] = Value.Bool(CurrentlyWaitingBeforeCutting),
@@ -914,9 +918,9 @@ namespace WaypointQueue
             waypoint.UncouplingSearchResultCarId = dict[ValueKeys.UncouplingSearchResultCarId].StringValue;
             waypoint.DestinationSearchText = dict[ValueKeys.DestinationSearchText].StringValue;
             waypoint.UncoupleDestinationId = dict[ValueKeys.UncoupleDestinationId].StringValue;
-            waypoint.ExcludeMatchingCarsFromCut = dict[ValueKeys.ExcludeMatchingCarsFromCut].BoolValue; ;
+            waypoint.ExcludeMatchingCarsFromCut = dict[ValueKeys.ExcludeMatchingCarsFromCut].BoolValue;
             waypoint.MoveTrainPastWaypoint = dict[ValueKeys.MoveTrainPastWaypoint].BoolValue;
-            waypoint.CurrentlyWaitingBeforeCutting = dict[ValueKeys.CurrentlyWaitingBeforeCutting].BoolValue; ;
+            waypoint.CurrentlyWaitingBeforeCutting = dict[ValueKeys.CurrentlyWaitingBeforeCutting].BoolValue;
             waypoint.StatusLabel = dict[ValueKeys.StatusLabel].StringValue;
             waypoint.Errors = [.. dict[ValueKeys.Errors].ArrayValue.ToList().Select(e => WaypointError.FromPropertyValue(e))];
 
@@ -979,6 +983,11 @@ namespace WaypointQueue
             if (dict.ContainsKey(ValueKeys.PoseIndex))
             {
                 waypoint.PoseIndex = dict[ValueKeys.PoseIndex].IntValue;
+            }
+
+            if (dict.ContainsKey(ValueKeys.UseCompletedWaybillStatus))
+            {
+                waypoint.UseCompletedWaybillStatus = dict[ValueKeys.UseCompletedWaybillStatus].BoolValue;
             }
 
             return waypoint;
@@ -1048,6 +1057,7 @@ namespace WaypointQueue
             internal static string DestinationSearchText = "destination_search_text";
             internal static string UncoupleDestinationId = "uncouple_destination_id";
             internal static string ExcludeMatchingCarsFromCut = "exclude_matching_cars_from_cut";
+            internal static string UseCompletedWaybillStatus = "use_completed_waybill_status";
             internal static string MoveTrainPastWaypoint = "move_train_past_waypoint";
             internal static string CurrentlyWaitingBeforeCutting = "currently_waiting_before_cutting";
             internal static string StatusLabel = "status_label";

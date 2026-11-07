@@ -84,7 +84,7 @@ namespace WaypointQueue
         public List<Car> FindCutByDestination(ManagedWaypoint wp)
         {
             List<Car> consistFromEnd = GetConsistForCutFromEnd(wp);
-            var matchFunction = GetDestinationMatchFunction(wp, isPostCoupleCut: false);
+            var matchFunction = GetCarMatchFunction(wp, isPostCoupleCut: false);
             List<Car> carsToCut = matchFunction(consistFromEnd);
             return carsToCut;
         }
@@ -93,7 +93,7 @@ namespace WaypointQueue
         {
             List<Car> carsAvailableForPickup = GetCarsAvailableForPickup(wp, carCoupledTo);
 
-            var pickupCalcFunction = GetDestinationMatchFunction(wp, isPostCoupleCut: true);
+            var pickupCalcFunction = GetCarMatchFunction(wp, isPostCoupleCut: true);
 
             if (wp.CountUncoupledFromNearestToWaypoint)
             {
@@ -112,7 +112,7 @@ namespace WaypointQueue
         public List<Car> FindDropoffByDestination(ManagedWaypoint wp, Car carCoupledTo)
         {
             List<Car> carsAvailableForDropoff = GetCarsAvailableForDropoff(wp, carCoupledTo, out List<Car> consistFromFarEnd);
-            var dropoffCalcFunction = GetDestinationMatchFunction(wp, isPostCoupleCut: true);
+            var dropoffCalcFunction = GetCarMatchFunction(wp, isPostCoupleCut: true);
 
             if (wp.CountUncoupledFromNearestToWaypoint)
             {
@@ -137,7 +137,63 @@ namespace WaypointQueue
             }
         }
 
-        private Func<List<Car>, List<Car>> GetDestinationMatchFunction(ManagedWaypoint wp, bool isPostCoupleCut)
+        public List<Car> FindCutByWaybillStatus(ManagedWaypoint wp)
+        {
+            List<Car> consistFromEnd = GetConsistForCutFromEnd(wp);
+            var matchFunction = GetCarMatchFunction(wp, isPostCoupleCut: false);
+            List<Car> carsToCut = matchFunction(consistFromEnd);
+            return carsToCut;
+        }
+
+        public List<Car> FindPickupByWaybillStatus(ManagedWaypoint wp, Car carCoupledTo)
+        {
+            List<Car> carsAvailableForPickup = GetCarsAvailableForPickup(wp, carCoupledTo);
+
+            var pickupCalcFunction = GetCarMatchFunction(wp, isPostCoupleCut: true);
+
+            if (wp.CountUncoupledFromNearestToWaypoint)
+            {
+                carsAvailableForPickup.Reverse();
+                List<Car> carsToPickup = pickupCalcFunction(carsAvailableForPickup);
+                List<Car> carsNotPickedUp = [.. carsAvailableForPickup.Where(c => !carsToPickup.Any(p => p.id == c.id))];
+                return carsNotPickedUp;
+            }
+            else
+            {
+                List<Car> carsToCut = pickupCalcFunction(carsAvailableForPickup);
+                return carsToCut;
+            }
+        }
+
+        public List<Car> FindDropoffByWaybillStatus(ManagedWaypoint wp, Car carCoupledTo)
+        {
+            List<Car> carsAvailableForDropoff = GetCarsAvailableForDropoff(wp, carCoupledTo, out List<Car> consistFromFarEnd);
+            var dropoffCalcFunction = GetCarMatchFunction(wp, isPostCoupleCut: true);
+
+            if (wp.CountUncoupledFromNearestToWaypoint)
+            {
+                List<Car> carsToDropoff = dropoffCalcFunction(carsAvailableForDropoff);
+                List<Car> carsToCut = [];
+                if (carsToDropoff.Count > 0)
+                {
+                    // need to add cars before the last car
+                    Car lastCar = carsToDropoff.Last();
+                    int indexOfLastCarToDropoff = consistFromFarEnd.FindIndex(c => c.id == lastCar.id);
+                    carsToCut = consistFromFarEnd.GetRange(0, indexOfLastCarToDropoff + 1);
+                }
+                return carsToCut;
+            }
+            else
+            {
+                carsAvailableForDropoff.Reverse();
+                // if we're dropping off furthest block, we invert the exclude because we're matching from the other end
+                List<Car> carsToKeep = dropoffCalcFunction(carsAvailableForDropoff);
+                List<Car> carsToCut = [.. consistFromFarEnd.Where(c => carsToKeep.All(x => x.id != c.id))];
+                return carsToCut;
+            }
+        }
+
+        private Func<List<Car>, List<Car>> GetCarMatchFunction(ManagedWaypoint wp, bool isPostCoupleCut)
         {
             bool excludeMatchFromCut = wp.ExcludeMatchingCarsFromCut;
 
@@ -165,6 +221,10 @@ namespace WaypointQueue
             {
                 Area areaMatch = TryGetDestinationAreaMatch(wp);
                 return (cars) => GetMatchingCarsByDestinationArea(cars, areaMatch, excludeMatchFromCut);
+            }
+            if (wp.WillUncoupleByWaybillStatus)
+            {
+                return (cars) => GetMatchingCarsByWaybillStatus(cars, wp.UseCompletedWaybillStatus, excludeMatchFromCut);
             }
             throw new UncouplingException("Failed to find a valid destination match function.", wp);
         }
@@ -218,6 +278,19 @@ namespace WaypointQueue
                     carMatchesFilter = carArea?.identifier == areaMatch.identifier;
                 }
                 return carMatchesFilter;
+            }
+            return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
+        }
+
+        private List<Car> GetMatchingCarsByWaybillStatus(List<Car> consist, bool completed, bool excludeMatchFromCut)
+        {
+            bool matchFunction(Car car)
+            {
+                if (car.Waybill.HasValue)
+                {
+                    return car.Waybill.Value.Completed == completed;
+                }
+                return false;
             }
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
         }

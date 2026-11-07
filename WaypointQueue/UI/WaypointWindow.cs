@@ -122,6 +122,7 @@ namespace WaypointQueue.UI
 
         private void OnWaypointDidUpdate(WaypointDidUpdate waypointDidUpdateEvent)
         {
+            ModLocator.Loader.LogDebug($"OnWaypointDidUpdate for {waypointDidUpdateEvent.LocomotiveId}");
             if (waypointDidUpdateEvent.LocomotiveId == TrainController.Shared.SelectedLocomotive?.id && panelsByWaypointId.TryGetValue(waypointDidUpdateEvent.WaypointId, out UIPanelBuilder panelBuilder) && IsVisible)
             {
                 ModLocator.Loader.LogDebug($"Rebuilding single waypoint {waypointDidUpdateEvent.WaypointId} for {TrainController.Shared.SelectedLocomotive.Ident}");
@@ -131,6 +132,7 @@ namespace WaypointQueue.UI
 
         private void OnWaypointWasAppended(WaypointWasAppended waypointWasAppendedEvent)
         {
+            ModLocator.Loader.LogDebug($"OnWaypointWasAppended for {waypointWasAppendedEvent.LocomotiveId}");
             if (!String.IsNullOrEmpty(waypointWasAppendedEvent.RouteId))
             {
                 return;
@@ -440,6 +442,11 @@ namespace WaypointQueue.UI
                 if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleAllExceptLocomotives)
                 {
                     BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
+                }
+
+                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleByWaybillStatus)
+                {
+                    BuildUncoupleByWaybillStatusField(waypoint, builder, onWaypointChange);
                 }
 
                 if ((waypoint.HasAnyPostCouplingCutOrders || (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders)) && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
@@ -944,6 +951,8 @@ namespace WaypointQueue.UI
 
                 By specific car - Choose a specific car to uncouple and which direction to cut the consist.
 
+                By waybill status - Choose either complete or incomplete waybills to uncouple a block of cars with matching waybill status.
+
                 All except locomotives - Uncouples all cars except locomotives and tenders.
                 """;
 
@@ -962,6 +971,8 @@ namespace WaypointQueue.UI
                 By track destination - Choose a specific industry track to pickup a block of cars with destinations for that track.
                 
                 By specific car - Choose a specific car to pickup.
+
+                By waybill status - Choose either complete or incomplete waybills to pickup a block of cars with matching waybill status.
                 
                 All except locomotives - Pickup all cars except locomotives and tenders.
                 """;
@@ -982,14 +993,32 @@ namespace WaypointQueue.UI
                 By track destination - Choose a specific industry track to dropoff a block of cars with destinations for that track.
                 
                 By specific car - Choose a specific car to dropoff.
+
+                By waybill status - Choose either complete or incomplete waybills to dropoff a block of cars with matching waybill status.
                 
                 All except locomotives - Dropoff all cars except locomotives and tenders.
                 """;
             }
 
-            var uncouplingModeField = builder.AddField(label, builder.AddDropdown(["None", "By count", "By area destination", "By industry destination", "By track destination", "By specific car", "All except locomotives"], (int)waypoint.UncouplingMode, (int value) =>
+            var uncoupleModeDropdownOrder = new List<(ManagedWaypoint.UncoupleMode, string)>
+            {
+                (ManagedWaypoint.UncoupleMode.None, "None" ),
+                (ManagedWaypoint.UncoupleMode.ByCount, "By count" ),
+                (ManagedWaypoint.UncoupleMode.ByDestinationArea, "By area destination" ),
+                (ManagedWaypoint.UncoupleMode.ByDestinationIndustry, "By industry destination" ),
+                (ManagedWaypoint.UncoupleMode.ByDestinationTrack, "By track destination" ),
+                (ManagedWaypoint.UncoupleMode.BySpecificCar, "By specific car" ),
+                (ManagedWaypoint.UncoupleMode.ByWaybillStatus, "By waybill status" ),
+                (ManagedWaypoint.UncoupleMode.AllExceptLocomotives, "All except locomotives" )
+            };
+
+            var uncoupleModeValues = uncoupleModeDropdownOrder.Select(x => x.Item1).ToList();
+            var uncoupleModeLabels = uncoupleModeDropdownOrder.Select(x => x.Item2).ToList();
+
+            int currentSelected = uncoupleModeValues.FindIndex(x => x == waypoint.UncouplingMode);
+            var uncouplingModeField = builder.AddField(label, builder.AddDropdown(uncoupleModeLabels, currentSelected, (int value) =>
                 {
-                    waypoint.UncouplingMode = (ManagedWaypoint.UncoupleMode)value;
+                    waypoint.UncouplingMode = uncoupleModeValues[value];
                     _opsDestinationOptionsByWaypointId.Remove(waypoint.Id);
                     onWaypointChange(waypoint);
                 }));
@@ -1037,6 +1066,40 @@ namespace WaypointQueue.UI
                     }
                 });
             }
+
+            return builder;
+        }
+
+        private UIPanelBuilder BuildUncoupleByWaybillStatusField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
+            builder.HStack(delegate (UIPanelBuilder builder)
+            {
+                int currentSelected = waypoint.UseCompletedWaybillStatus ? 0 : 1;
+                builder.AddField("Waybill status", builder.AddDropdown(["Completed waybills", "Incompleted waybills"], currentSelected, (int val) =>
+                {
+                    waypoint.UseCompletedWaybillStatus = val == 0;
+                    onWaypointChange(waypoint);
+                }));
+            });
+
+            BuildExcludeMatchingCarsFromCutField(waypoint, builder, onWaypointChange);
+
+            BuildCutBlockFromField(waypoint, builder, onWaypointChange);
+
+            builder.HStack(delegate (UIPanelBuilder builder)
+            {
+                AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+            });
+
+            builder.HStack(row =>
+            {
+                AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
+
+                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                {
+                    BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
+                }
+            });
 
             return builder;
         }
@@ -1106,6 +1169,30 @@ namespace WaypointQueue.UI
 
             AddLabelOnlyTooltip(matchingDestinationField, "Matching destination", matchingDestinationTooltip);
 
+            BuildExcludeMatchingCarsFromCutField(waypoint, builder, onWaypointChange);
+
+            BuildCutBlockFromField(waypoint, builder, onWaypointChange);
+
+            builder.HStack(delegate (UIPanelBuilder builder)
+            {
+                AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
+            });
+
+            builder.HStack(row =>
+            {
+                AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
+
+                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
+                {
+                    BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
+                }
+            });
+
+            return builder;
+        }
+
+        private UIPanelBuilder BuildExcludeMatchingCarsFromCutField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
             var excludeMatchingCarsFromCutField = builder.AddField("Exclude match from cut", builder.AddToggle(() => waypoint.ExcludeMatchingCarsFromCut, (bool value) =>
             {
                 waypoint.ExcludeMatchingCarsFromCut = value;
@@ -1122,6 +1209,11 @@ namespace WaypointQueue.UI
 
             AddLabelOnlyTooltip(excludeMatchingCarsFromCutField, "Exclude matching cars from cut", excludeMatchingCarsFromCutTooltip);
 
+            return builder;
+        }
+
+        private UIPanelBuilder BuildCutBlockFromField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        {
             string cutBlockLabel = "Cut block from";
             List<string> cutBlockFromOptions = ["Closest end to waypoint", "Furthest end from waypoint"];
 
@@ -1185,22 +1277,6 @@ namespace WaypointQueue.UI
             }
 
             AddLabelOnlyTooltip(cutBlockFromField, cutBlockLabel, cutBlockFromTooltip);
-
-            builder.HStack(delegate (UIPanelBuilder builder)
-            {
-                AddBleedAirAndSetBrakeToggles(waypoint, builder, onWaypointChange);
-            });
-
-            builder.HStack(row =>
-            {
-                AddLeaveAirBottledToggle(waypoint, row, onWaypointChange);
-
-                if (!waypoint.WillPostCoupleCutPickup && !waypoint.WillPostCoupleCutDropoff)
-                {
-                    BuildMakeUncoupledCarsActiveField(waypoint, row, onWaypointChange);
-                }
-            });
-
             return builder;
         }
 
@@ -1349,6 +1425,11 @@ namespace WaypointQueue.UI
             if (waypoint.WillUncoupleAllExceptLocomotives)
             {
                 BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
+            }
+
+            if (waypoint.WillUncoupleByWaybillStatus)
+            {
+                BuildUncoupleByWaybillStatusField(waypoint, builder, onWaypointChange);
             }
         }
 
