@@ -1715,7 +1715,7 @@ namespace WaypointQueue.UI
             }
             builder.AddField("Then wait", builder.HStack((UIPanelBuilder builder) =>
             {
-                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time"], waypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
+                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time", "For waybill status"], waypoint.WaitMode == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
                 {
                     switch (value)
                     {
@@ -1723,9 +1723,11 @@ namespace WaypointQueue.UI
                             waypoint.WillWait = false;
                             break;
                         case 1:
-                            waypoint.DurationOrSpecificTime = ManagedWaypoint.WaitType.Duration; break;
+                            waypoint.WaitMode = ManagedWaypoint.WaitType.Duration; break;
                         case 2:
-                            waypoint.DurationOrSpecificTime = ManagedWaypoint.WaitType.SpecificTime; break;
+                            waypoint.WaitMode = ManagedWaypoint.WaitType.SpecificTime; break;
+                        case 3:
+                            waypoint.WaitMode = ManagedWaypoint.WaitType.WaybillStatus; break;
                         default:
                             break;
                     }
@@ -1735,7 +1737,7 @@ namespace WaypointQueue.UI
 
             builder.Spacer(8f);
 
-            if (waypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration)
+            if (waypoint.WaitMode == ManagedWaypoint.WaitType.Duration)
             {
                 var waitForDurationField = builder.AddField("Wait for", builder.HStack((UIPanelBuilder builder) =>
                 {
@@ -1795,7 +1797,7 @@ namespace WaypointQueue.UI
                 AddLabelOnlyTooltip(waitForDurationField, "Wait for duration", "Upon arriving at this waypoint, the engineer will begin waiting for this amount of time before proceeding to the next waypoint.");
             }
 
-            if (waypoint.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
+            if (waypoint.WaitMode == ManagedWaypoint.WaitType.SpecificTime)
             {
                 var waitUntilTimeField = builder.AddField("Wait until", builder.HStack((UIPanelBuilder field) =>
                 {
@@ -1822,6 +1824,18 @@ namespace WaypointQueue.UI
                 }));
 
                 AddLabelOnlyTooltip(waitUntilTimeField, "Wait until", "The engineer will not proceed to the next waypoint until the specified time has passed.\n\nIf the train arrives at the waypoint past this time already, the engineer will still come to a complete stop before proceeding to the next waypoint.");
+            }
+
+            if (waypoint.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
+            {
+                int selectedIndex = (int)waypoint.WaitUntilWaybillStatus;
+                var waitUntilWaybillStatusField = builder.AddField("Wait for status", builder.AddDropdown(["Completed waybills", "Incompleted waybills", "No assigned waybills"], selectedIndex, (int val) =>
+                {
+                    waypoint.WaitUntilWaybillStatus = (ManagedWaypoint.WaybillStatus)val;
+                    onWaypointChange(waypoint);
+                }));
+
+                AddLabelOnlyTooltip(waitUntilWaybillStatusField, "Wait for status", "The engineer will not proceed to the next waypoint until all cars meet the matching waybill status, excluding locomotive and caboose.\n\nCompleted waybills are \"spotted\" cars. Incomplete waybills need to be delivered somewhere else. No assigned waybills are when an owned car has no destination assigned.");
             }
         }
 

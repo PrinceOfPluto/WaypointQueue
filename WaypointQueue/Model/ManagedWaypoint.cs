@@ -77,7 +77,8 @@ namespace WaypointQueue
         public enum WaitType
         {
             Duration,
-            SpecificTime
+            SpecificTime,
+            WaybillStatus
         }
         public enum PostCoupleCutType
         {
@@ -272,11 +273,12 @@ namespace WaypointQueue
         public bool WillWait { get; set; }
         public bool CurrentlyWaiting { get; set; }
         public bool WaitingWasSkipped { get; set; } = false;
-        public WaitType DurationOrSpecificTime { get; set; } = WaitType.Duration;
+        public WaitType WaitMode { get; set; } = WaitType.Duration;
         public string WaitUntilTimeString { get; set; }
         public TodayOrTomorrow WaitUntilDay { get; set; } = TodayOrTomorrow.Today;
         public int WaitForDurationMinutes { get; set; }
         public double WaitUntilGameTotalSeconds { get; set; }
+        public WaybillStatus WaitUntilWaybillStatus { get; set; } = WaybillStatus.Incomplete;
         public bool StopAtWaypoint { get; set; } = true;
         public bool WillLimitPassingSpeed { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
@@ -628,7 +630,7 @@ namespace WaypointQueue
             ModLocator.Loader.LogDebug($"Clear waiting for {Locomotive.Ident} at {LocationString}");
             WillWait = false;
             CurrentlyWaiting = false;
-            DurationOrSpecificTime = WaitType.Duration;
+            WaitMode = WaitType.Duration;
             WaitUntilTimeString = "";
             WaitUntilDay = TodayOrTomorrow.Today;
             WaitForDurationMinutes = 0;
@@ -725,11 +727,12 @@ namespace WaypointQueue
                    WillWait == other.WillWait &&
                    CurrentlyWaiting == other.CurrentlyWaiting &&
                    WaitingWasSkipped == other.WaitingWasSkipped &&
-                   DurationOrSpecificTime == other.DurationOrSpecificTime &&
+                   WaitMode == other.WaitMode &&
                    WaitUntilTimeString == other.WaitUntilTimeString &&
                    WaitUntilDay == other.WaitUntilDay &&
                    WaitForDurationMinutes == other.WaitForDurationMinutes &&
                    WaitUntilGameTotalSeconds == other.WaitUntilGameTotalSeconds &&
+                   WaitUntilWaybillStatus == other.WaitUntilWaybillStatus &&
                    StopAtWaypoint == other.StopAtWaypoint &&
                    WillLimitPassingSpeed == other.WillLimitPassingSpeed &&
                    WaypointTargetSpeed == other.WaypointTargetSpeed &&
@@ -824,11 +827,12 @@ namespace WaypointQueue
                 [ValueKeys.WillWait] = Value.Bool(WillWait),
                 [ValueKeys.CurrentlyWaiting] = Value.Bool(CurrentlyWaiting),
                 [ValueKeys.WaitingWasSkipped] = Value.Bool(WaitingWasSkipped),
-                [ValueKeys.DurationOrSpecificTime] = Value.Int((int)DurationOrSpecificTime),
+                [ValueKeys.WaitMode] = Value.Int((int)WaitMode),
                 [ValueKeys.WaitUntilTimeString] = Value.String(WaitUntilTimeString),
                 [ValueKeys.WaitUntilDay] = Value.Int((int)WaitUntilDay),
                 [ValueKeys.WaitForDurationMinutes] = Value.Int(WaitForDurationMinutes),
                 [ValueKeys.WaitUntilGameTotalSeconds] = Value.String(WaitUntilGameTotalSeconds.ToString()),
+                [ValueKeys.WaitUntilWaybillStatus] = Value.Int((int)WaitUntilWaybillStatus),
                 [ValueKeys.StopAtWaypoint] = Value.Bool(StopAtWaypoint),
                 [ValueKeys.WillLimitPassingSpeed] = Value.Bool(WillLimitPassingSpeed),
                 [ValueKeys.WaypointTargetSpeed] = Value.Int(WaypointTargetSpeed),
@@ -907,7 +911,7 @@ namespace WaypointQueue
             waypoint.WillWait = dict[ValueKeys.WillWait].BoolValue;
             waypoint.CurrentlyWaiting = dict[ValueKeys.CurrentlyWaiting].BoolValue;
             waypoint.WaitingWasSkipped = dict[ValueKeys.WaitingWasSkipped].BoolValue;
-            waypoint.DurationOrSpecificTime = (WaitType)dict[ValueKeys.DurationOrSpecificTime].IntValue;
+            waypoint.WaitMode = (WaitType)dict[ValueKeys.WaitMode].IntValue;
             waypoint.WaitUntilTimeString = dict[ValueKeys.WaitUntilTimeString].StringValue;
             waypoint.WaitUntilDay = (TodayOrTomorrow)dict[ValueKeys.WaitUntilDay].IntValue;
             waypoint.WaitForDurationMinutes = dict[ValueKeys.WaitForDurationMinutes].IntValue;
@@ -1000,6 +1004,11 @@ namespace WaypointQueue
                 waypoint.MatchWaybillStatus = (WaybillStatus)dict[ValueKeys.MatchWaybillStatus].IntValue;
             }
 
+            if (dict.ContainsKey(ValueKeys.WaitUntilWaybillStatus))
+            {
+                waypoint.WaitUntilWaybillStatus = (WaybillStatus)dict[ValueKeys.WaitUntilWaybillStatus].IntValue;
+            }
+
             return waypoint;
         }
 
@@ -1045,11 +1054,13 @@ namespace WaypointQueue
             internal static string WillWait = "will_wait";
             internal static string CurrentlyWaiting = "currently_waiting";
             internal static string WaitingWasSkipped = "waiting_was_skipped";
-            internal static string DurationOrSpecificTime = "duration_or_specific_time";
+            // Key for WaitMode needs to use the legacy duration_or_specific time for compatibility
+            internal static string WaitMode = "duration_or_specific_time";
             internal static string WaitUntilTimeString = "wait_until_time_string";
             internal static string WaitUntilDay = "wait_until_day";
             internal static string WaitForDurationMinutes = "wait_for_duration_minutes";
             internal static string WaitUntilGameTotalSeconds = "wait_until_game_total_seconds";
+            internal static string WaitUntilWaybillStatus = "wait_until_waybill_status";
             internal static string StopAtWaypoint = "stop_at_waypoint";
             internal static string WillLimitPassingSpeed = "will_limit_passing_speed";
             internal static string WaypointTargetSpeed = "waypoint_target_speed";

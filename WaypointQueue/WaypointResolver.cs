@@ -497,6 +497,18 @@ namespace WaypointQueue
 
         private bool TryEndWaiting(ManagedWaypoint wp)
         {
+            if (wp.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
+            {
+                var consist = carService.EnumerateCoupled(wp.Locomotive);
+                if (ConsistSatisfiesWaybillStatus(consist, wp.WaitUntilWaybillStatus))
+                {
+                    ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
+                    wp.ClearWaiting();
+                    WaypointQueueController.Shared.UpdateWaypoint(wp);
+                    return true;
+                }
+            }
+
             if (TimeWeather.Now.TotalSeconds >= wp.WaitUntilGameTotalSeconds)
             {
                 ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
@@ -508,14 +520,29 @@ namespace WaypointQueue
             return false;
         }
 
+        private bool ConsistSatisfiesWaybillStatus(IEnumerable<Car> consist, ManagedWaypoint.WaybillStatus waybillStatus)
+        {
+            switch (waybillStatus)
+            {
+                case ManagedWaypoint.WaybillStatus.Complete:
+                    return consist.All(c => !c.Waybill.HasValue || c.Waybill.Value.Completed);
+                case ManagedWaypoint.WaybillStatus.Incomplete:
+                    return consist.All(c => !c.Waybill.HasValue || !c.Waybill.Value.Completed);
+                case ManagedWaypoint.WaybillStatus.None:
+                    return consist.All(c => !c.Waybill.HasValue);
+                default:
+                    return true;
+            }
+        }
+
         private bool TryBeginWaiting(ManagedWaypoint wp)
         {
-            return wp.WillWait && (TryBeginWaitingDuration(wp) || TryBeginWaitingUntilTime(wp));
+            return wp.WillWait && (TryBeginWaitingDuration(wp) || TryBeginWaitingUntilTime(wp) || TryBeginWaitingUntilWaybillStatus(wp));
         }
 
         private bool TryBeginWaitingDuration(ManagedWaypoint wp)
         {
-            if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
+            if (wp.WaitMode == ManagedWaypoint.WaitType.Duration && wp.WaitForDurationMinutes > 0)
             {
                 GameDateTime waitUntilTime = TimeWeather.Now.AddingMinutes(wp.WaitForDurationMinutes);
                 wp.StatusLabel = "Waiting before continuing";
@@ -530,7 +557,7 @@ namespace WaypointQueue
 
         private bool TryBeginWaitingUntilTime(ManagedWaypoint wp)
         {
-            if (wp.DurationOrSpecificTime == ManagedWaypoint.WaitType.SpecificTime)
+            if (wp.WaitMode == ManagedWaypoint.WaitType.SpecificTime)
             {
                 if (TimetableReader.TryParseTime(wp.WaitUntilTimeString, out TimetableTime time))
                 {
@@ -547,6 +574,25 @@ namespace WaypointQueue
                     Toast.Present("Waypoint wait time must be in HH:MM 24-hour format.");
                     return false;
                 }
+            }
+            return false;
+        }
+
+        private bool TryBeginWaitingUntilWaybillStatus(ManagedWaypoint wp)
+        {
+            if (wp.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
+            {
+                var statusLabel = new Dictionary<ManagedWaypoint.WaybillStatus, string>
+                {
+                    [ManagedWaypoint.WaybillStatus.Complete] = "completed waybills",
+                    [ManagedWaypoint.WaybillStatus.Incomplete] = "incompleted waybills",
+                    [ManagedWaypoint.WaybillStatus.None] = "no assigned waybills",
+                };
+                wp.StatusLabel = $"Waiting {statusLabel}";
+                wp.CurrentlyWaiting = true;
+                ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} waiting for {statusLabel} on all cars");
+                WaypointQueueController.Shared.UpdateWaypoint(wp);
+                return true;
             }
             return false;
         }
