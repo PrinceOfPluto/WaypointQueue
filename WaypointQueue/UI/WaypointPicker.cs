@@ -270,8 +270,6 @@ namespace WaypointQueue.UI
             }
 
             _isPicking = true;
-
-            GameInput.RegisterEscapeHandler(GameInput.EscapeHandler.Transient, DidEscape);
         }
 
         private string PromptText()
@@ -711,12 +709,6 @@ namespace WaypointQueue.UI
             Cleanup();
         }
 
-        private bool DidEscape()
-        {
-            OnCancelled();
-            return true;
-        }
-
         private void Cleanup()
         {
             _waypoint = null;
@@ -734,8 +726,6 @@ namespace WaypointQueue.UI
             _nearSideResolved = false;
             _waypointMarker.gameObject.SetActive(value: false);
             _dontSnapToCars = [];
-
-            GameInput.UnregisterEscapeHandler(GameInput.EscapeHandler.Transient);
         }
 
         private void DetermineTrainLength()
