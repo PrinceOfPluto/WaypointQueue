@@ -1,6 +1,6 @@
 {
     "identifier": "princeofpluto/waypointqueue",
-    "version": "2.1.1",
+    "version": "2.2.0",
     "name": "Waypoint Queue",
     "author": "PrinceOfPluto",
     "description": "Expands AE waypoint mode to support multiple waypoints, complex switching orders, brake management, refueling, and more.",
