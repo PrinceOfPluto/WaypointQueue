@@ -1,7 +1,9 @@
 ﻿using Game.Events;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using Railroader.Modding;
 using System;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
 using WaypointQueue.Services;
@@ -54,6 +56,8 @@ namespace WaypointQueue
 
             ModContext = modContext;
             ModLocator.Loader = this;
+
+            LogVersionFromInfoJson();
 
             ModLocator.Settings = WaypointQueueSettings.Load();
             ModLocator.Settings.Save();
@@ -199,6 +203,29 @@ namespace WaypointQueue
         public void LogError(Exception ex, string str)
         {
             ModContext.Log.Error(ex, str);
+        }
+
+        private void LogVersionFromInfoJson()
+        {
+            string jsonPath = Path.Combine(ModContext.ModDirectory, "Info.json");
+
+            if (!File.Exists(jsonPath))
+            {
+                LogError("Info.json not found");
+                return;
+            }
+
+            string json = File.ReadAllText(jsonPath);
+            var jObj = JObject.Parse(json);
+
+            if (jObj.TryGetValue("version", out var version))
+            {
+                Log($"Loaded Waypoint Queue version {version}");
+            }
+            else
+            {
+                LogError("Version not found in Info.json");
+            }
         }
     }
 }
