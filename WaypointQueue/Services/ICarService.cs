@@ -10,7 +10,7 @@ namespace WaypointQueue.Services
         Car.LogicalEnd ClosestLogicalEndTo(Car car, Location location);
         void ConnectAir(Car car);
         void SetAnglecocks(List<Car> cars, bool open);
-        List<Car> EnumerateCoupled(Car car, Car.LogicalEnd fromEnd);
+        List<Car> EnumerateCoupled(Car car, Car.LogicalEnd fromEnd = Car.LogicalEnd.A);
         List<Car> EnumerateAdjacentCarsTowardEnd(Car car, Car.LogicalEnd directionToCount, bool inclusive = false);
         List<Car> FilterAnySplitLocoTenderPairs(List<Car> carsToCut);
         Car.LogicalEnd GetEndRelativeToLocation(Car car, Location waypointLocation, bool useFurthestEnd);

@@ -29,7 +29,7 @@ namespace WaypointQueue.Services
             float checkDistanceInterval = AverageCarLengthMeters / 2;
             float totalDistanceChecked = 0;
             float searchRadius = ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
-            List<Car> consist = wp.Locomotive.EnumerateCoupled().ToList();
+            List<Car> consist = carService.EnumerateCoupled(wp.Locomotive);
 
             Car targetCar = null;
             while (totalDistanceChecked < searchRadius)
@@ -84,7 +84,7 @@ namespace WaypointQueue.Services
         {
             ModLocator.Loader.LogDebug($"Starting search for nearby coupling in radius");
             float searchRadius = ModLocator.Settings.NearbyCouplingSearchDistanceInCarLengths * AverageCarLengthMeters;
-            List<string> alreadyCoupledIds = [.. wp.Locomotive.EnumerateCoupled().Select(c => c.id)];
+            List<string> alreadyCoupledIds = [.. carService.EnumerateCoupled(wp.Locomotive).Select(c => c.id)];
             List<string> nearbyCarIds = [.. trainControllerWrapper
                 .GetNearbyCarIds(wp.Location, searchRadius)
                 .Where(cid => !alreadyCoupledIds.Contains(cid))];

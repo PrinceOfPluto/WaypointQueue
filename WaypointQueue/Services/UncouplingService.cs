@@ -401,7 +401,7 @@ namespace WaypointQueue
             }
 
             LogicalEnd closestEnd = carService.ClosestLogicalEndTo(carToUncouple, waypoint.Location);
-            List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(closestEnd)];
+            List<Car> consist = [.. carService.EnumerateCoupled(waypoint.Locomotive, closestEnd)];
             if (!consist.Any(c => c.id == carToUncouple.id))
             {
                 throw new UncouplingException($"{carToUncouple.Ident} cannot be uncoupled because it is not part of {waypoint.Locomotive.Ident}'s consist.", waypoint);
@@ -465,7 +465,7 @@ namespace WaypointQueue
         public void UncoupleAllExceptLocomotives(ManagedWaypoint waypoint)
         {
             ModLocator.Loader.Log($"Resolving uncoupling all except locomotives for {waypoint.Locomotive.Ident}");
-            List<Car> consist = [.. waypoint.Locomotive.EnumerateCoupled(LogicalEnd.A)];
+            List<Car> consist = [.. carService.EnumerateCoupled(waypoint.Locomotive, LogicalEnd.A)];
 
             List<List<Car>> listOfCarBlocks = [[]];
 
@@ -639,7 +639,7 @@ namespace WaypointQueue
                 throw new UncouplingException(errorMessage, waypoint);
             }
 
-            List<Car> fullConsistFromEndA = [.. carsToCut.First().EnumerateCoupled(fromEnd: LogicalEnd.A)];
+            List<Car> fullConsistFromEndA = [.. carService.EnumerateCoupled(carsToCut.First(), fromEnd: LogicalEnd.A)];
 
             if (carsToCut.Count > fullConsistFromEndA.Count)
             {

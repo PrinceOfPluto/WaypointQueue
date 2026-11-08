@@ -104,7 +104,11 @@ namespace WaypointQueue.Services
 
         public List<Car> EnumerateCoupled(Car car, LogicalEnd fromEnd)
         {
-            return [.. car.EnumerateCoupled(fromEnd)];
+            if (car.set != null)
+            {
+                return [.. car.EnumerateCoupled(fromEnd)];
+            }
+            return [];
         }
 
         public List<Car> EnumerateAdjacentCarsTowardEnd(Car car, LogicalEnd directionToCount, bool inclusive = false)
@@ -126,7 +130,7 @@ namespace WaypointQueue.Services
             Location closestLocation;
             Location furthestLocation;
 
-            List<Car> consistFromEndA = [.. car.EnumerateCoupled(fromEnd: LogicalEnd.A)];
+            List<Car> consistFromEndA = [.. EnumerateCoupled(car, fromEnd: LogicalEnd.A)];
 
             if (consistFromEndA.Count == 1)
             {

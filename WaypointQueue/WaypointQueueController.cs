@@ -301,7 +301,7 @@ namespace WaypointQueue
         {
             if (wp.IsCoupling && wp.TryResolveCoupleToCar(out Car car))
             {
-                List<Car> consist = [.. wp.Locomotive.EnumerateCoupled()];
+                List<Car> consist = [.. _carService.EnumerateCoupled(wp.Locomotive)];
                 if (consist.Contains(car))
                 {
                     return true;

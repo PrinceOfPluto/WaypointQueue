@@ -46,6 +46,7 @@ namespace WaypointQueue.UI
 
         private RefuelService _refuelService;
         private AutoEngineerService _aeService;
+        private ICarService _carService;
         private RouteOverlayController _routeOverlayController;
         private IGraphView _graph;
 
@@ -130,6 +131,7 @@ namespace WaypointQueue.UI
         {
             _refuelService = ModLocator.ServiceProvider.GetService<RefuelService>();
             _aeService = ModLocator.ServiceProvider.GetService<AutoEngineerService>();
+            _carService = ModLocator.ServiceProvider.GetService<ICarService>();
         }
 
         private void OnDisable()
@@ -176,7 +178,7 @@ namespace WaypointQueue.UI
             if (!forRoute)
             {
                 _locomotive = waypoint.Locomotive;
-                _dontSnapToCars = [.. waypoint.Locomotive.EnumerateCoupled()];
+                _dontSnapToCars = [.. _carService.EnumerateCoupled(waypoint.Locomotive)];
             }
 
             StartGenericPicking();
@@ -198,7 +200,7 @@ namespace WaypointQueue.UI
             if (!forRoute)
             {
                 _locomotive = beforeWaypoint.Locomotive;
-                _dontSnapToCars = [.. beforeWaypoint.Locomotive.EnumerateCoupled()];
+                _dontSnapToCars = [.. _carService.EnumerateCoupled(beforeWaypoint.Locomotive)];
             }
 
             StartGenericPicking();
@@ -234,7 +236,7 @@ namespace WaypointQueue.UI
             _dontSnapToCars = [];
             if (_locomotive != null)
             {
-                _dontSnapToCars = [.. _locomotive.EnumerateCoupled()];
+                _dontSnapToCars = [.. _carService.EnumerateCoupled(_locomotive)];
             }
             _currentCarInfo = null;
             _poseIndex = 0;

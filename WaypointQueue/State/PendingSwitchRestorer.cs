@@ -182,7 +182,7 @@ namespace WaypointQueue.State
             if (locomotive == null)
                 return false;
 
-            foreach (Car car in locomotive.EnumerateCoupled())
+            foreach (Car car in _carService.EnumerateCoupled(locomotive))
             {
                 if (Vector3.Distance(graph.GetPosition(car.LocationA), pending.Position) <= NearbyMeters
                     || Vector3.Distance(graph.GetPosition(car.LocationB), pending.Position) <= NearbyMeters)

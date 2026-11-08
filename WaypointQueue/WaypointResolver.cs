@@ -487,7 +487,7 @@ namespace WaypointQueue
 
         internal bool IsTrainStopped(ManagedWaypoint wp)
         {
-            List<Car> coupled = [.. wp.Locomotive.EnumerateCoupled()];
+            List<Car> coupled = [.. carService.EnumerateCoupled(wp.Locomotive)];
             Car firstCar = coupled.First();
             Car lastCar = coupled.Last();
             //Loader.LogDebug($"First car {firstCar.Ident} is {(firstCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")} and last car {lastCar.Ident} is {(lastCar.IsStopped(2) ? "stopped for 2" : "NOT stopped")}");
@@ -586,14 +586,14 @@ namespace WaypointQueue
 
         private float GetTrainLength(BaseLocomotive locomotive)
         {
-            return AutoEngineerPlanner.CalculateTotalLength(locomotive.EnumerateCoupled().ToList());
+            return AutoEngineerPlanner.CalculateTotalLength(carService.EnumerateCoupled(locomotive));
         }
 
         private void ResolveBrakeSystemOnCouple(ManagedWaypoint waypoint)
         {
             if (!waypoint.IsCoupling) return;
             ModLocator.Loader.LogDebug($"Resolving coupling orders for loco {waypoint.Locomotive.Ident}");
-            foreach (Car car in waypoint.Locomotive.EnumerateCoupled())
+            foreach (Car car in carService.EnumerateCoupled(waypoint.Locomotive))
             {
                 if (waypoint.ConnectAirOnCouple)
                 {

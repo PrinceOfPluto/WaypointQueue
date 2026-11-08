@@ -104,11 +104,11 @@ namespace WaypointQueue.Services
 
             if (refuelLoadName == WaterLoadId || refuelLoadName == CoalLoadId)
             {
-                return [.. locomotive.EnumerateCoupled(closestEnd).Where(c => c.CarType.IsLocomotiveSteam).Cast<BaseLocomotive>()];
+                return [.. carService.EnumerateCoupled(locomotive, closestEnd).Where(c => c.CarType.IsLocomotiveSteam).Cast<BaseLocomotive>()];
             }
             if (refuelLoadName == DieselLoadId)
             {
-                return [.. locomotive.EnumerateCoupled(closestEnd).Where(c => c.CarType.IsLocomotiveDiesel).Cast<BaseLocomotive>()];
+                return [.. carService.EnumerateCoupled(locomotive, closestEnd).Where(c => c.CarType.IsLocomotiveDiesel).Cast<BaseLocomotive>()];
             }
             return [];
         }
@@ -135,7 +135,7 @@ namespace WaypointQueue.Services
 
             float distanceFromClosestFuelCarEndToSlot = Vector3.Distance(fuelCar.LocationFor(closestFuelCarEnd).GetPosition().ZeroY(), loadSlotPosition.ZeroY());
 
-            float totalTrainLength = CarService.CalculateTotalLength([.. locomotive.EnumerateCoupled()]);
+            float totalTrainLength = CarService.CalculateTotalLength([.. carService.EnumerateCoupled(locomotive)]);
 
             ModLocator.Loader.LogDebug($"Total train length is {totalTrainLength}");
             ModLocator.Loader.LogDebug($"distanceFromFurthestEndOfTrainToFuelCarInclusive is {distanceFromFurthestEndOfTrainToFuelCarInclusive}");
