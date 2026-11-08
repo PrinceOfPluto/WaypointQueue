@@ -310,6 +310,9 @@ namespace WaypointQueue.UI
             catch (Exception e)
             {
                 ModLocator.Loader.LogError($"OnWaypointSelected failed with exception: {e}");
+            }
+            finally
+            {
                 Cleanup();
             }
         }
