@@ -205,7 +205,7 @@ namespace WaypointQueue.State
             if (route == null)
                 return false;
 
-            int startStepIndex = (int)Traverse.Create(planner).Field("__startStepIndex").GetValue();
+            int startStepIndex = (int)Traverse.Create(planner).Field("_startStepIndex").GetValue();
 
             for (int i = Math.Max(0, startStepIndex); i < route.Count; i++)
             {
