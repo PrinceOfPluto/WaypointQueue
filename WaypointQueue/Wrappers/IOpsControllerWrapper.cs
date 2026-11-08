@@ -9,7 +9,7 @@ namespace WaypointQueue.Wrappers
         bool TryGetAreaById(string id, out Area area);
         bool TryGetIndustryById(string id, out Industry industry);
         IndustryComponent IndustryComponentForPosition(OpsCarPosition position);
-        bool TryGetCarDesination(Car car, out OpsCarPosition destination);
+        bool TryGetCarDesination(Car car, out OpsCarPosition destination, out bool isAtDestination);
         bool TryResolveOpsCarPosition(string opsCarPositionIdentifier, out OpsCarPosition opsCarPosition);
     }
 }

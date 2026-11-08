@@ -15,10 +15,11 @@ using UnityEngine;
 using WaypointQueue.Model;
 using WaypointQueue.Services;
 using WaypointQueue.UI;
+using WaypointQueue.Wrappers;
 
 namespace WaypointQueue
 {
-    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, ICarService carService, AutoEngineerService autoEngineerService)
+    internal class WaypointResolver(UncouplingService uncouplingService, RefuelService refuelService, CouplingService couplingService, ICarService carService, AutoEngineerService autoEngineerService, IOpsControllerWrapper opsControllerWrapper)
     {
         public static readonly string NoDestinationString = "No destination";
         public static readonly string RemoveTrainSymbolString = "remove-train-symbol";
@@ -497,15 +498,19 @@ namespace WaypointQueue
 
         private bool TryEndWaiting(ManagedWaypoint wp)
         {
-            if (wp.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
+            if (wp.WaitMode == ManagedWaypoint.WaitType.CarsNotSpotted)
             {
                 var consist = carService.EnumerateCoupled(wp.Locomotive);
-                if (ConsistSatisfiesWaybillStatus(consist, wp.WaitUntilWaybillStatus))
+                if (!IsAnyCarSpotted(consist))
                 {
                     ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} done waiting");
                     wp.ClearWaiting();
                     WaypointQueueController.Shared.UpdateWaypoint(wp);
                     return true;
+                }
+                else
+                {
+                    return false;
                 }
             }
 
@@ -520,24 +525,22 @@ namespace WaypointQueue
             return false;
         }
 
-        private bool ConsistSatisfiesWaybillStatus(IEnumerable<Car> consist, ManagedWaypoint.WaybillStatus waybillStatus)
+        private bool IsAnyCarSpotted(IEnumerable<Car> consist)
         {
-            switch (waybillStatus)
+            foreach (var car in consist)
             {
-                case ManagedWaypoint.WaybillStatus.Complete:
-                    return consist.All(c => !c.Waybill.HasValue || c.Waybill.Value.Completed);
-                case ManagedWaypoint.WaybillStatus.Incomplete:
-                    return consist.All(c => !c.Waybill.HasValue || !c.Waybill.Value.Completed);
-                case ManagedWaypoint.WaybillStatus.None:
-                    return consist.All(c => !c.Waybill.HasValue);
-                default:
+                var hasDestination = opsControllerWrapper.TryGetCarDesination(car, out _, out bool isAtDestination);
+                if (hasDestination && isAtDestination)
+                {
                     return true;
+                }
             }
+            return false;
         }
 
         private bool TryBeginWaiting(ManagedWaypoint wp)
         {
-            return wp.WillWait && (TryBeginWaitingDuration(wp) || TryBeginWaitingUntilTime(wp) || TryBeginWaitingUntilWaybillStatus(wp));
+            return wp.WillWait && (TryBeginWaitingDuration(wp) || TryBeginWaitingUntilTime(wp) || TryBeginWaitingUntilCarsNotSpotted(wp));
         }
 
         private bool TryBeginWaitingDuration(ManagedWaypoint wp)
@@ -578,19 +581,13 @@ namespace WaypointQueue
             return false;
         }
 
-        private bool TryBeginWaitingUntilWaybillStatus(ManagedWaypoint wp)
+        private bool TryBeginWaitingUntilCarsNotSpotted(ManagedWaypoint wp)
         {
-            if (wp.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
+            if (wp.WaitMode == ManagedWaypoint.WaitType.CarsNotSpotted)
             {
-                var statusLabel = new Dictionary<ManagedWaypoint.WaybillStatus, string>
-                {
-                    [ManagedWaypoint.WaybillStatus.Complete] = "completed waybills",
-                    [ManagedWaypoint.WaybillStatus.Incomplete] = "incompleted waybills",
-                    [ManagedWaypoint.WaybillStatus.None] = "no assigned waybills",
-                };
-                wp.StatusLabel = $"Waiting {statusLabel}";
+                wp.StatusLabel = $"Waiting until cars are not spotted";
                 wp.CurrentlyWaiting = true;
-                ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} waiting for {statusLabel} on all cars");
+                ModLocator.Loader.Log($"Loco {wp.Locomotive.Ident} waiting until cars are not spotted");
                 WaypointQueueController.Shared.UpdateWaypoint(wp);
                 return true;
             }
@@ -705,7 +702,7 @@ namespace WaypointQueue
                 }
             }
 
-            if (waypoint.WillUncoupleByWaybillStatus)
+            if (waypoint.WillUncoupleByOpsPositionStatus)
             {
                 carsToCut = isPickup
                     ? uncouplingService.FindPickupByWaybillStatus(waypoint, carCoupledTo)
@@ -749,7 +746,7 @@ namespace WaypointQueue
                 return;
             }
 
-            if (waypoint.WillUncoupleByWaybillStatus)
+            if (waypoint.WillUncoupleByOpsPositionStatus)
             {
                 carsToCut = uncouplingService.FindCutByWaybillStatus(waypoint);
             }

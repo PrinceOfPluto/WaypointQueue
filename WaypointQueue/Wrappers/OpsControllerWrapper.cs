@@ -9,9 +9,9 @@ namespace WaypointQueue.Wrappers
     // Wrapped for easier test mocking
     internal class OpsControllerWrapper : IOpsControllerWrapper
     {
-        public bool TryGetCarDesination(Car car, out OpsCarPosition destination)
+        public bool TryGetCarDesination(Car car, out OpsCarPosition destination, out bool isAtDestination)
         {
-            bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string _, out bool _, out _, out destination);
+            bool hasDestination = OpsController.Shared.TryGetDestinationInfo(car, out string _, out isAtDestination, out _, out destination);
             return hasDestination;
         }
 

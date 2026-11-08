@@ -222,9 +222,9 @@ namespace WaypointQueue
                 Area areaMatch = TryGetDestinationAreaMatch(wp);
                 return (cars) => GetMatchingCarsByDestinationArea(cars, areaMatch, excludeMatchFromCut);
             }
-            if (wp.WillUncoupleByWaybillStatus)
+            if (wp.WillUncoupleByOpsPositionStatus)
             {
-                return (cars) => GetMatchingCarsByWaybillStatus(cars, wp.MatchWaybillStatus, excludeMatchFromCut);
+                return (cars) => GetMatchingCarsByOpsPositionStatus(cars, wp.MatchOpsPositionStatus, excludeMatchFromCut);
             }
             throw new UncouplingException("Failed to find a valid destination match function.", wp);
         }
@@ -233,7 +233,7 @@ namespace WaypointQueue
         {
             bool matchFunction(Car car)
             {
-                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out _);
+                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out _, out bool _);
                 return !hasDestination;
             }
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
@@ -243,7 +243,7 @@ namespace WaypointQueue
         {
             bool matchFunction(Car car)
             {
-                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination);
+                bool hasDestination = opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination, out _);
                 bool carMatchesFilter = hasDestination && carDestination.DisplayName == destinationMatch.DisplayName;
                 return carMatchesFilter;
             }
@@ -256,7 +256,7 @@ namespace WaypointQueue
             {
                 bool carMatchesFilter = false;
 
-                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination))
+                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination, out _))
                 {
                     IndustryComponent industryComponent = opsControllerWrapper.IndustryComponentForPosition(carDestination);
                     carMatchesFilter = industryComponent?.Industry?.identifier == industryMatch.identifier;
@@ -272,7 +272,7 @@ namespace WaypointQueue
             {
                 bool carMatchesFilter = false;
 
-                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination))
+                if (opsControllerWrapper.TryGetCarDesination(car, out OpsCarPosition carDestination, out _))
                 {
                     Area carArea = opsControllerWrapper.AreaForCarPosition(carDestination);
                     carMatchesFilter = carArea?.identifier == areaMatch.identifier;
@@ -282,20 +282,21 @@ namespace WaypointQueue
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
         }
 
-        private List<Car> GetMatchingCarsByWaybillStatus(List<Car> consist, ManagedWaypoint.WaybillStatus status, bool excludeMatchFromCut)
+        private List<Car> GetMatchingCarsByOpsPositionStatus(List<Car> consist, ManagedWaypoint.OpsPositionStatus status, bool excludeMatchFromCut)
         {
             bool matchFunction(Car car)
             {
-                if (status == ManagedWaypoint.WaybillStatus.None)
+                var hasDestination = opsControllerWrapper.TryGetCarDesination(car, out _, out bool isAtDestination);
+                if (status == ManagedWaypoint.OpsPositionStatus.None)
                 {
-                    return !car.Waybill.HasValue;
+                    return !hasDestination;
                 }
-                if (status == ManagedWaypoint.WaybillStatus.Complete)
+                if (status == ManagedWaypoint.OpsPositionStatus.Spotted)
                 {
-                    return car.Waybill.HasValue && car.Waybill.Value.Completed;
+                    return hasDestination && isAtDestination;
                 }
 
-                return car.Waybill.HasValue && !car.Waybill.Value.Completed;
+                return hasDestination && !isAtDestination;
             }
             return FindMatchingCarBlock(consist, matchFunction, excludeMatchFromCut);
         }

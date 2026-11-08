@@ -78,7 +78,7 @@ namespace WaypointQueue
         {
             Duration,
             SpecificTime,
-            WaybillStatus
+            CarsNotSpotted
         }
         public enum PostCoupleCutType
         {
@@ -108,13 +108,13 @@ namespace WaypointQueue
             ByDestinationTrack,
             BySpecificCar,
             AllExceptLocomotives,
-            ByWaybillStatus
+            ByOpsPositionStatus
         }
 
-        public enum WaybillStatus
+        public enum OpsPositionStatus
         {
-            Complete,
-            Incomplete,
+            Spotted,
+            NotSpotted,
             None
         }
 
@@ -278,7 +278,7 @@ namespace WaypointQueue
         public TodayOrTomorrow WaitUntilDay { get; set; } = TodayOrTomorrow.Today;
         public int WaitForDurationMinutes { get; set; }
         public double WaitUntilGameTotalSeconds { get; set; }
-        public WaybillStatus WaitUntilWaybillStatus { get; set; } = WaybillStatus.Incomplete;
+        public OpsPositionStatus WaitUntilWaybillStatus { get; set; } = OpsPositionStatus.NotSpotted;
         public bool StopAtWaypoint { get; set; } = true;
         public bool WillLimitPassingSpeed { get; set; } = true;
         public int WaypointTargetSpeed { get; set; } = 0;
@@ -340,7 +340,7 @@ namespace WaypointQueue
         public virtual bool WillUncoupleByDestinationArea { get { return UncouplingMode == UncoupleMode.ByDestinationArea; } }
         [JsonIgnore]
         public bool WillUncoupleBySpecificCar { get { return UncouplingMode == UncoupleMode.BySpecificCar; } }
-        public bool WillUncoupleByWaybillStatus { get { return UncouplingMode == UncoupleMode.ByWaybillStatus; } }
+        public bool WillUncoupleByOpsPositionStatus { get { return UncouplingMode == UncoupleMode.ByOpsPositionStatus; } }
         [JsonIgnore]
         public bool WillUncoupleAllExceptLocomotives { get { return UncouplingMode == UncoupleMode.AllExceptLocomotives; } }
 
@@ -424,7 +424,7 @@ namespace WaypointQueue
         public string DestinationSearchText { get; set; } = "";
         public virtual string UncoupleDestinationId { get; set; } = "";
         public virtual bool ExcludeMatchingCarsFromCut { get; set; }
-        public WaybillStatus MatchWaybillStatus { get; set; } = WaybillStatus.Complete;
+        public OpsPositionStatus MatchOpsPositionStatus { get; set; } = OpsPositionStatus.Spotted;
 
         public bool MoveTrainPastWaypoint { get; set; }
         public bool CurrentlyWaitingBeforeCutting { get; set; }
@@ -748,7 +748,7 @@ namespace WaypointQueue
                    DestinationSearchText == other.DestinationSearchText &&
                    UncoupleDestinationId == other.UncoupleDestinationId &&
                    ExcludeMatchingCarsFromCut == other.ExcludeMatchingCarsFromCut &&
-                   MatchWaybillStatus == other.MatchWaybillStatus &&
+                   MatchOpsPositionStatus == other.MatchOpsPositionStatus &&
                    MoveTrainPastWaypoint == other.MoveTrainPastWaypoint &&
                    CurrentlyWaitingBeforeCutting == other.CurrentlyWaitingBeforeCutting &&
                    StatusLabel == other.StatusLabel &&
@@ -849,7 +849,7 @@ namespace WaypointQueue
                 [ValueKeys.UncouplingSearchResultCarId] = Value.String(UncouplingSearchResultCarId),
                 [ValueKeys.DestinationSearchText] = Value.String(DestinationSearchText),
                 [ValueKeys.UncoupleDestinationId] = Value.String(UncoupleDestinationId),
-                [ValueKeys.MatchWaybillStatus] = Value.Int((int)MatchWaybillStatus),
+                [ValueKeys.OpsPositionStatus] = Value.Int((int)MatchOpsPositionStatus),
                 [ValueKeys.ExcludeMatchingCarsFromCut] = Value.Bool(ExcludeMatchingCarsFromCut),
                 [ValueKeys.MoveTrainPastWaypoint] = Value.Bool(MoveTrainPastWaypoint),
                 [ValueKeys.CurrentlyWaitingBeforeCutting] = Value.Bool(CurrentlyWaitingBeforeCutting),
@@ -999,14 +999,14 @@ namespace WaypointQueue
                 waypoint.PoseIndex = dict[ValueKeys.PoseIndex].IntValue;
             }
 
-            if (dict.ContainsKey(ValueKeys.MatchWaybillStatus))
+            if (dict.ContainsKey(ValueKeys.OpsPositionStatus))
             {
-                waypoint.MatchWaybillStatus = (WaybillStatus)dict[ValueKeys.MatchWaybillStatus].IntValue;
+                waypoint.MatchOpsPositionStatus = (OpsPositionStatus)dict[ValueKeys.OpsPositionStatus].IntValue;
             }
 
             if (dict.ContainsKey(ValueKeys.WaitUntilWaybillStatus))
             {
-                waypoint.WaitUntilWaybillStatus = (WaybillStatus)dict[ValueKeys.WaitUntilWaybillStatus].IntValue;
+                waypoint.WaitUntilWaybillStatus = (OpsPositionStatus)dict[ValueKeys.WaitUntilWaybillStatus].IntValue;
             }
 
             return waypoint;
@@ -1078,7 +1078,8 @@ namespace WaypointQueue
             internal static string DestinationSearchText = "destination_search_text";
             internal static string UncoupleDestinationId = "uncouple_destination_id";
             internal static string ExcludeMatchingCarsFromCut = "exclude_matching_cars_from_cut";
-            internal static string MatchWaybillStatus = "match_waybill_status";
+            // Key for OpsPositionStatus should remain as match_waybill_status for compatibility
+            internal static string OpsPositionStatus = "match_waybill_status";
             internal static string MoveTrainPastWaypoint = "move_train_past_waypoint";
             internal static string CurrentlyWaitingBeforeCutting = "currently_waiting_before_cutting";
             internal static string StatusLabel = "status_label";

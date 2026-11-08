@@ -443,9 +443,9 @@ namespace WaypointQueue.UI
                     BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
                 }
 
-                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleByWaybillStatus)
+                if (!waypoint.HasAnyCouplingOrders && waypoint.WillUncoupleByOpsPositionStatus)
                 {
-                    BuildUncoupleByWaybillStatusField(waypoint, builder, onWaypointChange);
+                    BuildUncoupleByOpsPositionStatusField(waypoint, builder, onWaypointChange);
                 }
 
                 if ((waypoint.HasAnyPostCouplingCutOrders || (!waypoint.IsCoupling && !waypoint.HasAnyUncouplingOrders)) && waypoint.CouplingSearchMode != ManagedWaypoint.CoupleSearchMode.None && !waypoint.CurrentlyWaiting)
@@ -1007,7 +1007,7 @@ namespace WaypointQueue.UI
                 (ManagedWaypoint.UncoupleMode.ByDestinationIndustry, "By industry destination" ),
                 (ManagedWaypoint.UncoupleMode.ByDestinationTrack, "By track destination" ),
                 (ManagedWaypoint.UncoupleMode.BySpecificCar, "By specific car" ),
-                (ManagedWaypoint.UncoupleMode.ByWaybillStatus, "By waybill status" ),
+                (ManagedWaypoint.UncoupleMode.ByOpsPositionStatus, "By waybill status" ),
                 (ManagedWaypoint.UncoupleMode.AllExceptLocomotives, "All except locomotives" )
             };
 
@@ -1069,13 +1069,13 @@ namespace WaypointQueue.UI
             return builder;
         }
 
-        private UIPanelBuilder BuildUncoupleByWaybillStatusField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
+        private UIPanelBuilder BuildUncoupleByOpsPositionStatusField(ManagedWaypoint waypoint, UIPanelBuilder builder, Action<ManagedWaypoint> onWaypointChange)
         {
             builder.HStack(delegate (UIPanelBuilder builder)
             {
-                builder.AddField("Waybill status", builder.AddDropdown(["Completed waybills", "Incompleted waybills", "No waybills"], (int)waypoint.MatchWaybillStatus, (int val) =>
+                builder.AddField("Waybill status", builder.AddDropdown(["Spotted cars", "Unspotted cars", "No destination"], (int)waypoint.MatchOpsPositionStatus, (int val) =>
                 {
-                    waypoint.MatchWaybillStatus = (ManagedWaypoint.WaybillStatus)val;
+                    waypoint.MatchOpsPositionStatus = (ManagedWaypoint.OpsPositionStatus)val;
                     onWaypointChange(waypoint);
                 }));
             });
@@ -1425,9 +1425,9 @@ namespace WaypointQueue.UI
                 BuildUncoupleAllExceptLocomotive(waypoint, builder, onWaypointChange);
             }
 
-            if (waypoint.WillUncoupleByWaybillStatus)
+            if (waypoint.WillUncoupleByOpsPositionStatus)
             {
-                BuildUncoupleByWaybillStatusField(waypoint, builder, onWaypointChange);
+                BuildUncoupleByOpsPositionStatusField(waypoint, builder, onWaypointChange);
             }
         }
 
@@ -1715,7 +1715,7 @@ namespace WaypointQueue.UI
             }
             builder.AddField("Then wait", builder.HStack((UIPanelBuilder builder) =>
             {
-                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time", "For waybill status"], waypoint.WaitMode == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
+                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time", "Until cars are not spotted"], waypoint.WaitMode == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
                 {
                     switch (value)
                     {
@@ -1727,7 +1727,7 @@ namespace WaypointQueue.UI
                         case 2:
                             waypoint.WaitMode = ManagedWaypoint.WaitType.SpecificTime; break;
                         case 3:
-                            waypoint.WaitMode = ManagedWaypoint.WaitType.WaybillStatus; break;
+                            waypoint.WaitMode = ManagedWaypoint.WaitType.CarsNotSpotted; break;
                         default:
                             break;
                     }
@@ -1824,18 +1824,6 @@ namespace WaypointQueue.UI
                 }));
 
                 AddLabelOnlyTooltip(waitUntilTimeField, "Wait until", "The engineer will not proceed to the next waypoint until the specified time has passed.\n\nIf the train arrives at the waypoint past this time already, the engineer will still come to a complete stop before proceeding to the next waypoint.");
-            }
-
-            if (waypoint.WaitMode == ManagedWaypoint.WaitType.WaybillStatus)
-            {
-                int selectedIndex = (int)waypoint.WaitUntilWaybillStatus;
-                var waitUntilWaybillStatusField = builder.AddField("Wait for status", builder.AddDropdown(["Completed waybills", "Incompleted waybills", "No assigned waybills"], selectedIndex, (int val) =>
-                {
-                    waypoint.WaitUntilWaybillStatus = (ManagedWaypoint.WaybillStatus)val;
-                    onWaypointChange(waypoint);
-                }));
-
-                AddLabelOnlyTooltip(waitUntilWaybillStatusField, "Wait for status", "The engineer will not proceed to the next waypoint until all cars meet the matching waybill status, excluding locomotive and caboose.\n\nCompleted waybills are \"spotted\" cars. Incomplete waybills need to be delivered somewhere else. No assigned waybills are when an owned car has no destination assigned.");
             }
         }
 

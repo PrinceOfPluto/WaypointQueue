@@ -144,7 +144,8 @@ namespace WaypointQueue
                 ServiceProvider.GetService<RefuelService>(),
                 ServiceProvider.GetService<CouplingService>(),
                 ServiceProvider.GetService<ICarService>(),
-                ServiceProvider.GetService<AutoEngineerService>()
+                ServiceProvider.GetService<AutoEngineerService>(),
+                ServiceProvider.GetService<IOpsControllerWrapper>()
                 ));
         }
 
