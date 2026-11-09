@@ -120,8 +120,6 @@ namespace WaypointQueue.Settings
 
         public bool EnableVerboseLogging = true;
 
-        public bool DisableWindowRefreshOptimizations = true;
-
         public static WaypointQueueSettings Load()
         {
             WaypointQueueSettings settings = null;
