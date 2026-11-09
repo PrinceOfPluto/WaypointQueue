@@ -24,6 +24,7 @@ namespace WaypointQueue
         public RouteManagerWindow RouteManagerWindow { get; private set; }
         public ModSettingsWindow ModSettingsWindow { get; private set; }
         internal PendingSwitchRestorer PendingSwitchRestorer { get; private set; }
+        internal WaypointPreviewer WaypointPreviewer { get; private set; }
 
         internal ServiceProvider ServiceProvider { get; private set; }
 
@@ -86,6 +87,7 @@ namespace WaypointQueue
                 RouteManagerWindow = waypointQueueGO.AddComponent<RouteManagerWindow>();
                 ModSettingsWindow = waypointQueueGO.AddComponent<ModSettingsWindow>();
                 PendingSwitchRestorer = waypointQueueGO.AddComponent<PendingSwitchRestorer>();
+                WaypointPreviewer = waypointQueueGO.AddComponent<WaypointPreviewer>();
 
                 QueueStorageGO = new GameObject(QueueStorageGOName);
                 RouteStorageGO = new GameObject(RouteStorageGOName);

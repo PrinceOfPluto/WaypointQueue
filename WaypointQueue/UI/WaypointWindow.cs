@@ -617,6 +617,19 @@ namespace WaypointQueue.UI
                 }
             }).Width(30f).Height(30f).Disable(index == totalWaypoints - 1);
 
+            builder.AddIconButton("Locate", () =>
+            {
+                if (ModLocator.Loader.WaypointPreviewer.IsDisplayingPreview(waypoint))
+                {
+                    ModLocator.Loader.WaypointPreviewer.EndPreview();
+                }
+                else
+                {
+                    JumpCameraToWaypoint(waypoint);
+                    ModLocator.Loader.WaypointPreviewer.ShowWaypointPreview(waypoint);
+                }
+            }).Width(30f).Height(30f);
+
             List<DropdownMenu.RowData> options = new List<DropdownMenu.RowData>();
             var jumpToWaypointRow = new DropdownMenu.RowData("Jump to waypoint", "");
             var makeNextWaypointRow = new DropdownMenu.RowData("Make next waypoint", "Moves this waypoint to after current waypoint");

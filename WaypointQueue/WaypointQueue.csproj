@@ -157,6 +157,7 @@
     <Compile Include="UI\RouteLoadSaveHelper.cs" />
     <Compile Include="UI\ModSettingsWindow.cs" />
     <Compile Include="UI\WaypointPicker.cs" />
+    <Compile Include="UI\WaypointPreviewer.cs" />
     <Compile Include="Wrappers\IOpsControllerWrapper.cs" />
     <Compile Include="Wrappers\OpsControllerWrapper.cs" />
     <Compile Include="CarUtils.cs" />
