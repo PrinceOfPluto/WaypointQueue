@@ -78,6 +78,11 @@ namespace WaypointQueue.UI
                 Show();
             }
 
+            CaptureCustomWindow();
+        }
+
+        private void CaptureCustomWindow()
+        {
             if (_customWindow == null)
             {
                 _customWindow = WindowManager.Shared.GetCustomWindow(WindowIdentifier);
@@ -211,6 +216,8 @@ namespace WaypointQueue.UI
         {
             ModLocator.Loader.LogDebug($"Rebuilding and showing waypoint panel");
             WindowManager.Shared.ShowWindow(WindowIdentifier);
+            CaptureCustomWindow();
+            _customWindow.Rebuild();
         }
 
         public void Hide()
@@ -1693,7 +1700,12 @@ namespace WaypointQueue.UI
             {
                 builder.AddField("Waiting until", builder.HStack((UIPanelBuilder field) =>
                 {
-                    field.AddLabel($"{new GameDateTime(waypoint.WaitUntilGameTotalSeconds)}");
+                    var label = $"{new GameDateTime(waypoint.WaitUntilGameTotalSeconds)}";
+                    if (waypoint.WaitMode == ManagedWaypoint.WaitType.CarsNotSpotted)
+                    {
+                        label = "cars are not spotted";
+                    }
+                    field.AddLabel($"{label}");
                     field.Spacer();
                     field.AddButtonCompact("Skip wait", delegate
                     {
@@ -1715,7 +1727,9 @@ namespace WaypointQueue.UI
             }
             builder.AddField("Then wait", builder.HStack((UIPanelBuilder builder) =>
             {
-                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time", "Until cars are not spotted"], waypoint.WaitMode == ManagedWaypoint.WaitType.Duration ? 1 : 2, (int value) =>
+                int selectedIndex = (int)waypoint.WaitMode + 1;
+                // +1 to account for remove wait being at index zero
+                builder.AddDropdown(["Remove wait", "For a duration of time", "Until a specific time", "Until cars are not spotted"], selectedIndex, (int value) =>
                 {
                     switch (value)
                     {
@@ -1732,7 +1746,7 @@ namespace WaypointQueue.UI
                             break;
                     }
                     onWaypointChange(waypoint);
-                }).Width(200f);
+                }).Width(250f);
             }));
 
             builder.Spacer(8f);

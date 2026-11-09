@@ -77,6 +77,7 @@ namespace WaypointQueue.UI
         {
             WindowManager.Shared.ShowWindow(RouteManagerWindow.WindowIdentifier);
             CaptureCustomWindow();
+            _customWindow.Rebuild();
         }
 
         private void CaptureCustomWindow()
