@@ -37,7 +37,8 @@
     <OutputPath>$(ModDirectory)</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+	<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	<WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <!-- Railroader -->
   <ItemGroup>
