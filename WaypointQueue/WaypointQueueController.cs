@@ -580,6 +580,13 @@ namespace WaypointQueue
 
             state.UnresolvedWaypoint = waypoint;
 
+            // Handle if the location needs to be reset back to the original mark in case the player reordered the waypoints
+            if (!string.IsNullOrEmpty(waypoint.MarkLocationString))
+            {
+                Location originalLocation = Graph.Shared.ResolveLocationString(waypoint.MarkLocationString);
+                waypoint.OverwriteLocation(originalLocation);
+            }
+
             OrderWaypoint orderWaypoint;
             if (ModLocator.Settings.EnableWaypointOrientationFeature)
             {
@@ -587,6 +594,8 @@ namespace WaypointQueue
                 ModLocator.Loader.LogDebug($"Preparing to create orderWaypoint for {waypoint.ToString()}");
                 ModLocator.Loader.LogDebug($"Location {waypoint.LocationString} | couple to car id {waypoint.CoupleToCarId} | couple to car end {(waypoint.CoupleToCarEnd == Car.End.F ? 'F' : 'R')} | arriving end {waypoint.ArrivingEnd} | body toward {waypoint.BodyToward}");
 
+                var arrivingEndToUse = waypoint.ArrivingEnd;
+                var bodyTowardToUse = waypoint.BodyToward;
                 if (waypoint.PoseIndex != -1)
                 {
                     var poseOption = WaypointPoseCycle.Options[waypoint.PoseIndex];
@@ -594,8 +603,8 @@ namespace WaypointQueue
                     var currentNearSide = WaypointPoseCycle.NearSideOf(Graph.Shared.Current, waypoint.Location, waypoint.Locomotive, out _);
 
                     (WaypointEnd end, BodyToward side) = poseOption.ToOrderFields(waypoint.Locomotive, currentNearSide);
-                    waypoint.ArrivingEnd = end;
-                    waypoint.BodyToward = side;
+                    arrivingEndToUse = end;
+                    bodyTowardToUse = side;
                 }
 
                 if (waypoint.LocomotiveFrontEnd.HasValue)
@@ -603,17 +612,17 @@ namespace WaypointQueue
                     var currentLocoFrontEnd = PosedWaypoint.FrontEnd(state.Locomotive);
                     if (currentLocoFrontEnd != waypoint.LocomotiveFrontEnd.Value)
                     {
-                        waypoint.ArrivingEnd = PosedWaypoint.Flipped(waypoint.ArrivingEnd);
+                        arrivingEndToUse = PosedWaypoint.Flipped(arrivingEndToUse);
                     }
                 }
 
                 if (waypoint.IsCoupling && waypoint.CoupleToCarEnd.HasValue && waypoint.TryResolveCoupleToCar(out _))
                 {
-                    orderWaypoint = PosedWaypoint.CoupleOrder(state.Locomotive, Graph.Shared, waypoint.CoupleToCar, waypoint.CoupleToCarEnd.Value, waypoint.ArrivingEnd);
+                    orderWaypoint = PosedWaypoint.CoupleOrder(state.Locomotive, Graph.Shared, waypoint.CoupleToCar, waypoint.CoupleToCarEnd.Value, arrivingEndToUse);
                 }
                 else
                 {
-                    orderWaypoint = PosedWaypoint.Order(state.Locomotive, Graph.Shared, waypoint.Location, waypoint.ArrivingEnd, waypoint.BodyToward, coupleToCarId: waypoint.CoupleToCarId);
+                    orderWaypoint = PosedWaypoint.Order(state.Locomotive, Graph.Shared, waypoint.Location, arrivingEndToUse, bodyTowardToUse, coupleToCarId: waypoint.CoupleToCarId);
                 }
 
                 ModLocator.Loader.LogDebug($"PosedWaypoint.Order created the following orderWaypoint: location {orderWaypoint.LocationString} | couple to car id {orderWaypoint.CoupleToCarId} | couple to car end {(orderWaypoint.CoupleToCarEnd == Car.End.F ? 'F' : 'R')} | arriving end {orderWaypoint.ArrivingEnd} | body toward {orderWaypoint.BodyToward} | body length {orderWaypoint.BodyLength}");

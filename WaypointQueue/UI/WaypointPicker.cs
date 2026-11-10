@@ -681,6 +681,7 @@ namespace WaypointQueue.UI
             _waypoint.LocomotiveFrontEnd = null;
             _waypoint.PoseIndex = waypoint.PoseIndex;
             _waypoint.BodyToward = waypoint.BodyToward;
+            _waypoint.MarkLocationString = string.Empty;
 
             _waypoint.ClearRefueling();
 
