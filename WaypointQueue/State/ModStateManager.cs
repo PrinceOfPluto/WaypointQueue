@@ -132,6 +132,7 @@ namespace WaypointQueue.State
 
         private void PrepareStorageKeyValueObjects()
         {
+            ModLocator.Loader.Log($"Preparing storage key value objects");
             DestroyStorageKeyValueObjects();
             KeyValueObject modStorageKeyValueObject = base.gameObject.AddComponent<KeyValueObject>();
             _waypointModStorage = new WaypointModStorage(modStorageKeyValueObject);
@@ -158,6 +159,11 @@ namespace WaypointQueue.State
 
         private void OnPropertiesDidRestore(PropertiesDidRestore evt)
         {
+            if (_waypointModStorage == null)
+            {
+                PrepareStorageKeyValueObjects();
+            }
+
             _refuelService.RebuildCollections();
 
             using (StateManager.TransactionScope())
