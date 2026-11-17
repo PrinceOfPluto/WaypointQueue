@@ -1,6 +1,6 @@
 {
     "identifier": "princeofpluto/waypointqueue",
-    "version": "2.2.0",
+    "version": "2.2.2",
     "name": "Waypoint Queue",
     "author": "PrinceOfPluto",
     "description": "Expands AE waypoint mode to support multiple waypoints, complex switching orders, brake management, refueling, and more.",
@@ -9,7 +9,7 @@
     "assemblies": [ "WaypointQueue.dll" ],
     "dependencies": {
         "required": [
-            "rr/game >=0.6.2"
+            "rr/game >=0.6.3"
         ]
     }
 }
