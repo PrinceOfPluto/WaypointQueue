@@ -126,7 +126,6 @@
   <ItemGroup>
     <Compile Include="Patches\PatchAutoEngineer.cs" />
     <Compile Include="Patches\PatchCar.cs" />
-    <Compile Include="Patches\PatchFastForward.cs" />
     <Compile Include="Patches\PatchSettingsPanel.cs" />
     <Compile Include="Settings\InputActionAssetFactory.cs" />
     <Compile Include="Model\CouplingException.cs" />
