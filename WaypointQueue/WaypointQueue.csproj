@@ -37,8 +37,8 @@
     <OutputPath>$(ModDirectory)</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
-	<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-	<WarningLevel>4</WarningLevel>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <!-- Railroader -->
   <ItemGroup>
@@ -126,6 +126,7 @@
   <ItemGroup>
     <Compile Include="Patches\PatchAutoEngineer.cs" />
     <Compile Include="Patches\PatchCar.cs" />
+    <Compile Include="Patches\PatchFastForward.cs" />
     <Compile Include="Patches\PatchSettingsPanel.cs" />
     <Compile Include="Settings\InputActionAssetFactory.cs" />
     <Compile Include="Model\CouplingException.cs" />
@@ -148,7 +149,6 @@
     <Compile Include="State\Events\RoutesDidLoadFromDisk.cs" />
     <Compile Include="State\Events\WaypointDidUpdate.cs" />
     <Compile Include="State\Events\WaypointWasAppended.cs" />
-    <Compile Include="State\PendingSwitchRestorer.cs" />
     <Compile Include="State\QueueStateStorage.cs" />
     <Compile Include="State\RouteStorage.cs" />
     <Compile Include="State\WaypointModStorage.cs" />

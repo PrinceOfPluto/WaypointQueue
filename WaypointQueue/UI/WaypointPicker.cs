@@ -485,16 +485,14 @@ namespace WaypointQueue.UI
 
         private bool DeriveNaturalPose(Location targetLocation, string coupleToCarId, TrackSegment.End nearSide, List<JunctionTurn> arrivalTurnsOut)
         {
-            if (_locomotive == null || !PosedWaypoint.PlanNaturalArrival((BaseLocomotive)_locomotive, _graph, targetLocation, coupleToCarId, arrivalTurnsOut, out var route) || route.Count == 0)
+            if (_locomotive == null || !PosedWaypoint.PlanNaturalArrival((BaseLocomotive)_locomotive, _graph, targetLocation, coupleToCarId, arrivalTurnsOut, out var arrivingEnd, out var bodyToward) || bodyToward == BodyToward.Unspecified)
             {
                 return false;
             }
 
-            List<RouteSearch.Step> list = route;
-            RouteSearch.Step step = list[list.Count - 1];
-            if (_locomotive != null && WaypointPoseCycle.TryDescribeArrival(_graph, (BaseLocomotive)_locomotive, targetLocation, nearSide, _trainLength, step.Location, step.LeadingEnd, arrivalTurnsOut, out var option))
+            if (_locomotive != null)
             {
-                SetNaturalPose(option, nearSide);
+                SetNaturalPose(WaypointPoseCycle.OptionFor(_locomotive, nearSide, arrivingEnd, bodyToward), nearSide);
                 return true;
             }
 
